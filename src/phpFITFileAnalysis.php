@@ -2263,10 +2263,10 @@ class phpFITFileAnalysis
                         if (isset($this->data_mesgs[$message][$field])) {
                             if (is_array($this->data_mesgs[$message][$field])) {
                                 foreach ($this->data_mesgs[$message][$field] as &$value) {
-                                    $value = round($value * 0.000621371192, 2);
+                                    $value = round($value * 0.000621371192, 5);  // JKK: increased from 2 to 5 decimals.
                                 }
                             } else {
-                                $this->data_mesgs[$message][$field] = round($this->data_mesgs[$message][$field] * 0.000621371192, 2);
+                                $this->data_mesgs[$message][$field] = round($this->data_mesgs[$message][$field] * 0.000621371192, 5);  // JKK: increased from 2 to 4 decimals.
                             }
                         }
                     }
@@ -2329,10 +2329,10 @@ class phpFITFileAnalysis
                         if (isset($this->data_mesgs[$message][$field])) {
                             if (is_array($this->data_mesgs[$message][$field])) {
                                 foreach ($this->data_mesgs[$message][$field] as &$value) {
-                                    $value = round($value * 0.001, 2);
+                                    $value = round($value * 0.001, 4);  // JKK: increased from 2 to 4 decimals.
                                 }
                             } else {
-                                $this->data_mesgs[$message][$field] = round($this->data_mesgs[$message][$field] * 0.001, 2);
+                                $this->data_mesgs[$message][$field] = round($this->data_mesgs[$message][$field] * 0.001, 4);  // JKK: increased from 2 to 4 decimals.
                             }
                         }
                     }
