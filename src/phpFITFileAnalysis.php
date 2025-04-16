@@ -48,6 +48,7 @@ class phpFITFileAnalysis
     private $php_trader_ext_loaded = false;  // Is the PHP Trader extension loaded? Use $this->sma() algorithm if not available.
     private $types = null;                   // Set by $endianness depending on architecture in Definition Message.
     private $garmin_timestamps = false;      // By default the constant FIT_UNIX_TS_DIFF will be added to timestamps.
+    private $file_buff = false;              // Set to true to NOT pull entire file in as a string.  Read the file in pieces.
 
     // Enumerated data looked up by enumData().
     // Values from 'Profile.xls' contained within the FIT SDK.
@@ -1362,6 +1363,23 @@ class phpFITFileAnalysis
     {
         if( isset( $options['input_is_data'] ) ){
             $this->file_contents = $file_path_or_data;
+        // JKK.
+        } elseif ( isset( $options['buffer_input_to_db'] ) && isset( $options['table_name'] ) ) {
+            $handle = fopen($file_path_or_data, 'rb');
+            if (!$handle) {
+                throw new \Exception('phpFITFileAnalysis->__construct(): unable to open file \'' . $file_path_or_data . '\'!');
+            }
+            $this->file_contents = $handle;
+
+            $this->file_buff = true;
+            $this->data_table = $this->cleanTableName($options['table_name']);
+
+
+            // Do these later
+            // while (!feof($handle)) {
+            //     $this->file_contents .= fread($handle, 8192); // Read in chunks of 8KB
+            // }
+            // fclose($handle);
         }else{
             if (empty($file_path_or_data)) {
                 throw new \Exception('phpFITFileAnalysis->__construct(): file_path is empty!');
@@ -1402,12 +1420,48 @@ class phpFITFileAnalysis
     }
 
     /**
+     * Clean table name to be used in SQL queries.
+     * @param string $table_name
+     * @return string
+     */
+    private function cleanTableName($table_name) 
+    {
+        $table_name = str_replace(' ', '_', $table_name);
+        $table_name = str_replace('-', '_', $table_name);
+        $table_name = str_replace('.', '_', $table_name);
+        $table_name = str_replace('/', '_', $table_name);
+        $table_name = str_replace('\\', '_', $table_name);
+        $table_name = str_replace(':', '_', $table_name);
+        $table_name = str_replace('(', '_', $table_name);
+        $table_name = str_replace(')', '_', $table_name);
+        $table_name = str_replace('\'', '_', $table_name);
+        $table_name = str_replace('"', '_', $table_name);
+        $table_name = str_replace('!', '_', $table_name);
+        $table_name = str_replace('?', '_', $table_name);
+        $table_name = str_replace(' ', '_', $table_name);
+        $table_name = str_replace('=', '_', $table_name);
+        $table_name = str_replace('~', '_', $table_name);
+        $table_name = str_replace('`', '_', $table_name);
+        $table_name = str_replace('^', '_', $table_name);
+        $table_name = str_replace('&', '_', $table_name);
+        $table_name = str_replace('+', '_', $table_name);
+        $table_name = str_replace(';', '_', $table_name);
+        $table_name = str_replace('>', '_', $table_name);
+        $table_name = str_replace('<', '_', $table_name);
+        return $table_name;
+    }
+
+    /**
      * D00001275 Flexible & Interoperable Data Transfer (FIT) Protocol Rev 1.7.pdf
      * Table 3-1. Byte Description of File Header
      */
     private function readHeader()
     {
-        $header_size = unpack('C1header_size', substr($this->file_contents, $this->file_pointer, 1))['header_size'];
+        if ( $this->file_buff ) {
+            $header_size = unpack('C1header_size', fread($this->file_contents, 1))['header_size'];
+        } else {
+            $header_size = unpack('C1header_size', substr($this->file_contents, $this->file_pointer, 1))['header_size'];
+        }
         $this->file_pointer++;
 
         if ($header_size != 12 && $header_size != 14) {
