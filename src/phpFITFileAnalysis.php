@@ -3751,8 +3751,6 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'phpFITFileAnalysis->readHeader(): not a valid FIT file!' );
 		}
 
-		error_log( 'phpFITFileAnalysis->readHeader(): file_pointer = : ' . $this->file_pointer . ', file position = ' . ftell( $this->file_contents ) );
-
 		// JKK. Original content was commented out.
 		// if (strlen($this->file_contents) - $header_size - 2 !== $this->file_header['data_size']) {
 			// Overwrite the data_size. Seems to be incorrect if there are buffered messages e.g. HR records.
