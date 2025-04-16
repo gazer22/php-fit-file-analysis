@@ -133,7 +133,12 @@ $options = [
     'garmin_timestamps'       => true,
     'overwrite_with_dev_data' => false,
     'buffer_input_to_db'      => false,
-    'table_name'              => '',
+    'database'                => array(
+        'table_name'       => 'event_101',
+        'data_source_name' => 'mysql:host=localhost;dbname=testdb',
+        'username'         => 'user',
+        'password'         => 'password',
+    );
 ];
 $pFFA = new adriangibbons\phpFITFileAnalysis('my_fit_file.fit', $options);
 ```

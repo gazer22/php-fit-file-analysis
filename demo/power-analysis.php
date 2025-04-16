@@ -14,7 +14,7 @@ try {
     //	  'fix_data' => ['all'],
     //    'units' => ['metric']
     ];
-    $pFFA = new adriangibbons\phpFITFileAnalysis(__DIR__ . $file, $options);
+    $pFFA = new gazer22\phpFITFileAnalysis(__DIR__ . $file, $options);
         
     // Google Time Zone API
     $date = new DateTime('now', new DateTimeZone('UTC'));
