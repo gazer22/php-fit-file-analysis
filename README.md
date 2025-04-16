@@ -131,7 +131,9 @@ $options = [
     'units'                   => 'statute',
     'pace'                    => true,
     'garmin_timestamps'       => true,
-    'overwrite_with_dev_data' => false
+    'overwrite_with_dev_data' => false,
+    'buffer_input_to_db'      => false,
+    'table_name'              => '',
 ];
 $pFFA = new adriangibbons\phpFITFileAnalysis('my_fit_file.fit', $options);
 ```
