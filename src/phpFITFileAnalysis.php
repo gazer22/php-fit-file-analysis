@@ -1475,7 +1475,13 @@ class phpFITFileAnalysis
         if ($header_size > 12) {
             $header_fields .= '/v1crc';
         }
-        $this->file_header = unpack($header_fields, substr($this->file_contents, $this->file_pointer, $header_size - 1));
+
+        // JKK.
+        if ( $this->file_buff ) {
+            $this->file_header = unpack($header_fields, fread($this->file_contents, $header_size - 1));
+        } else {
+            $this->file_header = unpack($header_fields, substr($this->file_contents, $this->file_pointer, $header_size - 1));
+        }
         $this->file_header['header_size'] = $header_size;
 
         $this->file_pointer += $this->file_header['header_size'] - 1;
@@ -1486,10 +1492,11 @@ class phpFITFileAnalysis
             throw new \Exception('phpFITFileAnalysis->readHeader(): not a valid FIT file!');
         }
 
-        if (strlen($this->file_contents) - $header_size - 2 !== $this->file_header['data_size']) {
+        // JKK. Original content was commented out.
+        // if (strlen($this->file_contents) - $header_size - 2 !== $this->file_header['data_size']) {
             // Overwrite the data_size. Seems to be incorrect if there are buffered messages e.g. HR records.
             //$this->file_header['data_size'] = $this->file_header['crc'] - $header_size + 2;
-        }
+        // }
     }
 
     /**
