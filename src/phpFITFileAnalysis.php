@@ -3599,7 +3599,6 @@ class phpFITFileAnalysis {
 	public function __construct( $file_path_or_data, $options = null ) {
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
-			// JKK.
 		} elseif ( isset( $options['buffer_input_to_db'] ) && $options['buffer_input_to_db'] && $this->checkFileBufferOptions( $options['database'] ) ) {
 
 			try {
@@ -3631,6 +3630,15 @@ class phpFITFileAnalysis {
 			 * Header . Data Records . CRC
 			 */
 			$this->file_contents = $handle;
+		}
+
+		// Limit data to contents of $options['limit_data'].
+		// In the form of mesg_name => array( allowed field names ).
+		// Example: array( 'record' => array( 'position_lat', 'position_long', 'altitude', 'distance', 'speed' ) )
+		// Timestamp is always included.
+		if ( isset( $options['limit_data'] ) ) {
+			$this->limit_data( $options['limit_data'] );
+			error_log( 'phpFITFileAnalysis->__construct(): limiting data to ' . print_r( $this->data_mesg_info, true ) );
 		}
 
 		$this->options = $options;
@@ -3718,6 +3726,32 @@ class phpFITFileAnalysis {
 		$table_name = str_replace( '>', '_', $table_name );
 		$table_name = str_replace( '<', '_', $table_name );
 		return $table_name;
+	}
+
+	/**
+	 * Modify the data_mesg_info array to only include the fields specified in 
+	 * options.
+	 * 
+	 * @param array $options
+	 * @return void
+	 */
+	private function limit_data( $options ) {
+		if ( ! is_array( $options ) ) {
+			throw new \Exception( 'phpFITFileAnalysis->limit_data(): options must be an array!' );
+		}
+
+		foreach ( $this->data_mesg_info as $mesg_num => $mesg_info ) {
+			if ( isset( $options[ $mesg_info['mesg_name'] ] ) && is_array( $options[ $mesg_info['mesg_name'] ] ) ) {
+				foreach ( $this->data_mesg_info[ $mesg_num ]['field_defns'] as $field_num => $field_defn ) {
+					if ( ! in_array( $field_defn['field_name'], $options[ $mesg_info['mesg_name'] ], true ) ) {
+						unset( $this->data_mesg_info[ $mesg_num ]['field_defns'][ $field_num ] );
+					}
+				}
+			} else {
+				// If no options are provided, remove all fields.
+				unset( $this->data_mesg_info[ $mesg_num ] );
+			}
+		}
 	}
 
 	/**
