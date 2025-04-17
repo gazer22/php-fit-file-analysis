@@ -3638,7 +3638,7 @@ class phpFITFileAnalysis {
 		// Timestamp is always included.
 		if ( isset( $options['limit_data'] ) ) {
 			$this->limit_data( $options['limit_data'] );
-			error_log( 'phpFITFileAnalysis->__construct(): limiting data to ' . print_r( $this->data_mesg_info, true ) );
+			// error_log( 'phpFITFileAnalysis->__construct(): limiting data to ' . print_r( $this->data_mesg_info, true ) );
 		}
 
 		$this->options = $options;
