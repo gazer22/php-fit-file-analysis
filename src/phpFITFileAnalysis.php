@@ -3743,7 +3743,7 @@ class phpFITFileAnalysis {
 		foreach ( $this->data_mesg_info as $mesg_num => $mesg_info ) {
 			if ( isset( $options[ $mesg_info['mesg_name'] ] ) && is_array( $options[ $mesg_info['mesg_name'] ] ) ) {
 				foreach ( $this->data_mesg_info[ $mesg_num ]['field_defns'] as $field_num => $field_defn ) {
-					if ( ! in_array( $field_defn['field_name'], $options[ $mesg_info['mesg_name'] ], true ) ) {
+					if ( ! in_array( $field_defn['field_name'], $options[ $mesg_info['mesg_name'] ], true ) && 'timestamp' !== $field_defn['field_name'] ) {
 						unset( $this->data_mesg_info[ $mesg_num ]['field_defns'][ $field_num ] );
 					}
 				}
