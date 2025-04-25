@@ -3595,8 +3595,17 @@ class phpFITFileAnalysis {
 		),
 	);
 
-	// PHP Constructor - called when an object of the class is instantiated.
-	public function __construct( $file_path_or_data, $options = null ) {
+    /**
+     * Constructor for phpFITFileAnalysis.
+     *
+     * @param string|array           $file_path_or_data  Path to FIT file or the data itself.
+     * @param array                  $options            Options for processing the FIT file.
+     * @param CCM_GPS_Fit_File_Queue $queue              Queue for processing FIT file data.
+     *   Queue class must implement the following methods:
+     *     - get_lock_expiration();
+     *     - lock_process( $reset_start_time = true ); 
+     */
+	public function __construct( $file_path_or_data, $options = null, $queue = null ) {
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
 		} elseif ( isset( $options['buffer_input_to_db'] ) && $options['buffer_input_to_db'] && $this->checkFileBufferOptions( $options['database'] ) ) {
@@ -3653,7 +3662,7 @@ class phpFITFileAnalysis {
 
 		// Process the file contents.
 		$this->readHeader();
-		$this->readDataRecords();
+		$this->readDataRecords( $queue );
 		$this->oneElementArrays();
 
 		// Process HR messages
@@ -3794,15 +3803,31 @@ class phpFITFileAnalysis {
 
 	/**
 	 * Reads the remainder of $this->file_contents and store the data in the $this->data_mesgs array.
+     * 
+     * @param CCM_GPS_Fit_File_Queue|null $queue Queue for processing FIT file data.
 	 */
-	private function readDataRecords() {
+	private function readDataRecords( $queue = null ) {
 		$record_header_byte  = 0;
 		$message_type        = 0;
 		$developer_data_flag = 0;
 		$local_mesg_type     = 0;
 		$previousTS          = 0;
 
+        if ( $queue ) {
+            $lock_expire = $queue->get_lock_expiration();
+        } else {
+            $lock_expire = false;
+        }
+
 		while ( $this->file_header['header_size'] + $this->file_header['data_size'] > $this->file_pointer ) {
+            // Check if we need to re-lock the process
+            if ( $queue && $lock_expire ) {
+                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
+                    $queue->lock_process( false );
+                    $lock_expire = $queue->get_lock_expiration();
+                }
+            }
+
 			$record_header_byte = unpack( 'C1record_header_byte', fread( $this->file_contents, 1 ) )['record_header_byte'];
 			++$this->file_pointer;
 
