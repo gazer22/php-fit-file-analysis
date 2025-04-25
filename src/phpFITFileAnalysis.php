@@ -3666,11 +3666,11 @@ class phpFITFileAnalysis {
 		$this->oneElementArrays();
 
 		// Process HR messages
-		$this->processHrMessages();
+		$this->processHrMessages( $queue );
 
 		// Handle options.
-		$this->fixData( $this->options );
-		$this->setUnits( $this->options );
+		$this->fixData( $this->options, $queue );
+		$this->setUnits( $this->options, $queue );
 
 		fclose( $this->file_contents );
 	}
@@ -4107,7 +4107,13 @@ class phpFITFileAnalysis {
 	/**
 	 * If the user has requested for the data to be fixed, identify the missing keys for that data.
 	 */
-	private function fixData( $options ) {
+	private function fixData( $options, $queue = null ) {
+        if ( $queue ) {
+            $lock_expire = $queue->get_lock_expiration();
+        } else {
+            $lock_expire = false;
+        }
+
 		// By default the constant FIT_UNIX_TS_DIFF will be added to timestamps, which have field type of date_time (or local_date_time).
 		// Timestamp fields (field number == 253) converted after being unpacked in $this->readDataRecords().
 		if ( ! $this->garmin_timestamps ) {
@@ -4194,6 +4200,13 @@ class phpFITFileAnalysis {
 				if ( isset( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
 					if ( is_array( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
 						foreach ( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] as &$element ) {
+					       	if ( $queue && $lock_expire ) {
+								if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
+									$queue->lock_process( false );
+									$lock_expire = $queue->get_lock_expiration();
+								}
+							}
+
 							$element += FIT_UNIX_TS_DIFF;
 						}
 					} else {
@@ -5586,18 +5599,33 @@ class phpFITFileAnalysis {
 	 * Based heavily on logic in commit:
 	 * https://github.com/GoldenCheetah/GoldenCheetah/commit/957ae470999b9a57b5b8ec57e75512d4baede1ec
 	 * Particularly the decodeHr() method
+	 * 
+	 * @param object $queue  Queue object
 	 */
-	private function processHrMessages() {
+	private function processHrMessages( $queue = null ) {
 		// Check that we have received HR messages
 		if ( empty( $this->data_mesgs['hr'] ) ) {
 			return;
 		}
+
+		if ( $queue ) {
+            $lock_expire = $queue->get_lock_expiration();
+        } else {
+            $lock_expire = false;
+        }
 
 		$hr         = array();
 		$timestamps = array();
 
 		// Load all filtered_bpm values into the $hr array
 		foreach ( $this->data_mesgs['hr']['filtered_bpm'] as $hr_val ) {
+	       	if ( $queue && $lock_expire ) {
+                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
+                    $queue->lock_process( false );
+                    $lock_expire = $queue->get_lock_expiration();
+                }
+        	}
+
 			if ( is_array( $hr_val ) ) {
 				foreach ( $hr_val as $sub_hr_val ) {
 					$hr[] = $sub_hr_val;
@@ -5617,6 +5645,14 @@ class phpFITFileAnalysis {
 
 		// Determine timestamps (similar to compressed timestamps)
 		foreach ( $this->data_mesgs['hr']['event_timestamp_12'] as $event_timestamp_12_val ) {
+
+        	if ( $queue && $lock_expire ) {
+                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
+                    $queue->lock_process( false );
+                    $lock_expire = $queue->get_lock_expiration();
+                }
+        	}
+
 			$j = 0;
 			for ( $i = 0; $i < 11; $i++ ) {
 				$last_event_timestamp12 = $last_event_timestamp & 0xFFF;
@@ -5645,6 +5681,14 @@ class phpFITFileAnalysis {
 		$min_record_ts    = min( $this->data_mesgs['record']['timestamp'] );
 		$max_record_ts    = max( $this->data_mesgs['record']['timestamp'] );
 		foreach ( $timestamps as $idx => $timestamp ) {
+
+        	if ( $queue && $lock_expire ) {
+                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
+                    $queue->lock_process( false );
+                    $lock_expire = $queue->get_lock_expiration();
+                }
+        	}
+
 			$ts_secs = round( $timestamp + $start_timestamp );
 
 			// Skip timestamps outside of the range we're interested in
@@ -5660,6 +5704,13 @@ class phpFITFileAnalysis {
 
 		// Populate the heart_rate fields for record messages
 		foreach ( $filtered_bpm_arr as $idx => $arr ) {
+        	if ( $queue && $lock_expire ) {
+                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
+                    $queue->lock_process( false );
+                    $lock_expire = $queue->get_lock_expiration();
+                }
+        	}
+
 			$this->data_mesgs['record']['heart_rate'][ $idx ] = (int) round( $arr[0] / $arr[1] );
 		}
 	}
