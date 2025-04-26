@@ -3668,23 +3668,23 @@ class phpFITFileAnalysis {
 		$this->readHeader();
 		$this->readDataRecords( $queue );
 
-		error_log( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
+		// error_log( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
 		$this->oneElementArrays();
 
 		// Process HR messages
 		$this->processHrMessages( $queue );
 
-		error_log( 'phpFITFileAnalysis->__construct(): processHrMessages() completed for ' . $file_path_or_data );
+		// error_log( 'phpFITFileAnalysis->__construct(): processHrMessages() completed for ' . $file_path_or_data );
 
 		// Handle options.
 		$this->fixData( $this->options, $queue );
 
-		error_log( 'phpFITFileAnalysis->__construct(): fixData() completed for ' . $file_path_or_data );
+		// error_log( 'phpFITFileAnalysis->__construct(): fixData() completed for ' . $file_path_or_data );
 
 		$this->setUnits( $this->options, $queue );
 
-		error_log( 'phpFITFileAnalysis->__construct(): setUnits() completed for ' . $file_path_or_data );
+		// error_log( 'phpFITFileAnalysis->__construct(): setUnits() completed for ' . $file_path_or_data );
 
 		fclose( $this->file_contents );
 	}
@@ -4212,7 +4212,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		error_log( 'phpFITFileAnalysis->fixData(): finished adjusting timestamps at ' . gmdate( 'H:i:s' ) );
+		// error_log( 'phpFITFileAnalysis->fixData(): finished adjusting timestamps at ' . gmdate( 'H:i:s' ) );
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 		// Find messages that have been unpacked as unsigned integers that should be signed integers.
@@ -4296,7 +4296,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		error_log( 'phpFITFileAnalysis->fixData(): finished unsigned int check at ' . gmdate( 'H:i:s' ) );
+		// error_log( 'phpFITFileAnalysis->fixData(): finished unsigned int check at ' . gmdate( 'H:i:s' ) );
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 		// Remove duplicate timestamps and store original before interpolating
@@ -4397,7 +4397,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		error_log( 'phpFITFileAnalysis->fixData(): set up fields to check at ' . gmdate( 'H:i:s' ) );
+		// error_log( 'phpFITFileAnalysis->fixData(): set up fields to check at ' . gmdate( 'H:i:s' ) );
 
 		$missing_distance_keys          = array();
 		$missing_hr_keys                = array();
@@ -4461,7 +4461,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		error_log( 'phpFITFileAnalysis->fixData(): finished checking for missing data at ' . gmdate( 'H:i:s' ) );
+		// error_log( 'phpFITFileAnalysis->fixData(): finished checking for missing data at ' . gmdate( 'H:i:s' ) );
 
 		$paused_timestamps = $this->isPaused();
 
@@ -4471,48 +4471,48 @@ class phpFITFileAnalysis {
 
 		if ( $bCadence ) {
 			ksort( $this->data_mesgs['record']['cadence'] );  // no interpolation; zeros added earlier
-			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing cadence data at ' . gmdate( 'H:i:s' ) );
+			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing cadence data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bDistance ) {
 			$lock_expire = $this->interpolateMissingData( $missing_distance_keys, $this->data_mesgs['record']['distance'], false, $paused_timestamps, $queue, $lock_expire );
-			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing distance data at ' . gmdate( 'H:i:s' ) );
+			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing distance data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bHeartRate ) {
 			$lock_expire = $this->interpolateMissingData( $missing_hr_keys, $this->data_mesgs['record']['heart_rate'], true, $paused_timestamps, $queue, $lock_expire );
-			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing HR data at ' . gmdate( 'H:i:s' ) );
+			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing HR data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bLatitudeLongitude ) {
 			$lock_expire = $this->interpolateMissingData( $missing_lat_keys, $this->data_mesgs['record']['position_lat'], false, $paused_timestamps, $queue, $lock_expire );
 			$lock_expire = $this->interpolateMissingData( $missing_lon_keys, $this->data_mesgs['record']['position_long'], false, $paused_timestamps, $queue, $lock_expire );
-			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing lat/long data at ' . gmdate( 'H:i:s' ) );
+			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing lat/long data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bSpeed ) {
 			$lock_expire = $this->interpolateMissingData( $missing_speed_keys, $this->data_mesgs['record']['speed'], false, $paused_timestamps, $queue, $lock_expire );
-			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing speed data at ' . gmdate( 'H:i:s' ) );
+			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing speed data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bPower ) {
 			$lock_expire = $this->interpolateMissingData( $missing_power_keys, $this->data_mesgs['record']['power'], true, $paused_timestamps, $queue, $lock_expire );
-			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing power data at ' . gmdate( 'H:i:s' ) );
+			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing power data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bAltitude ) {
 			$lock_expire = $this->interpolateMissingData( $missing_altitude_keys, $this->data_mesgs['record']['altitude'], false, $paused_timestamps, $queue, $lock_expire );
-			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing altitude data at ' . gmdate( 'H:i:s' ) );
+			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing altitude data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bEnhancedSpeed ) {
 			$lock_expire = $this->interpolateMissingData( $missing_enhanced_speed_keys, $this->data_mesgs['record']['enhanced_speed'], false, $paused_timestamps, $queue, $lock_expire );
-			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced speed data at ' . gmdate( 'H:i:s' ) );
+			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced speed data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bEnhancedAltitude ) {
 			$lock_expire = $this->interpolateMissingData( $missing_enhanced_altitude_keys, $this->data_mesgs['record']['enhanced_altitude'], false, $paused_timestamps, $queue, $lock_expire );
-			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced altitude data at ' . gmdate( 'H:i:s' ) );
+			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced altitude data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 	}
