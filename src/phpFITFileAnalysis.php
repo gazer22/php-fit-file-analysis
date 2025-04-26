@@ -1,6 +1,10 @@
 <?php
 namespace gazer22;
 
+// phpcs:disable WordPress
+// phpcs:disable Squiz.Commenting
+// phpcs:disable Generic.Commenting.DocComment.ShortNotCapital
+
 /**
  * phpFITFileAnalysis
  * =====================
@@ -39,17 +43,17 @@ class phpFITFileAnalysis {
 
 	public $data_mesgs              = array();  // Used to store the data read from the file in associative arrays.
 	private $dev_field_descriptions = array();
-	private $options                = null;                 // Options provided to __construct().
-	private $file_contents          = '';             // FIT file is read-in to memory as a string, split into an array, and reversed. See __construct().
-	private $file_pointer           = 0;               // Points to the location in the file that shall be read next.
-	private $defn_mesgs             = array();                // Array of FIT 'Definition Messages', which describe the architecture, format, and fields of 'Data Messages'.
-	private $defn_mesgs_all         = array();            // Keeps a record of all Definition Messages as index ($local_mesg_type) of $defn_mesgs may be reused in file.
-	private $file_header            = array();               // Contains information about the FIT file such as the Protocol version, Profile version, and Data Size.
-	private $php_trader_ext_loaded  = false;  // Is the PHP Trader extension loaded? Use $this->sma() algorithm if not available.
-	private $types                  = null;                   // Set by $endianness depending on architecture in Definition Message.
-	private $garmin_timestamps      = false;      // By default the constant FIT_UNIX_TS_DIFF will be added to timestamps.
-	private $file_buff              = false;              // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
-	private $data_table             = '';                // Base name for data tables in the database.
+	private $options                = null;     // Options provided to __construct().
+	private $file_contents          = '';       // FIT file is read-in to memory as a string, split into an array, and reversed. See __construct().
+	private $file_pointer           = 0;        // Points to the location in the file that shall be read next.
+	private $defn_mesgs             = array();  // Array of FIT 'Definition Messages', which describe the architecture, format, and fields of 'Data Messages'.
+	private $defn_mesgs_all         = array();  // Keeps a record of all Definition Messages as index ($local_mesg_type) of $defn_mesgs may be reused in file.
+	private $file_header            = array();  // Contains information about the FIT file such as the Protocol version, Profile version, and Data Size.
+	private $php_trader_ext_loaded  = false;    // Is the PHP Trader extension loaded? Use $this->sma() algorithm if not available.
+	private $types                  = null;     // Set by $endianness depending on architecture in Definition Message.
+	private $garmin_timestamps      = false;    // By default the constant FIT_UNIX_TS_DIFF will be added to timestamps.
+	private $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
+	private $data_table             = '';       // Base name for data tables in the database.
 	private $db;                                // PDO object for database connection.
 
 	// Enumerated data looked up by enumData().
@@ -3595,16 +3599,16 @@ class phpFITFileAnalysis {
 		),
 	);
 
-    /**
-     * Constructor for phpFITFileAnalysis.
-     *
-     * @param string|array           $file_path_or_data  Path to FIT file or the data itself.
-     * @param array                  $options            Options for processing the FIT file.
-     * @param CCM_GPS_Fit_File_Queue $queue              Queue for processing FIT file data.
-     *   Queue class must implement the following methods:
-     *     - get_lock_expiration();
-     *     - lock_process( $reset_start_time = true ); 
-     */
+	/**
+	 * Constructor for phpFITFileAnalysis.
+	 *
+	 * @param string|array           $file_path_or_data  Path to FIT file or the data itself.
+	 * @param array                  $options            Options for processing the FIT file.
+	 * @param CCM_GPS_Fit_File_Queue $queue              Queue for processing FIT file data.
+	 *   Queue class must implement the following methods:
+	 *     - get_lock_expiration();
+	 *     - lock_process( $reset_start_time = true );
+	 */
 	public function __construct( $file_path_or_data, $options = null, $queue = null ) {
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
@@ -3663,14 +3667,24 @@ class phpFITFileAnalysis {
 		// Process the file contents.
 		$this->readHeader();
 		$this->readDataRecords( $queue );
+
+		error_log( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
+
 		$this->oneElementArrays();
 
 		// Process HR messages
 		$this->processHrMessages( $queue );
 
+		error_log( 'phpFITFileAnalysis->__construct(): processHrMessages() completed for ' . $file_path_or_data );
+
 		// Handle options.
 		$this->fixData( $this->options, $queue );
+
+		error_log( 'phpFITFileAnalysis->__construct(): fixData() completed for ' . $file_path_or_data );
+
 		$this->setUnits( $this->options, $queue );
+
+		error_log( 'phpFITFileAnalysis->__construct(): setUnits() completed for ' . $file_path_or_data );
 
 		fclose( $this->file_contents );
 	}
@@ -3738,9 +3752,9 @@ class phpFITFileAnalysis {
 	}
 
 	/**
-	 * Modify the data_mesg_info array to only include the fields specified in 
+	 * Modify the data_mesg_info array to only include the fields specified in
 	 * options.
-	 * 
+	 *
 	 * @param array $options
 	 * @return void
 	 */
@@ -3803,8 +3817,8 @@ class phpFITFileAnalysis {
 
 	/**
 	 * Reads the remainder of $this->file_contents and store the data in the $this->data_mesgs array.
-     * 
-     * @param CCM_GPS_Fit_File_Queue|null $queue Queue for processing FIT file data.
+	 *
+	 * @param CCM_GPS_Fit_File_Queue|null $queue Queue for processing FIT file data.
 	 */
 	private function readDataRecords( $queue = null ) {
 		$record_header_byte  = 0;
@@ -3813,20 +3827,11 @@ class phpFITFileAnalysis {
 		$local_mesg_type     = 0;
 		$previousTS          = 0;
 
-        if ( $queue ) {
-            $lock_expire = $queue->get_lock_expiration();
-        } else {
-            $lock_expire = false;
-        }
+		$lock_expire = $this->get_lock_expiration( $queue );
 
 		while ( $this->file_header['header_size'] + $this->file_header['data_size'] > $this->file_pointer ) {
-            // Check if we need to re-lock the process
-            if ( $queue && $lock_expire ) {
-                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
-                    $queue->lock_process( false );
-                    $lock_expire = $queue->get_lock_expiration();
-                }
-            }
+			// Check if we need to re-lock the process
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			$record_header_byte = unpack( 'C1record_header_byte', fread( $this->file_contents, 1 ) )['record_header_byte'];
 			++$this->file_pointer;
@@ -4108,11 +4113,7 @@ class phpFITFileAnalysis {
 	 * If the user has requested for the data to be fixed, identify the missing keys for that data.
 	 */
 	private function fixData( $options, $queue = null ) {
-        if ( $queue ) {
-            $lock_expire = $queue->get_lock_expiration();
-        } else {
-            $lock_expire = false;
-        }
+		$lock_expire = $this->get_lock_expiration( $queue );
 
 		// By default the constant FIT_UNIX_TS_DIFF will be added to timestamps, which have field type of date_time (or local_date_time).
 		// Timestamp fields (field number == 253) converted after being unpacked in $this->readDataRecords().
@@ -4200,12 +4201,7 @@ class phpFITFileAnalysis {
 				if ( isset( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
 					if ( is_array( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
 						foreach ( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] as &$element ) {
-					       	if ( $queue && $lock_expire ) {
-								if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
-									$queue->lock_process( false );
-									$lock_expire = $queue->get_lock_expiration();
-								}
-							}
+							$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 							$element += FIT_UNIX_TS_DIFF;
 						}
@@ -4215,6 +4211,9 @@ class phpFITFileAnalysis {
 				}
 			}
 		}
+
+		error_log( 'phpFITFileAnalysis->fixData(): finished adjusting timestamps at ' . gmdate( 'H:i:s' ) );
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 		// Find messages that have been unpacked as unsigned integers that should be signed integers.
 		// http://php.net/manual/en/function.pack.php - signed integers endianness is always machine dependent.
@@ -4232,6 +4231,7 @@ class phpFITFileAnalysis {
 						if ( isset( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
 							if ( is_array( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
 								foreach ( $this->data_mesgs[ $mesg_name ][ $field_name ] as &$v ) {
+									$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 									if ( PHP_INT_SIZE === 8 && $v > 0x7FFF ) {
 										$v -= 0x10000;
 									}
@@ -4252,6 +4252,7 @@ class phpFITFileAnalysis {
 						if ( isset( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
 							if ( is_array( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
 								foreach ( $this->data_mesgs[ $mesg_name ][ $field_name ] as &$v ) {
+									$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 									if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFF ) {
 										$v -= 0x100000000;
 									}
@@ -4275,6 +4276,7 @@ class phpFITFileAnalysis {
 						if ( isset( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
 							if ( is_array( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
 								foreach ( $this->data_mesgs[ $mesg_name ][ $field_name ] as &$v ) {
+									$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 									if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFFFFFFFFFF ) {
 										$v -= 0x10000000000000000;
 									}
@@ -4294,11 +4296,16 @@ class phpFITFileAnalysis {
 			}
 		}
 
+		error_log( 'phpFITFileAnalysis->fixData(): finished unsigned int check at ' . gmdate( 'H:i:s' ) );
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
 		// Remove duplicate timestamps and store original before interpolating
 		if ( isset( $this->data_mesgs['record']['timestamp'] ) && is_array( $this->data_mesgs['record']['timestamp'] ) ) {
 			$this->data_mesgs['record']['timestamp']          = array_unique( $this->data_mesgs['record']['timestamp'] );
 			$this->data_mesgs['record']['timestamp_original'] = $this->data_mesgs['record']['timestamp'];
 		}
+
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 		// Return if no option set
 		if ( empty( $options['fix_data'] ) && empty( $options['data_every_second'] ) ) {
@@ -4320,9 +4327,13 @@ class phpFITFileAnalysis {
 			$max_ts = max( $this->data_mesgs['record']['timestamp'] );
 			unset( $this->data_mesgs['record']['timestamp'] );
 			for ( $i = $min_ts; $i <= $max_ts; ++$i ) {
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
 				$this->data_mesgs['record']['timestamp'][] = $i;
 			}
 		}
+
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 		// Check if valid option(s) provided
 		array_walk(
@@ -4351,32 +4362,42 @@ class phpFITFileAnalysis {
 			if ( isset( $this->data_mesgs['record']['cadence'] ) && is_array( $this->data_mesgs['record']['cadence'] ) ) {
 				$bCadence = ( count( $this->data_mesgs['record']['cadence'] ) === $count_timestamp ) ? false : in_array( 'cadence', $options['fix_data'] );
 			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 			if ( isset( $this->data_mesgs['record']['distance'] ) && is_array( $this->data_mesgs['record']['distance'] ) ) {
 				$bDistance = ( count( $this->data_mesgs['record']['distance'] ) === $count_timestamp ) ? false : in_array( 'distance', $options['fix_data'] );
 			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 			if ( isset( $this->data_mesgs['record']['heart_rate'] ) && is_array( $this->data_mesgs['record']['heart_rate'] ) ) {
 				$bHeartRate = ( count( $this->data_mesgs['record']['heart_rate'] ) === $count_timestamp ) ? false : in_array( 'heart_rate', $options['fix_data'] );
 			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 			if ( isset( $this->data_mesgs['record']['position_lat'] ) && isset( $this->data_mesgs['record']['position_long'] ) && is_array( $this->data_mesgs['record']['position_lat'] ) ) {
 				$bLatitudeLongitude = ( count( $this->data_mesgs['record']['position_lat'] ) === $count_timestamp
 					&& count( $this->data_mesgs['record']['position_long'] ) === $count_timestamp ) ? false : in_array( 'lat_lon', $options['fix_data'] );
 			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 			if ( isset( $this->data_mesgs['record']['speed'] ) && is_array( $this->data_mesgs['record']['speed'] ) ) {
 				$bSpeed = ( count( $this->data_mesgs['record']['speed'] ) === $count_timestamp ) ? false : in_array( 'speed', $options['fix_data'] );
 			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 			if ( isset( $this->data_mesgs['record']['power'] ) && is_array( $this->data_mesgs['record']['power'] ) ) {
 				$bPower = ( count( $this->data_mesgs['record']['power'] ) === $count_timestamp ) ? false : in_array( 'power', $options['fix_data'] );
 			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 			if ( isset( $this->data_mesgs['record']['altitude'] ) && is_array( $this->data_mesgs['record']['altitude'] ) ) {
 				$bAltitude = ( count( $this->data_mesgs['record']['altitude'] ) === $count_timestamp ) ? false : in_array( 'altitude', $options['fix_data'] );
 			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 			if ( isset( $this->data_mesgs['record']['enhanced_speed'] ) && is_array( $this->data_mesgs['record']['enhanced_speed'] ) ) {
 				$bEnhancedSpeed = ( count( $this->data_mesgs['record']['enhanced_speed'] ) === $count_timestamp ) ? false : in_array( 'enhanced_speed', $options['fix_data'] );
 			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 			if ( isset( $this->data_mesgs['record']['enhanced_altitude'] ) && is_array( $this->data_mesgs['record']['enhanced_altitude'] ) ) {
 				$bEnhancedAltitude = ( count( $this->data_mesgs['record']['enhanced_altitude'] ) === $count_timestamp ) ? false : in_array( 'enhanced_altitude', $options['fix_data'] );
 			}
 		}
+
+		error_log( 'phpFITFileAnalysis->fixData(): set up fields to check at ' . gmdate( 'H:i:s' ) );
 
 		$missing_distance_keys          = array();
 		$missing_hr_keys                = array();
@@ -4389,6 +4410,7 @@ class phpFITFileAnalysis {
 		$missing_enhanced_altitude_keys = array();
 
 		foreach ( $this->data_mesgs['record']['timestamp'] as $timestamp ) {
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 			if ( $bCadence ) {  // Assumes all missing cadence values are zeros
 				if ( ! isset( $this->data_mesgs['record']['cadence'][ $timestamp ] ) ) {
 					$this->data_mesgs['record']['cadence'][ $timestamp ] = 0;
@@ -4439,37 +4461,60 @@ class phpFITFileAnalysis {
 			}
 		}
 
+		error_log( 'phpFITFileAnalysis->fixData(): finished checking for missing data at ' . gmdate( 'H:i:s' ) );
+
 		$paused_timestamps = $this->isPaused();
+
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
 		$this->filterPauseGapThreshold( $paused_timestamps );
 
 		if ( $bCadence ) {
 			ksort( $this->data_mesgs['record']['cadence'] );  // no interpolation; zeros added earlier
+			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing cadence data at ' . gmdate( 'H:i:s' ) );
 		}
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bDistance ) {
-			$this->interpolateMissingData( $missing_distance_keys, $this->data_mesgs['record']['distance'], false, $paused_timestamps );
+			$lock_expire = $this->interpolateMissingData( $missing_distance_keys, $this->data_mesgs['record']['distance'], false, $paused_timestamps, $queue, $lock_expire );
+			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing distance data at ' . gmdate( 'H:i:s' ) );
 		}
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bHeartRate ) {
-			$this->interpolateMissingData( $missing_hr_keys, $this->data_mesgs['record']['heart_rate'], true, $paused_timestamps );
+			$lock_expire = $this->interpolateMissingData( $missing_hr_keys, $this->data_mesgs['record']['heart_rate'], true, $paused_timestamps, $queue, $lock_expire );
+			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing HR data at ' . gmdate( 'H:i:s' ) );
 		}
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bLatitudeLongitude ) {
-			$this->interpolateMissingData( $missing_lat_keys, $this->data_mesgs['record']['position_lat'], false, $paused_timestamps );
-			$this->interpolateMissingData( $missing_lon_keys, $this->data_mesgs['record']['position_long'], false, $paused_timestamps );
+			$lock_expire = $this->interpolateMissingData( $missing_lat_keys, $this->data_mesgs['record']['position_lat'], false, $paused_timestamps, $queue, $lock_expire );
+			$lock_expire = $this->interpolateMissingData( $missing_lon_keys, $this->data_mesgs['record']['position_long'], false, $paused_timestamps, $queue, $lock_expire );
+			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing lat/long data at ' . gmdate( 'H:i:s' ) );
 		}
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bSpeed ) {
-			$this->interpolateMissingData( $missing_speed_keys, $this->data_mesgs['record']['speed'], false, $paused_timestamps );
+			$lock_expire = $this->interpolateMissingData( $missing_speed_keys, $this->data_mesgs['record']['speed'], false, $paused_timestamps, $queue, $lock_expire );
+			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing speed data at ' . gmdate( 'H:i:s' ) );
 		}
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bPower ) {
-			$this->interpolateMissingData( $missing_power_keys, $this->data_mesgs['record']['power'], true, $paused_timestamps );
+			$lock_expire = $this->interpolateMissingData( $missing_power_keys, $this->data_mesgs['record']['power'], true, $paused_timestamps, $queue, $lock_expire );
+			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing power data at ' . gmdate( 'H:i:s' ) );
 		}
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bAltitude ) {
-			$this->interpolateMissingData( $missing_altitude_keys, $this->data_mesgs['record']['altitude'], false, $paused_timestamps );
+			$lock_expire = $this->interpolateMissingData( $missing_altitude_keys, $this->data_mesgs['record']['altitude'], false, $paused_timestamps, $queue, $lock_expire );
+			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing altitude data at ' . gmdate( 'H:i:s' ) );
 		}
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bEnhancedSpeed ) {
-			$this->interpolateMissingData( $missing_enhanced_speed_keys, $this->data_mesgs['record']['enhanced_speed'], false, $paused_timestamps );
+			$lock_expire = $this->interpolateMissingData( $missing_enhanced_speed_keys, $this->data_mesgs['record']['enhanced_speed'], false, $paused_timestamps, $queue, $lock_expire );
+			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced speed data at ' . gmdate( 'H:i:s' ) );
 		}
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bEnhancedAltitude ) {
-			$this->interpolateMissingData( $missing_enhanced_altitude_keys, $this->data_mesgs['record']['enhanced_altitude'], false, $paused_timestamps );
+			$lock_expire = $this->interpolateMissingData( $missing_enhanced_altitude_keys, $this->data_mesgs['record']['enhanced_altitude'], false, $paused_timestamps, $queue, $lock_expire );
+			error_log( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced altitude data at ' . gmdate( 'H:i:s' ) );
 		}
+		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 	}
 
 	private function filterPauseGapThreshold( &$paused_timestamps ) {
@@ -4508,8 +4553,12 @@ class phpFITFileAnalysis {
 
 	/**
 	 * For the missing keys in the data, interpolate using values either side and insert as necessary.
+	 *
+	 * @return int|null The lock expiration time.
 	 */
-	private function interpolateMissingData( &$missing_keys, &$array, $is_int, $paused_timestamps ) {
+	private function interpolateMissingData( &$missing_keys, &$array, $is_int, $paused_timestamps, $queue = null, $lock_expire = null ) {
+		$lock_expire = $this->get_lock_expiration( $queue );
+
 		if ( ! is_array( $array ) ) {
 			return;  // Can't interpolate if not an array
 		}
@@ -4521,6 +4570,8 @@ class phpFITFileAnalysis {
 		$count   = count( $missing_keys );
 
 		for ( $i = 0; $i < $count; ++$i ) {
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
 			$missing_timestamp = $missing_keys[ $i ];
 
 			if ( $missing_timestamp !== 0 ) {
@@ -4573,6 +4624,8 @@ class phpFITFileAnalysis {
 		}
 
 		ksort( $array );  // sort using keys
+
+		return $lock_expire;
 	}
 
 	/**
@@ -5599,7 +5652,7 @@ class phpFITFileAnalysis {
 	 * Based heavily on logic in commit:
 	 * https://github.com/GoldenCheetah/GoldenCheetah/commit/957ae470999b9a57b5b8ec57e75512d4baede1ec
 	 * Particularly the decodeHr() method
-	 * 
+	 *
 	 * @param object $queue  Queue object
 	 */
 	private function processHrMessages( $queue = null ) {
@@ -5608,23 +5661,14 @@ class phpFITFileAnalysis {
 			return;
 		}
 
-		if ( $queue ) {
-            $lock_expire = $queue->get_lock_expiration();
-        } else {
-            $lock_expire = false;
-        }
+		$lock_expire = $this->get_lock_expiration( $queue );
 
 		$hr         = array();
 		$timestamps = array();
 
 		// Load all filtered_bpm values into the $hr array
 		foreach ( $this->data_mesgs['hr']['filtered_bpm'] as $hr_val ) {
-	       	if ( $queue && $lock_expire ) {
-                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
-                    $queue->lock_process( false );
-                    $lock_expire = $queue->get_lock_expiration();
-                }
-        	}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			if ( is_array( $hr_val ) ) {
 				foreach ( $hr_val as $sub_hr_val ) {
@@ -5646,12 +5690,7 @@ class phpFITFileAnalysis {
 		// Determine timestamps (similar to compressed timestamps)
 		foreach ( $this->data_mesgs['hr']['event_timestamp_12'] as $event_timestamp_12_val ) {
 
-        	if ( $queue && $lock_expire ) {
-                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
-                    $queue->lock_process( false );
-                    $lock_expire = $queue->get_lock_expiration();
-                }
-        	}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			$j = 0;
 			for ( $i = 0; $i < 11; $i++ ) {
@@ -5682,12 +5721,7 @@ class phpFITFileAnalysis {
 		$max_record_ts    = max( $this->data_mesgs['record']['timestamp'] );
 		foreach ( $timestamps as $idx => $timestamp ) {
 
-        	if ( $queue && $lock_expire ) {
-                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
-                    $queue->lock_process( false );
-                    $lock_expire = $queue->get_lock_expiration();
-                }
-        	}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			$ts_secs = round( $timestamp + $start_timestamp );
 
@@ -5704,14 +5738,47 @@ class phpFITFileAnalysis {
 
 		// Populate the heart_rate fields for record messages
 		foreach ( $filtered_bpm_arr as $idx => $arr ) {
-        	if ( $queue && $lock_expire ) {
-                if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
-                    $queue->lock_process( false );
-                    $lock_expire = $queue->get_lock_expiration();
-                }
-        	}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			$this->data_mesgs['record']['heart_rate'][ $idx ] = (int) round( $arr[0] / $arr[1] );
 		}
 	}
+
+	/**
+	 * Get lock expiration.
+	 *
+	 * @param CCM_GPS_Fit_File_Queue|null $queue Queue for processing FIT file data.
+	 *
+	 * @return int|bool Lock expiration time.
+	 */
+	protected function get_lock_expiration( $queue = null ) {
+		if ( $queue ) {
+			$lock_expire = $queue->get_lock_expiration();
+		} else {
+			$lock_expire = false;
+		}
+
+		return $lock_expire;
+	}
+
+	/**
+	 * Maybe set lock expiration if within 5 minutes of expiration.
+	 *
+	 * @param CCM_GPS_Fit_File_Queue|null $queue       Queue for processing FIT file data.
+	 * @param int|bool                    $lock_expire Lock expiration time.
+	 */
+	protected function maybe_set_lock_expiration( $queue, $lock_expire ) {
+		if ( $queue && $lock_expire ) {
+			if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
+				$queue->lock_process( false );
+				$lock_expire = $queue->get_lock_expiration();
+			}
+		}
+
+		return $lock_expire;
+	}
 }
+
+// phpcs:enable WordPress
+// phpcs:enable Squiz.Commenting
+// phpcs:enable Generic.Commenting.DocComment.ShortNotCapital
