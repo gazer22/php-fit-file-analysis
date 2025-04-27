@@ -57,7 +57,7 @@ class phpFITFileAnalysis {
 	private $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
 	private $data_table             = '';       // Base name for data tables in the database.
 	private $db;                                // PDO object for database connection.
-    private $logger;                            // Monolog logger object.
+	private $logger;                            // Monolog logger object.
 
 	// Enumerated data looked up by enumData().
 	// Values from 'Profile.xls' contained within the FIT SDK.
@@ -3607,14 +3607,14 @@ class phpFITFileAnalysis {
 	 *
 	 * @param string|array           $file_path_or_data  Path to FIT file or the data itself.
 	 * @param array                  $options            Options for processing the FIT file.
-     * @param Monolog\Logger         $logger             Logger for debugging.
+	 * @param Monolog\Logger         $logger             Logger for debugging.
 	 * @param CCM_GPS_Fit_File_Queue $queue              Queue for processing FIT file data.
 	 *   Queue class must implement the following methods:
 	 *     - get_lock_expiration();
 	 *     - lock_process( $reset_start_time = true );
 	 */
 	public function __construct( $file_path_or_data, $options = null, $logger = null, $queue = null ) {
-        $this->logger = $logger;
+		$this->logger = $logger;
 
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
@@ -3631,8 +3631,8 @@ class phpFITFileAnalysis {
 			$this->file_buff  = true;
 			$this->data_table = $this->cleanTableName( $options['database']['table_name'] );
 		} else {
-            $this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
-        }
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
+		}
 
 		if ( ! isset( $options['input_is_data'] ) ) {
 			if ( empty( $file_path_or_data ) ) {
@@ -3677,7 +3677,7 @@ class phpFITFileAnalysis {
 
 		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
 
-        $this->readDataRecords( $queue );
+		$this->readDataRecords( $queue );
 
 		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
@@ -3837,7 +3837,7 @@ class phpFITFileAnalysis {
 		$developer_data_flag = 0;
 		$local_mesg_type     = 0;
 		$previousTS          = 0;
-        $record_count        = 0;
+		$record_count        = 0;
 
 		$lock_expire = $this->get_lock_expiration( $queue );
 
@@ -3845,11 +3845,11 @@ class phpFITFileAnalysis {
 			// Check if we need to re-lock the process
 			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
-            if ($record_count % 1000 === 0) {
-                $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): record count: ' . $record_count );
-            }
-            ++$record_count;
-
+			if ($record_count % 1000 === 0) {
+				$this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): record count: ' . $record_count );
+				$this->logger->debug( 'Memory usage: ' . $this->formatMemoryUsage( memory_get_usage( true ) ) );
+			}
+			++$record_count;
 
 			$record_header_byte = unpack( 'C1record_header_byte', fread( $this->file_contents, 1 ) )['record_header_byte'];
 			++$this->file_pointer;
@@ -4126,6 +4126,25 @@ class phpFITFileAnalysis {
 			}
 		}
 	}
+
+	/**
+	 * Formats memory usage in a human-readable format.
+	 *
+	 * @param int $bytes Memory usage in bytes.
+	 * @return string Formatted memory usage with appropriate unit.
+	 */
+	private function formatMemoryUsage( $bytes ) {
+		if ($bytes < 1024) {
+			return $bytes . ' B';
+		} elseif ($bytes < 1048576) {
+			return round( $bytes / 1024, 2 ) . ' KB';
+		} elseif ($bytes < 1073741824) {
+			return round( $bytes / 1048576, 2 ) . ' MB';
+		} else {
+			return round( $bytes / 1073741824, 2 ) . ' GB';
+		}
+	}
+
 
 	/**
 	 * If the user has requested for the data to be fixed, identify the missing keys for that data.
