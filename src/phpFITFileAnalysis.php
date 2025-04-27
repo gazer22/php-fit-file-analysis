@@ -1,6 +1,8 @@
 <?php
 namespace gazer22;
 
+use Monolog\Logger;
+
 // phpcs:disable WordPress
 // phpcs:disable Squiz.Commenting
 // phpcs:disable Generic.Commenting.DocComment.ShortNotCapital
@@ -55,6 +57,7 @@ class phpFITFileAnalysis {
 	private $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
 	private $data_table             = '';       // Base name for data tables in the database.
 	private $db;                                // PDO object for database connection.
+    private $logger;                            // Monolog logger object.
 
 	// Enumerated data looked up by enumData().
 	// Values from 'Profile.xls' contained within the FIT SDK.
@@ -3604,12 +3607,15 @@ class phpFITFileAnalysis {
 	 *
 	 * @param string|array           $file_path_or_data  Path to FIT file or the data itself.
 	 * @param array                  $options            Options for processing the FIT file.
+     * @param Monolog\Logger         $logger             Logger for debugging.
 	 * @param CCM_GPS_Fit_File_Queue $queue              Queue for processing FIT file data.
 	 *   Queue class must implement the following methods:
 	 *     - get_lock_expiration();
 	 *     - lock_process( $reset_start_time = true );
 	 */
-	public function __construct( $file_path_or_data, $options = null, $queue = null ) {
+	public function __construct( $file_path_or_data, $options = null, $logger = null, $queue = null ) {
+        $this->logger = $logger;
+
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
 		} elseif ( isset( $options['buffer_input_to_db'] ) && $options['buffer_input_to_db'] && $this->checkFileBufferOptions( $options['database'] ) ) {
@@ -3617,9 +3623,9 @@ class phpFITFileAnalysis {
 			try {
 				$this->db = new \PDO( $options['database']['data_source_name'], $options['database']['username'], $options['database']['password'] );
 				$this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
-				error_log( 'Connected successfully!' );
+				$this->logger->debug( 'Connected successfully!' );
 			} catch ( \PDOException $e ) {
-				error_log( 'Connection failed: ' . $e->getMessage() );
+				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
 			}
 
 			$this->file_buff  = true;
@@ -3651,7 +3657,7 @@ class phpFITFileAnalysis {
 		// Timestamp is always included.
 		if ( isset( $options['limit_data'] ) ) {
 			$this->limit_data( $options['limit_data'] );
-			// error_log( 'phpFITFileAnalysis->__construct(): limiting data to ' . print_r( $this->data_mesg_info, true ) );
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): limiting data to ' . print_r( $this->data_mesg_info, true ) );
 		}
 
 		$this->options = $options;
@@ -3668,23 +3674,23 @@ class phpFITFileAnalysis {
 		$this->readHeader();
 		$this->readDataRecords( $queue );
 
-		// error_log( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
 		$this->oneElementArrays();
 
 		// Process HR messages
 		$this->processHrMessages( $queue );
 
-		// error_log( 'phpFITFileAnalysis->__construct(): processHrMessages() completed for ' . $file_path_or_data );
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): processHrMessages() completed for ' . $file_path_or_data );
 
 		// Handle options.
 		$this->fixData( $this->options, $queue );
 
-		// error_log( 'phpFITFileAnalysis->__construct(): fixData() completed for ' . $file_path_or_data );
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): fixData() completed for ' . $file_path_or_data );
 
 		$this->setUnits( $this->options, $queue );
 
-		// error_log( 'phpFITFileAnalysis->__construct(): setUnits() completed for ' . $file_path_or_data );
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): setUnits() completed for ' . $file_path_or_data );
 
 		fclose( $this->file_contents );
 	}
@@ -4212,7 +4218,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		// error_log( 'phpFITFileAnalysis->fixData(): finished adjusting timestamps at ' . gmdate( 'H:i:s' ) );
+		$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adjusting timestamps at ' . gmdate( 'H:i:s' ) );
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 		// Find messages that have been unpacked as unsigned integers that should be signed integers.
@@ -4296,7 +4302,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		// error_log( 'phpFITFileAnalysis->fixData(): finished unsigned int check at ' . gmdate( 'H:i:s' ) );
+		$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished unsigned int check at ' . gmdate( 'H:i:s' ) );
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 		// Remove duplicate timestamps and store original before interpolating
@@ -4397,7 +4403,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		// error_log( 'phpFITFileAnalysis->fixData(): set up fields to check at ' . gmdate( 'H:i:s' ) );
+		$this->logger->debug( 'phpFITFileAnalysis->fixData(): set up fields to check at ' . gmdate( 'H:i:s' ) );
 
 		$missing_distance_keys          = array();
 		$missing_hr_keys                = array();
@@ -4461,7 +4467,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		// error_log( 'phpFITFileAnalysis->fixData(): finished checking for missing data at ' . gmdate( 'H:i:s' ) );
+		$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished checking for missing data at ' . gmdate( 'H:i:s' ) );
 
 		$paused_timestamps = $this->isPaused();
 
@@ -4471,48 +4477,48 @@ class phpFITFileAnalysis {
 
 		if ( $bCadence ) {
 			ksort( $this->data_mesgs['record']['cadence'] );  // no interpolation; zeros added earlier
-			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing cadence data at ' . gmdate( 'H:i:s' ) );
+			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing cadence data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bDistance ) {
 			$lock_expire = $this->interpolateMissingData( $missing_distance_keys, $this->data_mesgs['record']['distance'], false, $paused_timestamps, $queue, $lock_expire );
-			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing distance data at ' . gmdate( 'H:i:s' ) );
+			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing distance data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bHeartRate ) {
 			$lock_expire = $this->interpolateMissingData( $missing_hr_keys, $this->data_mesgs['record']['heart_rate'], true, $paused_timestamps, $queue, $lock_expire );
-			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing HR data at ' . gmdate( 'H:i:s' ) );
+			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing HR data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bLatitudeLongitude ) {
 			$lock_expire = $this->interpolateMissingData( $missing_lat_keys, $this->data_mesgs['record']['position_lat'], false, $paused_timestamps, $queue, $lock_expire );
 			$lock_expire = $this->interpolateMissingData( $missing_lon_keys, $this->data_mesgs['record']['position_long'], false, $paused_timestamps, $queue, $lock_expire );
-			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing lat/long data at ' . gmdate( 'H:i:s' ) );
+			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing lat/long data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bSpeed ) {
 			$lock_expire = $this->interpolateMissingData( $missing_speed_keys, $this->data_mesgs['record']['speed'], false, $paused_timestamps, $queue, $lock_expire );
-			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing speed data at ' . gmdate( 'H:i:s' ) );
+			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing speed data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bPower ) {
 			$lock_expire = $this->interpolateMissingData( $missing_power_keys, $this->data_mesgs['record']['power'], true, $paused_timestamps, $queue, $lock_expire );
-			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing power data at ' . gmdate( 'H:i:s' ) );
+			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing power data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bAltitude ) {
 			$lock_expire = $this->interpolateMissingData( $missing_altitude_keys, $this->data_mesgs['record']['altitude'], false, $paused_timestamps, $queue, $lock_expire );
-			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing altitude data at ' . gmdate( 'H:i:s' ) );
+			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing altitude data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bEnhancedSpeed ) {
 			$lock_expire = $this->interpolateMissingData( $missing_enhanced_speed_keys, $this->data_mesgs['record']['enhanced_speed'], false, $paused_timestamps, $queue, $lock_expire );
-			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced speed data at ' . gmdate( 'H:i:s' ) );
+			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced speed data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bEnhancedAltitude ) {
 			$lock_expire = $this->interpolateMissingData( $missing_enhanced_altitude_keys, $this->data_mesgs['record']['enhanced_altitude'], false, $paused_timestamps, $queue, $lock_expire );
-			// error_log( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced altitude data at ' . gmdate( 'H:i:s' ) );
+			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced altitude data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 	}
