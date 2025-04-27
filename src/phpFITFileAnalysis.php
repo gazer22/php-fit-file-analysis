@@ -3969,11 +3969,17 @@ class phpFITFileAnalysis {
 						'dev_field_definitions' => $dev_field_definitions,
 						'total_size'            => $total_size,
 					);
+
+					// $this->logger->debug( "phpFITFileAnalysis->readDataRecords() - read definition message, $local_mesg_type: " . print_r( $this->defn_mesgs[ $local_mesg_type ], true ) );
 					break;
 
 				case DATA_MESSAGE:
 					// Check that we have information on the Data Message.
 					if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ] ) ) {
+						// If table is not build for this message type, build it.
+						// Use $this->defn_mesgs[ $local_mesg_type ]['field_defns']
+						// to set column names.  How do we think about column type?
+
 						$tmp_record_array = array();  // Temporary array to store Record data message pieces
 						$tmp_value        = null;  // Placeholder for value for checking before inserting into the tmp_record_array
 
@@ -3998,6 +4004,7 @@ class phpFITFileAnalysis {
 									} elseif ( $field_defn['base_type'] === 7 ) {
 										// Handle strings appropriately
 											$this->data_mesgs[ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ][ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ][] = filter_var( $tmp_value, FILTER_SANITIZE_SPECIAL_CHARS );  // JKK: replaced deprecated FILTER_SANITIZE_STRING.
+											$this->logger->debug( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] . '[' . $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] . ']: ' . filter_var( $tmp_value, FILTER_SANITIZE_SPECIAL_CHARS ) );
 									} else {
 										// Handle arrays
 										if ( $field_defn['size'] !== $this->types[ $field_defn['base_type'] ]['bytes'] ) {
@@ -4022,8 +4029,10 @@ class phpFITFileAnalysis {
 												// )['tmp'] / $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['scale'] - $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['offset'];
 											}
 											$this->data_mesgs[ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ][ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ][] = $tmp_array;
+											$this->logger->debug( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] . '[' . $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] . ']: ' . json_encode( $tmp_array ) );
 										} else {
 											$this->data_mesgs[ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ][ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ][] = $tmp_value / $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['scale'] - $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['offset'];
+											$this->logger->debug( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] . '[' . $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] . ']: ' . ( $tmp_value / $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['scale'] - $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['offset'] ) );
 										}
 									}
 								} else {
@@ -4072,6 +4081,9 @@ class phpFITFileAnalysis {
 							$this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], fread( $this->file_contents, $field_defn['size'] ) )['tmp'];
 							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], substr( $this->file_contents, $this->file_pointer, $field_defn['size'] ) )['tmp'];
 
+							$last_value = end( $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'] );
+							$this->logger->debug( 'developer_data[' . $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] . ']: ' . $last_value . ' ' . $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['units'] );
+
 							$this->file_pointer += $field_defn['size'];
 						}
 
@@ -4102,7 +4114,7 @@ class phpFITFileAnalysis {
 									unset( $tmp_record_array['timestamp'] );
 							}
 
-							// $this->logger->debug( 'Data: ' . $timestamp . ' | ' . json_encode( $tmp_record_array ) );
+							$this->logger->debug( 'record: ' . $timestamp . ' | ' . json_encode( $tmp_record_array ) );
 
 							$this->data_mesgs['record']['timestamp'][] = $timestamp;
 
@@ -5793,6 +5805,7 @@ class phpFITFileAnalysis {
 			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			$this->data_mesgs['record']['heart_rate'][ $idx ] = (int) round( $arr[0] / $arr[1] );
+            $this->logger->debug( 'Set heart Rate: ' . $this->data_mesgs['record']['heart_rate'][ $idx ] );
 		}
 	}
 
@@ -5847,7 +5860,7 @@ class phpFITFileAnalysis {
 
 		// Determine the log file path based on the environment.
 		$base_dir = $this->trailingslashit( $_ENV['PFFA_HOME'] );
-        error_log( 'pffa: base_dir: ' . $base_dir );
+		error_log( 'pffa: base_dir: ' . $base_dir );
 		$log_file = $base_dir . 'debug.log';
 
 		if ( ! $log_file ) {
@@ -5859,12 +5872,12 @@ class phpFITFileAnalysis {
 		}
 	}
 
-    /**
-     * Add a trailing slash to a path if it doesn't already have one.
-     */
-    private function trailingslashit( $path ) {
-        return rtrim( $path, '/\\' ) . '/';
-    }
+	/**
+	 * Add a trailing slash to a path if it doesn't already have one.
+	 */
+	private function trailingslashit( $path ) {
+		return rtrim( $path, '/\\' ) . '/';
+	}
 
 	/**
 	 * Get the logging level for the plugin.
@@ -5887,21 +5900,18 @@ class phpFITFileAnalysis {
 	private function get_logging_level() {
 
 		// if ( is_multisite() ) {
-		// 	$main_site_id = get_main_site_id(); // Get the main site ID.
-		// 	switch_to_blog( $main_site_id );
-		// 	$site_settings = get_option( 'phpffa_settings' );
-		// 	restore_current_blog();
+		//  $main_site_id = get_main_site_id(); // Get the main site ID.
+		//  switch_to_blog( $main_site_id );
+		//  $site_settings = get_option( 'phpffa_settings' );
+		//  restore_current_blog();
 		// } else {
-		// 	$site_settings = get_option( 'phpffa_settings' );
+		//  $site_settings = get_option( 'phpffa_settings' );
 		// }
 
 		// $logging_level = isset( $site_settings['logging_level'] ) ? $site_settings['logging_level'] : Logger::ERROR;
 
 		return Level::Debug;
-
-;
 	}
-
 }
 
 // phpcs:enable WordPress
