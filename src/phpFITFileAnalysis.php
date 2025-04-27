@@ -3845,10 +3845,11 @@ class phpFITFileAnalysis {
 			// Check if we need to re-lock the process
 			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
-            ++$record_count;
             if ($record_count % 1000 === 0) {
                 $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): record count: ' . $record_count );
             }
+            ++$record_count;
+
 
 			$record_header_byte = unpack( 'C1record_header_byte', fread( $this->file_contents, 1 ) )['record_header_byte'];
 			++$this->file_pointer;
