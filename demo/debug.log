@@ -1,0 +1,17 @@
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: Connected successfully!  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->__construct(): readHeader() completed for /home/srv/www/php-fit-file-analysis/demo/fit_files/mountain-biking.fit  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->readDataRecords(): record count: 0  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: Memory usage: 4 MB  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->readDataRecords(): record count: 1000  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: Memory usage: 4 MB  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->readDataRecords(): record count: 2000  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: Memory usage: 4 MB  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->__construct(): readDataRecords() completed for /home/srv/www/php-fit-file-analysis/demo/fit_files/mountain-biking.fit  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->__construct(): processHrMessages() completed for /home/srv/www/php-fit-file-analysis/demo/fit_files/mountain-biking.fit  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: Adding 631065600 to: file_id->time_created: 740802400  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: Adding 631065600 to: lap->start_time: 740802399  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: Adding 631065600 to: session->start_time: 740802399  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->fixData(): finished adjusting timestamps at 20:43:16  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->fixData(): finished unsigned int check at 20:43:16  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->__construct(): fixData() completed for /home/srv/www/php-fit-file-analysis/demo/fit_files/mountain-biking.fit  
+[27-Apr-2025 20:43:16 UTC] pffa.DEBUG: phpFITFileAnalysis->__construct(): setUnits() completed for /home/srv/www/php-fit-file-analysis/demo/fit_files/mountain-biking.fit  

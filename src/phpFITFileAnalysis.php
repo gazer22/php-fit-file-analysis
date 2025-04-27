@@ -2,6 +2,11 @@
 namespace gazer22;
 
 use Monolog\Logger;
+use Monolog\Level;
+use Monolog\Handler\StreamHandler;
+use Monolog\Formatter\LineFormatter;
+use Monolog\Formatter\HtmlFormatter;
+
 
 // phpcs:disable WordPress
 // phpcs:disable Squiz.Commenting
@@ -3614,7 +3619,11 @@ class phpFITFileAnalysis {
 	 *     - lock_process( $reset_start_time = true );
 	 */
 	public function __construct( $file_path_or_data, $options = null, $logger = null, $queue = null ) {
-		$this->logger = $logger;
+		if ( null === $logger) {
+			$this->configure_logger();
+		} else {
+			$this->logger = $logger;
+		}
 
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
@@ -4093,6 +4102,8 @@ class phpFITFileAnalysis {
 									unset( $tmp_record_array['timestamp'] );
 							}
 
+							// $this->logger->debug( 'Data: ' . $timestamp . ' | ' . json_encode( $tmp_record_array ) );
+
 							$this->data_mesgs['record']['timestamp'][] = $timestamp;
 
 							foreach ( $tmp_record_array as $key => $value ) {
@@ -4239,10 +4250,14 @@ class phpFITFileAnalysis {
 					if ( is_array( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
 						foreach ( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] as &$element ) {
 							$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+							$this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to timestamp: ' . $element );
 
 							$element += FIT_UNIX_TS_DIFF;
 						}
 					} else {
+						$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+						$this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to: ' . $date_time['message_name'] . '->' . $date_time['field_name'] . ': ' . $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] );
+
 						$this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] += FIT_UNIX_TS_DIFF;
 					}
 				}
@@ -5814,6 +5829,79 @@ class phpFITFileAnalysis {
 
 		return $lock_expire;
 	}
+
+	/**
+	 * Configure the logger.
+	 *
+	 * @return void
+	 */
+	public function configure_logger() {
+		$this->logger = new Logger( 'pffa' );
+
+		$error_level = $this->get_logging_level();
+
+		// Create a formatter with a custom date format.
+		$date_format = 'd-M-Y H:i:s T';
+		$output      = "[%datetime%] %channel%.%level_name%: %message% %context% %extra%\n";
+		$formatter   = new LineFormatter( $output, $date_format, true, true );
+
+		// Determine the log file path based on the environment.
+		$base_dir = $this->trailingslashit( $_ENV['PFFA_HOME'] );
+        error_log( 'pffa: base_dir: ' . $base_dir );
+		$log_file = $base_dir . 'debug.log';
+
+		if ( ! $log_file ) {
+			error_log( 'pffa: Error log file not found.' );
+		} else {
+			$stream_handler = new StreamHandler( $log_file, $error_level );
+			$stream_handler->setFormatter( $formatter );
+			$this->logger->pushHandler( $stream_handler );
+		}
+	}
+
+    /**
+     * Add a trailing slash to a path if it doesn't already have one.
+     */
+    private function trailingslashit( $path ) {
+        return rtrim( $path, '/\\' ) . '/';
+    }
+
+	/**
+	 * Get the logging level for the plugin.
+	 *
+	 * Default is ERROR.
+	 *
+	 * Assumes that cycling-club-manager plugin is active.
+	 * Otherwise, will default to ERROR
+	 *
+	 * Hierarchy of logging levels:
+	 *   DEBUG: Detailed debug information.
+	 *   INFO: Interesting events. Examples: User logs in, SQL logs.
+	 *   NOTICE: Normal but significant events.
+	 *   WARNING: Exceptional occurrences that are not errors. Examples: Use of deprecated APIs, poor use of an API, undesirable things that are not necessarily wrong.
+	 *   ERROR: Runtime errors that do not require immediate action but should typically be logged and monitored.
+	 *   CRITICAL: Critical conditions. Example: Application component unavailable, unexpected exception.
+	 *   ALERT: Action must be taken immediately. Example: Entire website down, database unavailable, etc. This should trigger the SMS alerts and wake you up.
+	 *   EMERGENCY: Emergency: system is unusable.
+	 */
+	private function get_logging_level() {
+
+		// if ( is_multisite() ) {
+		// 	$main_site_id = get_main_site_id(); // Get the main site ID.
+		// 	switch_to_blog( $main_site_id );
+		// 	$site_settings = get_option( 'phpffa_settings' );
+		// 	restore_current_blog();
+		// } else {
+		// 	$site_settings = get_option( 'phpffa_settings' );
+		// }
+
+		// $logging_level = isset( $site_settings['logging_level'] ) ? $site_settings['logging_level'] : Logger::ERROR;
+
+		return Level::Debug;
+
+;
+	}
+
 }
 
 // phpcs:enable WordPress
