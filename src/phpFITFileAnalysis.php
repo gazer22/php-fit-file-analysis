@@ -3630,7 +3630,9 @@ class phpFITFileAnalysis {
 
 			$this->file_buff  = true;
 			$this->data_table = $this->cleanTableName( $options['database']['table_name'] );
-		}
+		} else {
+            $this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
+        }
 
 		if ( ! isset( $options['input_is_data'] ) ) {
 			if ( empty( $file_path_or_data ) ) {
@@ -3672,7 +3674,10 @@ class phpFITFileAnalysis {
 
 		// Process the file contents.
 		$this->readHeader();
-		$this->readDataRecords( $queue );
+
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
+
+        $this->readDataRecords( $queue );
 
 		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
