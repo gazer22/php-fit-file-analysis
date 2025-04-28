@@ -46,6 +46,7 @@ if ( ! defined( 'FIT_UNIX_TS_DIFF' ) ) {
 	define( 'FIT_UNIX_TS_DIFF', 631065600 );
 }
 
+// TODO: Implement ArrayAccess to allow $this->data_mesgs['record']['speed'] to be accessed directly.
 class phpFITFileAnalysis {
 
 	public $data_mesgs              = array();  // Used to store the data read from the file in associative arrays.

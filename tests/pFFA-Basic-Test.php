@@ -3,6 +3,11 @@ error_reporting(E_ALL);
 if(!class_exists('adriangibbons\phpFITFileAnalysis')) {
     require __DIR__ . '/../src/phpFITFileAnalysis.php';
 }
+// JKK. composer require --dev phpunit/phpunit
+// JKK. phpunit tests 
+// JKK. phpunit tests/pFFA-Basic-Test.php
+
+// TODO: may need to update the test classes to extend PHPUnit\Framework\TestCase instead of PHPUnit_Framework_TestCase.
 
 class BasicTest extends PHPUnit_Framework_TestCase
 {
