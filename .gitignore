@@ -49,3 +49,4 @@ Temporary Items
 /nbproject
 demo/.env
 demo/debug.log
+demo/php_error.log

@@ -40,6 +40,7 @@ try {
 	// 'pace'      => false
 	);
 	$pFFA = new gazer22\phpFITFileAnalysis( __DIR__ . $file, $options );
+    // $pFFA->logger->debug( 'Session: ' . print_r( $pFFA->data_mesgs['session'], true ) );
 } catch ( Exception $e ) {
 	echo 'caught exception: ' . $e->getMessage();
 	die();
