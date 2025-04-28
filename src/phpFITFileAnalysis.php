@@ -63,7 +63,7 @@ class phpFITFileAnalysis {
 	private $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
 	private $data_table             = '';       // Base name for data tables in the database.
 	private $db;                                // PDO object for database connection.
-	private $logger;                            // Monolog logger object.
+	public $logger;                             // Monolog logger object.
 
 	// Enumerated data looked up by enumData().
 	// Values from 'Profile.xls' contained within the FIT SDK.

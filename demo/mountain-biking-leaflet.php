@@ -48,6 +48,7 @@ try {
 // Create an array of lat/long coordiantes for the map
 $position_lat      = $pFFA->data_mesgs['record']['position_lat'];
 $position_long     = $pFFA->data_mesgs['record']['position_long'];
+// $pFFA->logger->debug( 'position_lat: ' . print_r( $position_lat, true ) );
 $lat_long_combined = array();
 foreach ( $position_lat as $key => $value ) {  // Assumes every lat has a corresponding long
 	$lat_long_combined[] = '[' . $position_lat[ $key ] . ',' . $position_long[ $key ] . ']';
