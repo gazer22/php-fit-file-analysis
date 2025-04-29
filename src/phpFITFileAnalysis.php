@@ -5420,11 +5420,6 @@ class phpFITFileAnalysis {
 							}
 						}
 
-						// $mesg_id = $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'];
-                        if ( 'record' !== $mesg_name ) {
-                            $this->logger->debug( 'Storing message: ' . $mesg_name );
-                        }
-
 						$this->storeMesg( $tmp_mesg, $local_mesg_type );
 
 					} else {
@@ -5470,17 +5465,6 @@ class phpFITFileAnalysis {
 	 * @param bool  $flush            Whether to flush any remaining data to the database.
 	 */
 	private function storeMesg( $mesgs = array(), $local_mesg_type, $flush = false ) {
-        $mesgs_names = array_keys( $mesgs );
-        if (($key = array_search('record', $mesgs_names)) !== false) {
-            unset($mesgs_names[$key]);
-        }
-        $this->logger->debug( 'Storing messages: ' . implode( ', ', $mesgs_names ) );
-
-        if (in_array('file_id', $mesgs_names)) {
-            $this->logger->debug('File ID message: ' . print_r($mesgs, true));
-        }
-
-
 		// If no $mesgs and $flush, just flush buffer to the database.
 		if ( empty( $mesgs ) && $flush && $this->file_buff ) {
 			$this->bufferAndLoadMessages( array(), $flush );
@@ -5490,14 +5474,10 @@ class phpFITFileAnalysis {
 		$mesgs = $this->oneElementArraysSingle( $mesgs );
 
 		if ( $this->file_buff ) {
-			if ( $mesgs && $local_mesg_type ) {
-           		$mesg_name = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
-    
-                if ( 'record' !== $mesg_name )
-                    $this->logger->debug( 'Storing message: ' . $mesg_name );
+			if ( $mesgs && null !== $local_mesg_type ) {
+				$mesg_name = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
 
 				if ( ! isset( $this->tables_created[ $mesg_name ] ) ) {
-                    $this->logger->debug( 'Creating table for message: ' . $mesg_name );
 					$this->tables_created[ $mesg_name ] = $this->create_table( $local_mesg_type );
 					if ( ! $this->tables_created[ $mesg_name ] ) {
 						return;
@@ -5510,8 +5490,6 @@ class phpFITFileAnalysis {
 
 			$this->bufferAndLoadMessages( $mesgs_clean, $flush );
 		}
-
-		// $this->logger->debug( 'Storing message: ' . print_r( $mesgs, true ) );
 
 		foreach ( $mesgs as $mesg_key => $mesg ) {
 			if ( 'record' === $mesg_key ) {
@@ -5566,21 +5544,154 @@ class phpFITFileAnalysis {
 			$this->logger->debug( 'Buffering ' . $mesg_count . ' messages into tables with message types: ' . implode( ', ', array_keys( $mesgs_buffer ) ) );
 			// $this->logger->debug( 'Buffering messages: ' . print_r( $mesgs_buffer, true ) );
 
-            foreach ( $mesgs_buffer as $table => $mesg ) {
-                $table_name = $this->tables_created[ $table ];
-                if ( ! $table_name ) {
-                    $this->logger->error( 'Table name not found for ' . $table );
-                    $this->logger->error( 'Table names: ' . print_r( $this->tables_created, true ) );
-                    throw new \Exception( 'Table name not found for ' . $table );
-                }
-
-                $this->logger->debug( 'Loading messages into table: ' . $table_name );
-            }
+			foreach ( $mesgs_buffer as $table => $mesgs ) {
+				if ( 'record' === $table ) {
+					$this->storeRecordMesg( $mesgs, $table );
+				} else {
+					$this->storeNonRecordMesg( $mesgs, $table );
+				}
+			}
 
 			$mesgs_buffer = array();
 			$mesg_count   = 0;
 		}
 	}
+
+	/**
+	 * Enter non-record messages into their respective tables.
+	 *
+	 * @param array $mesgs The messages to be stored.
+	 * @param string $table The table name.
+	 */
+	private function storeNonRecordMesg( $mesgs, $table ) {
+		$table_name = $this->tables_created[ $table ];
+		if ( ! $table_name ) {
+			$this->logger->error( 'Table name not found for ' . $table );
+			$this->logger->error( 'Table names: ' . print_r( $this->tables_created, true ) );
+			throw new \Exception( 'Table name not found for ' . $table );
+		}
+
+		// Collect all unique columns across all messages
+		$all_columns = array();
+		foreach ( $mesgs as $mesg ) {
+			$all_columns = array_unique(
+				array_merge(
+					$all_columns,
+					array_map(
+						function ( $column ) {
+							return '`' . $column . '`';
+						},
+						array_keys( $mesg['data'] )
+					)
+				)
+			);
+		}
+		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
+
+		$sql    = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
+		$values = array();
+		foreach ( $mesgs as $mesg ) {
+            // $this->logger->debug( $table . ' mesg: ' . print_r( $mesg, true ) );
+			$placeholders = array();
+			foreach ( $all_columns as $column ) {
+                $column_name = trim( $column, '`' );
+                if ( array_key_exists( $column_name, $mesg['data'] ) ) {
+                    $placeholders[] = $this->db->quote( $mesg['data'][ $column_name ] );
+                } else {
+                    $placeholders[] = 'NULL';
+                }
+			}
+			$values[] = '(' . implode( ', ', $placeholders ) . ')';
+		}
+		$sql .= implode( ', ', $values ) . ';';
+
+        // $this->logger->debug( 'SQL: ' . $sql );
+
+		try {
+			$this->db->exec( $sql );
+		} catch ( \PDOException $e ) {
+			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
+			throw $e;
+		}
+
+		// $this->logger->debug( 'Loading messages into table: ' . $table_name );
+	}
+
+	/**
+	 * Enter record messages into their respective tables.
+	 *
+	 * Adds in spatial points and special indexes.
+	 *
+	 * @param array $mesgs The messages to be stored.
+	 * @param string $table The table name.
+	 */
+	private function storeRecordMesg( $mesgs, $table ) {
+		$table_name = $this->tables_created[ $table ];
+		if ( ! $table_name ) {
+			$this->logger->error( 'Table name not found for ' . $table );
+			$this->logger->error( 'Table names: ' . print_r( $this->tables_created, true ) );
+			throw new \Exception( 'Table name not found for ' . $table );
+		}
+
+		// Collect all unique columns across all messages
+		$all_columns = array();
+		foreach ( $mesgs as $mesg ) {
+			$all_columns = array_unique(
+				array_merge(
+					$all_columns,
+					array_map(
+						function ( $column ) {
+							return '`' . $column . '`';
+						},
+						array_keys( $mesg['data'] )
+					)
+				)
+			);
+		}
+
+		// Add spatial_point column if position_lat and position_long exist
+		if ( in_array( '`position_lat`', $all_columns, true ) && in_array( '`position_long`', $all_columns, true ) ) {
+			$all_columns[] = '`spatial_point`';
+		}
+
+		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
+
+		$sql    = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
+		$values = array();
+		foreach ( $mesgs as $mesg ) {
+			$placeholders = array();
+			foreach ( $all_columns as $column ) {
+				$column_name = trim( $column, '`' );
+				if ( $column_name === 'spatial_point' ) {
+					if ( isset( $mesg['data']['position_lat'] ) && isset( $mesg['data']['position_long'] ) ) {
+						$lat            = $mesg['data']['position_lat'];
+						$lon            = $mesg['data']['position_long'];
+						$placeholders[] = "POINT($lon, $lat)";
+					} else {
+						$placeholders[] = 'NULL';
+					}
+				} elseif ( array_key_exists( $column_name, $mesg['data'] ) ) {
+					$placeholders[] = $this->db->quote( $mesg['data'][ $column_name ] );
+				} else {
+					$placeholders[] = 'NULL';
+				}
+			}
+			$values[] = '(' . implode( ', ', $placeholders ) . ')';
+		}
+		$sql .= implode( ', ', $values ) . ';';
+
+        // $this->logger->debug( 'SQL: ' . $sql );
+
+		try {
+			$this->db->exec( $sql );
+		} catch ( \PDOException $e ) {
+			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
+			throw $e;
+		}
+
+		// $this->logger->debug( 'Loading messages into table: ' . $table_name );
+	}
+
 
 	/**
 	 * Create a table for the given message type.
@@ -5612,6 +5723,8 @@ class phpFITFileAnalysis {
 		}
 		// $this->logger->debug( 'Creating table: ' . $table_name . ' with columns: ' . print_r( $columns, true ) );
 
+    	$column_names      = array_column( $columns, 'field_name' );
+
 		$sql = 'CREATE TABLE ' . $table_name . ' (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, ';
 		foreach ($columns as $column) {
 			$sql .= '`' . $column['field_name'] . '` ' . $column['type'] . ', ';
@@ -5620,7 +5733,6 @@ class phpFITFileAnalysis {
 		// If 'record', add spatial point and indexes.
 		if ( 'record' === $mesg_name ) {
 			$mandatory_columns = array( 'position_lat', 'position_long', 'timestamp', 'distance' );
-			$column_names      = array_column( $columns, 'field_name' );
 
 			try {
 				$mandatory_columns = $this->checkForMandatoryColumns( $mandatory_columns, $column_names );
@@ -5643,7 +5755,7 @@ class phpFITFileAnalysis {
 
 		try {
 			$this->db->exec( $sql );
-			$this->logger->debug( 'Table created successfully: ' . $table_name );
+			$this->logger->debug( 'Table created successfully: ' . $table_name . ' with columns ' . implode( ', ', $column_names ) . ' + more for record messages' );
 		} catch (\PDOException $e) {
 			$this->logger->error( 'Error creating table, ' . $table_name . ': ' . $e->getMessage() );
 			throw $e;
