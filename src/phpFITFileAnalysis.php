@@ -62,7 +62,9 @@ class phpFITFileAnalysis {
 	private $garmin_timestamps      = false;    // By default the constant FIT_UNIX_TS_DIFF will be added to timestamps.
 	private $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
 	private $data_table             = '';       // Base name for data tables in the database.
+	private $tables_created         = array();  // Stores the name of each table created.
 	private $db;                                // PDO object for database connection.
+	private $buffer_size = 1000;     // Number of messags to buffer and then load to DB in batch.
 	public $logger;                             // Monolog logger object.
 
 	// Enumerated data looked up by enumData().
@@ -4993,6 +4995,7 @@ class phpFITFileAnalysis {
 	 *      'username'         => 'user',
 	 *      'password'         => 'password',
 	 * @return bool
+	 * @throws \Exception if any of the required options are missing or invalid.
 	 */
 	private function checkFileBufferOptions( $options ) {
 
@@ -5429,6 +5432,8 @@ class phpFITFileAnalysis {
 			}
 		}  // while loop
 
+		$this->storeMesg( null, null, true );  // Flush any remaining data to the database
+
 		// Overwrite native FIT fields (e.g. Power, HR, Cadence, etc) with developer data by default
 		if ( ! empty( $this->dev_field_descriptions ) ) {
 			foreach ( $this->dev_field_descriptions as $developer_data_index ) {
@@ -5454,25 +5459,39 @@ class phpFITFileAnalysis {
 	/**
 	 * Store the data in the class variable $this->data_mesgs.
 	 *
+	 * Adjusts $this->tables_created
+	 *
 	 * @param array $mesgs            The data to be stored.
 	 * @param int   $local_mesg_type  Related element of $this->defn_mesgs.
-     * @param bool  $flush            Whether to flush any remaining data to the database.
+	 * @param bool  $flush            Whether to flush any remaining data to the database.
 	 */
-	private function storeMesg( $mesgs, $local_mesg_type, $flush = false ) {
+	private function storeMesg( $mesgs = array(), $local_mesg_type, $flush = false ) {
+		// If no $mesgs and $flush, just flush buffer to the database.
+		if ( empty( $mesgs ) && $flush && $this->file_buff ) {
+			$this->bufferAndLoadMessages( array(), $flush );
+			return;
+		}
+
 		$mesgs = $this->oneElementArraysSingle( $mesgs );
 
-        // TODO: make this a class variable and drop the tables in the destructor.
-		static $tables_created = array();
-
 		if ( $this->file_buff ) {
-			if ( ! isset( $tables_created[ $local_mesg_type ] ) ) {
-				$tables_created[ $local_mesg_type ] = $this->create_table( $local_mesg_type );
-				if ( ! $tables_created[ $local_mesg_type ] ) {
-					return;
+			if ( $mesgs && $local_mesg_type ) {
+           		$mesg_name = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
+                $this->logger->debug( 'Storing message: ' . $mesg_name );
+
+				if ( ! isset( $this->tables_created[ $mesg_name ] ) ) {
+                    $this->logger->debug( 'Creating table for message: ' . $mesg_name );
+					$this->tables_created[ $mesg_name ] = $this->create_table( $local_mesg_type );
+					if ( ! $this->tables_created[ $mesg_name ] ) {
+						return;
+					}
 				}
 			}
 
-            // TODO: buffer messages and insert them in batches.
+			$mesgs_clean = $this->fixDataSingle( $mesgs );
+			$mesgs_clean = $this->setUnitsSingle( $mesgs_clean );
+
+			$this->bufferAndLoadMessages( $mesgs_clean, $flush );
 		}
 
 		// $this->logger->debug( 'Storing message: ' . print_r( $mesgs, true ) );
@@ -5498,6 +5517,52 @@ class phpFITFileAnalysis {
 
 		// $mesgs = $this->fixDataSingle( $mesgs );
 		// $mesgs = $this->setUnitsSingle( $mesgs );
+	}
+
+	/**
+	 * Buffer and load messages into the database.
+	 *
+	 * @param array $mesgs The messages to be buffered and loaded.
+	 * @param bool  $flush Whether to flush any remaining data to the database.
+	 * @return void
+	 * @throws Exception If there is an error during the database operation.
+	 */
+	private function bufferAndLoadMessages( $mesgs, $flush ) {
+		static $mesg_count   = 0;
+		static $mesgs_buffer = array();
+
+		if ( $mesgs ) {
+			$count = count( $mesgs );
+			for ( $i=0; $i < $count; $i++ ) {
+				$mesg_name = array_keys( $mesgs )[$i];
+				$mesg      = array_values( $mesgs )[$i];
+
+				// Buffer the messages
+				$mesgs_buffer[$mesg_name][] = array(
+					'data'  => $mesg,
+				);
+			}
+			$mesg_count += count( $mesgs );
+		}
+
+		if ( $flush || $mesg_count >= $this->buffer_size ) {
+			$this->logger->debug( 'Buffering ' . $mesg_count . ' messages into tables' );
+			// $this->logger->debug( 'Buffering messages: ' . print_r( $mesgs_buffer, true ) );
+
+            foreach ( $mesgs_buffer as $table => $mesg ) {
+                $table_name = $this->tables_created[ $table ];
+                if ( ! $table_name ) {
+                    $this->logger->error( 'Table name not found for ' . $table );
+                    $this->logger->error( 'Table names: ' . print_r( $this->tables_created, true ) );
+                    throw new \Exception( 'Table name not found for ' . $table );
+                }
+
+                $this->logger->debug( 'Loading messages into table: ' . $table_name );
+            }
+
+			$mesgs_buffer = array();
+			$mesg_count   = 0;
+		}
 	}
 
 	/**
@@ -5528,7 +5593,7 @@ class phpFITFileAnalysis {
 				);
 			}
 		}
-		$this->logger->debug( 'Creating table: ' . $table_name . ' with columns: ' . print_r( $columns, true ) );
+		// $this->logger->debug( 'Creating table: ' . $table_name . ' with columns: ' . print_r( $columns, true ) );
 
 		$sql = 'CREATE TABLE ' . $table_name . ' (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, ';
 		foreach ($columns as $column) {
@@ -5537,17 +5602,17 @@ class phpFITFileAnalysis {
 
 		// If 'record', add spatial point and indexes.
 		if ( 'record' === $mesg_name ) {
-            $mandatory_columns = array( 'position_lat', 'position_long', 'timestamp', 'distance' );
-            $column_names = array_column( $columns, 'field_name' );
+			$mandatory_columns = array( 'position_lat', 'position_long', 'timestamp', 'distance' );
+			$column_names      = array_column( $columns, 'field_name' );
 
-            try {
-    			$mandatory_columns = $this->checkForMandatoryColumns( $mandatory_columns, $column_names );
-            } catch ( \Exception $e ) {
-                $this->logger->error( 'Error creating table, ' . $table_name . ': ' . $e->getMessage() );
-                throw $e;
-            }
+			try {
+				$mandatory_columns = $this->checkForMandatoryColumns( $mandatory_columns, $column_names );
+			} catch ( \Exception $e ) {
+				$this->logger->error( 'Error creating table, ' . $table_name . ': ' . $e->getMessage() );
+				throw $e;
+			}
 
-            if ( $mandatory_columns ) {
+			if ( $mandatory_columns ) {
 				$sql .= '`paused` TINYINT(1), ';
 				$sql .= '`stopped` TINYINT(1), ';
 				$sql .= '`spatial_point` POINT NOT NULL, ';
@@ -5570,22 +5635,22 @@ class phpFITFileAnalysis {
 		return $table_name;
 	}
 
-    /**
-     * Check for mandatory columns.
-     * 
-     * @param array $mandatory_columns The mandatory columns to check.
-     * @param array $column_names The column names to check against.
-     * @return bool True if all mandatory columns are present, false otherwise.
-     * @throws Exception if any mandatory columns are missing.
-     */
-    private function checkForMandatoryColumns( $mandatory_columns, $column_names ) {
-        foreach ( $mandatory_columns as $column ) {
-            if ( ! in_array( $column, $column_names, true ) ) {
-                throw new \Exception( 'Missing mandatory column: ' . $column );
-            }
-        }
-        return true;
-    }
+	/**
+	 * Check for mandatory columns.
+	 *
+	 * @param array $mandatory_columns The mandatory columns to check.
+	 * @param array $column_names The column names to check against.
+	 * @return bool True if all mandatory columns are present, false otherwise.
+	 * @throws Exception if any mandatory columns are missing.
+	 */
+	private function checkForMandatoryColumns( $mandatory_columns, $column_names ) {
+		foreach ( $mandatory_columns as $column ) {
+			if ( ! in_array( $column, $column_names, true ) ) {
+				throw new \Exception( 'Missing mandatory column: ' . $column );
+			}
+		}
+		return true;
+	}
 
 	/**
 	 * Formats memory usage in a human-readable format.
