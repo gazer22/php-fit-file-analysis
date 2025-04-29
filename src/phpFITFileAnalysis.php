@@ -48,7 +48,7 @@ if ( ! defined( 'FIT_UNIX_TS_DIFF' ) ) {
 
 // TODO: Finish implementing ArrayAccess to allow $this->data_mesgs['record']['speed'] to be accessed directly - see methods at end of class.
 // TODO: Add destructor to flush tables.
-class phpFITFileAnalysis implements ArrayAccess {
+class phpFITFileAnalysis {
 
 	public $data_mesgs              = array();  // Used to store the data read from the file in associative arrays.
 	private $dev_field_descriptions = array();
