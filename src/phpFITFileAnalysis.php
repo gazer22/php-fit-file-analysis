@@ -5460,6 +5460,7 @@ class phpFITFileAnalysis {
 	private function storeMesg( $mesgs, $local_mesg_type ) {
 		$mesgs = $this->oneElementArraysSingle( $mesgs );
 
+        // TODO: make this a class variable and drop the tables in the destructor.
 		static $tables_created = array();
 
 		if ( $this->file_buff ) {
@@ -5469,6 +5470,8 @@ class phpFITFileAnalysis {
 					return;
 				}
 			}
+
+            // TODO: buffer messages and insert them in batches.
 		}
 
 		// $this->logger->debug( 'Storing message: ' . print_r( $mesgs, true ) );
@@ -5533,31 +5536,23 @@ class phpFITFileAnalysis {
 
 		// If 'record', add spatial point and indexes.
 		if ( 'record' === $mesg_name ) {
-			$column_names = array_column( $columns, 'field_name' );
-			if ( in_array( 'position_lat', $column_names, true ) && in_array( 'position_long', $column_names, true ) && in_array( 'timestamp', $column_names, true ) && in_array( 'distance', $column_names, true ) ) {
+            $mandatory_columns = array( 'position_lat', 'position_long', 'timestamp', 'distance' );
+            $column_names = array_column( $columns, 'field_name' );
+
+            try {
+    			$mandatory_columns = $this->checkForMandatoryColumns( $mandatory_columns, $column_names );
+            } catch ( \Exception $e ) {
+                $this->logger->error( 'Error creating table, ' . $table_name . ': ' . $e->getMessage() );
+                throw $e;
+            }
+
+            if ( $mandatory_columns ) {
 				$sql .= '`paused` TINYINT(1), ';
 				$sql .= '`stopped` TINYINT(1), ';
 				$sql .= '`spatial_point` POINT NOT NULL, ';
 				$sql .= 'SPATIAL INDEX spatial_idx (`spatial_point`), ';
 				$sql .= 'INDEX distance (`distance`), ';
 				$sql .= 'INDEX time_idx (`timestamp`), ';
-			} else {
-				$missing_columns = array();
-				if ( ! in_array( 'position_lat', $column_names, true ) ) {
-					$missing_columns[] = 'position_lat';
-				}
-				if ( ! in_array( 'position_long', $column_names, true ) ) {
-					$missing_columns[] = 'position_long';
-				}
-				if ( ! in_array( 'timestamp', $column_names, true ) ) {
-					$missing_columns[] = 'timestamp';
-				}
-				if ( ! in_array( 'distance', $column_names, true ) ) {
-					$missing_columns[] = 'distance';
-				}
-
-				$this->logger->error( 'Error creating table, ' . $table_name . ': missing required columns for spatial index: ' . implode( ', ', $missing_columns ) );
-				throw new \Exception( 'Error creating table, ' . $table_name . ': missing required columns for spatial index: ' . implode( ', ', $missing_columns ) );
 			}
 		}
 
@@ -5571,8 +5566,25 @@ class phpFITFileAnalysis {
 			throw $e;
 		}
 
-		return true;
+		return $table_name;
 	}
+
+    /**
+     * Check for mandatory columns.
+     * 
+     * @param array $mandatory_columns The mandatory columns to check.
+     * @param array $column_names The column names to check against.
+     * @return bool True if all mandatory columns are present, false otherwise.
+     * @throws Exception if any mandatory columns are missing.
+     */
+    private function checkForMandatoryColumns( $mandatory_columns, $column_names ) {
+        foreach ( $mandatory_columns as $column ) {
+            if ( ! in_array( $column, $column_names, true ) ) {
+                throw new \Exception( 'Missing mandatory column: ' . $column );
+            }
+        }
+        return true;
+    }
 
 	/**
 	 * Formats memory usage in a human-readable format.
