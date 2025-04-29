@@ -6,7 +6,6 @@ use Monolog\Logger;
 use Monolog\Level;
 use Monolog\Handler\StreamHandler;
 use Monolog\Formatter\LineFormatter;
-use Monolog\Formatter\HtmlFormatter;
 
 
 // phpcs:disable WordPress
