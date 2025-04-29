@@ -5456,8 +5456,9 @@ class phpFITFileAnalysis {
 	 *
 	 * @param array $mesgs            The data to be stored.
 	 * @param int   $local_mesg_type  Related element of $this->defn_mesgs.
+     * @param bool  $flush            Whether to flush any remaining data to the database.
 	 */
-	private function storeMesg( $mesgs, $local_mesg_type ) {
+	private function storeMesg( $mesgs, $local_mesg_type, $flush = false ) {
 		$mesgs = $this->oneElementArraysSingle( $mesgs );
 
         // TODO: make this a class variable and drop the tables in the destructor.
