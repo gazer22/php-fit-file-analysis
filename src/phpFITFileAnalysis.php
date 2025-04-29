@@ -4699,54 +4699,54 @@ class phpFITFileAnalysis {
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 'm',
-                    'raw'        => 'DECIMAL(10,3)',
-                    'metric'     => 'DECIMAL(10,3)',
-                    'statute'    => 'DECIMAL(10,3)',
+					'raw'        => 'DECIMAL(10,3)',
+					'metric'     => 'DECIMAL(10,3)',
+					'statute'    => 'DECIMAL(10,3)',
 				),
 				1   => array(
 					'field_name' => 'time',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 's',
-                    'raw'        => 'INT',
-                    'metric'     => 'INT',
-                    'statute'    => 'INT',
+					'raw'        => 'INT',
+					'metric'     => 'INT',
+					'statute'    => 'INT',
 				),
 				2   => array(
 					'field_name' => 'enabled',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-                    'raw'        => 'TINYINT(1)',
-                    'metric'     => 'TINYINT(1)',
-                    'statute'    => 'TINYINT(1)',
+					'raw'        => 'TINYINT(1)',
+					'metric'     => 'TINYINT(1)',
+					'statute'    => 'TINYINT(1)',
 				),
 				3   => array(
 					'field_name' => 'alarm_type',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-                    'raw'        => 'TINYINT UNSIGNED',
-                    'metric'     => 'TINYINT UNSIGNED',
-                    'statute'    => 'TINYINT UNSIGNED',
+					'raw'        => 'TINYINT UNSIGNED',
+					'metric'     => 'TINYINT UNSIGNED',
+					'statute'    => 'TINYINT UNSIGNED',
 				),
 				4   => array(
 					'field_name' => 'sound',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-                    'raw'        => 'TINYINT UNSIGNED',
-                    'metric'     => 'TINYINT UNSIGNED',
-                    'statute'    => 'TINYINT UNSIGNED',
+					'raw'        => 'TINYINT UNSIGNED',
+					'metric'     => 'TINYINT UNSIGNED',
+					'statute'    => 'TINYINT UNSIGNED',
 				),
 				254 => array(
 					'field_name' => 'message_index',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-                    'raw'        => 'SMALLINT UNSIGNED',
-                    'metric'     => 'SMALLINT UNSIGNED',
-                    'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'SMALLINT UNSIGNED',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'SMALLINT UNSIGNED',
 				),
 			),
 		),
@@ -4759,117 +4759,117 @@ class phpFITFileAnalysis {
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-                    'raw'        => 'SMALLINT UNSIGNED',
-                    'metric'     => 'SMALLINT UNSIGNED',
-                    'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'SMALLINT UNSIGNED',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'SMALLINT UNSIGNED',
 				),
 				1   => array(
 					'field_name' => 'reference_index',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-                    'raw'        => 'SMALLINT UNSIGNED',
-                    'metric'     => 'SMALLINT UNSIGNED',
-                    'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'SMALLINT UNSIGNED',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'SMALLINT UNSIGNED',
 				),
 				2   => array(
 					'field_name' => 'avg_depth',
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 'm',
-                    'raw'        => 'DECIMAL(10,3)',
-                    'metric'     => 'DECIMAL(10,3)',
-                    'statute'    => 'DECIMAL(10,3)',
+					'raw'        => 'DECIMAL(10,3)',
+					'metric'     => 'DECIMAL(10,3)',
+					'statute'    => 'DECIMAL(10,3)',
 				),
 				3   => array(
 					'field_name' => 'max_depth',
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 'm',
-                    'raw'        => 'DECIMAL(10,3)',
-                    'metric'     => 'DECIMAL(10,3)',
-                    'statute'    => 'DECIMAL(10,3)',
+					'raw'        => 'DECIMAL(10,3)',
+					'metric'     => 'DECIMAL(10,3)',
+					'statute'    => 'DECIMAL(10,3)',
 				),
 				4   => array(
 					'field_name' => 'surface_interval',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 's',
-                    'raw'        => 'INT UNSIGNED',
-                    'metric'     => 'INT UNSIGNED',
-                    'statute'    => 'INT UNSIGNED',
+					'raw'        => 'INT UNSIGNED',
+					'metric'     => 'INT UNSIGNED',
+					'statute'    => 'INT UNSIGNED',
 				),
 				5   => array(
 					'field_name' => 'start_cns',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'percent',
-                    'raw'        => 'TINYINT UNSIGNED',
-                    'metric'     => 'TINYINT UNSIGNED',
-                    'statute'    => 'TINYINT UNSIGNED',
+					'raw'        => 'TINYINT UNSIGNED',
+					'metric'     => 'TINYINT UNSIGNED',
+					'statute'    => 'TINYINT UNSIGNED',
 				),
 				6   => array(
 					'field_name' => 'end_cns',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'percent',
-                    'raw'        => 'TINYINT UNSIGNED',
-                    'metric'     => 'TINYINT UNSIGNED',
-                    'statute'    => 'TINYINT UNSIGNED',
+					'raw'        => 'TINYINT UNSIGNED',
+					'metric'     => 'TINYINT UNSIGNED',
+					'statute'    => 'TINYINT UNSIGNED',
 				),
 				7   => array(
 					'field_name' => 'start_n2',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'percent',
-                    'raw'        => 'SMALLINT UNSIGNED',
-                    'metric'     => 'SMALLINT UNSIGNED',
-                    'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'SMALLINT UNSIGNED',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'SMALLINT UNSIGNED',
 				),
 				8   => array(
 					'field_name' => 'end_n2',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'percent',
-                    'raw'        => 'SMALLINT UNSIGNED',
-                    'metric'     => 'SMALLINT UNSIGNED',
-                    'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'SMALLINT UNSIGNED',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'SMALLINT UNSIGNED',
 				),
 				9   => array(
 					'field_name' => 'o2_toxicity',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'OTUs',
-                    'raw'        => 'SMALLINT UNSIGNED',
-                    'metric'     => 'SMALLINT UNSIGNED',
-                    'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'SMALLINT UNSIGNED',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'SMALLINT UNSIGNED',
 				),
 				10  => array(
 					'field_name' => 'dive_number',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-                    'raw'        => 'INT UNSIGNED',
-                    'metric'     => 'INT UNSIGNED',
-                    'statute'    => 'INT UNSIGNED',
+					'raw'        => 'INT UNSIGNED',
+					'metric'     => 'INT UNSIGNED',
+					'statute'    => 'INT UNSIGNED',
 				),
 				11  => array(
 					'field_name' => 'bottom_time',
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 's',
-                    'raw'        => 'DECIMAL(10,3)',
-                    'metric'     => 'DECIMAL(10,3)',
-                    'statute'    => 'DECIMAL(10,3)',
+					'raw'        => 'DECIMAL(10,3)',
+					'metric'     => 'DECIMAL(10,3)',
+					'statute'    => 'DECIMAL(10,3)',
 				),
 				253 => array(
 					'field_name' => 'timestamp',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 's',
-                    'raw'        => 'INT UNSIGNED',
-                    'metric'     => 'INT UNSIGNED',
-                    'statute'    => 'INT UNSIGNED',
+					'raw'        => 'INT UNSIGNED',
+					'metric'     => 'INT UNSIGNED',
+					'statute'    => 'INT UNSIGNED',
 				),
 			),
 		),
@@ -4910,7 +4910,7 @@ class phpFITFileAnalysis {
 			}
 
 			$this->file_buff  = true;
-			$this->data_table = $this->cleanTableName( $options['database']['table_name'] );
+			$this->data_table = $this->cleanTableName( $options['database']['table_name'] ) . '_';
 		} else {
 			$this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
 		}
@@ -5044,9 +5044,6 @@ class phpFITFileAnalysis {
 		$table_name = str_replace( '>', '_', $table_name );
 		$table_name = str_replace( '<', '_', $table_name );
 
-		if (substr( $table_name, -1 ) !== '_') {
-			$table_name .= '_';
-		}
 		return $table_name;
 	}
 
@@ -5506,35 +5503,73 @@ class phpFITFileAnalysis {
 	 * @return bool True if the table was created successfully, null otherwise.
 	 */
 	private function create_table( $local_mesg_type ) {
-		$table_name = $this->data_table . $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
+		$mesg_name  = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
+		$table_name = $this->data_table . $mesg_name;
+		$table_name = $this->cleanTableName( $table_name );
 		$columns    = array();
-        $units = isset( $this->options['units'] ) ? strtolower( $this->options['units'] ) : 'metric';
-        // use $this->db which is a PDO object.
-        // 'DROP TABLE IF EXISTS ' . $table_name;
-         	// 'CREATE TABLE ' . $table_name . ' (
-			// 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-			// 	timest INT UNSIGNED NOT NULL,
-			// 	lat DECIMAL(10, 7) NOT NULL,
-			// 	lon DECIMAL(11, 7) NOT NULL,
-			// 	spatial_point POINT NOT NULL,
-			// 	elevation DECIMAL(8, 2),
-			// 	distance DECIMAL(10, 4),
-			// 	speed DECIMAL(5, 2),
-			// 	paused TINYINT(1),
-			// 	stopped TINYINT(1),
-			// 	SPATIAL INDEX spatial_idx (spatial_point),
-			// 	INDEX distance (distance),
-			// 	INDEX time_idx (timest)
-			// ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;';
+		$units      = isset( $this->options['units'] ) ? strtolower( $this->options['units'] ) : 'metric';
+
+		try {
+			$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
+		} catch ( \PDOException $e ) {
+			$this->logger->error( 'Error dropping table, ' . $table_name . ': ' . $e->getMessage() );
+			throw $e;
+		}
+
 		foreach ( $this->defn_mesgs[ $local_mesg_type ]['field_defns'] as $field_defn ) {
 			if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ) ) {
 				$columns[] = array(
-					'field_name' => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'],
+					'field_name' => $this->cleanTableName( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ),
 					'type'       => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ][ $units ],
 				);
 			}
 		}
 		$this->logger->debug( 'Creating table: ' . $table_name . ' with columns: ' . print_r( $columns, true ) );
+
+		$sql = 'CREATE TABLE ' . $table_name . ' (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, ';
+		foreach ($columns as $column) {
+			$sql .= '`' . $column['field_name'] . '` ' . $column['type'] . ', ';
+		}
+
+		// If 'record', add spatial point and indexes.
+		if ( 'record' === $mesg_name ) {
+			$column_names = array_column( $columns, 'field_name' );
+			if ( in_array( 'position_lat', $column_names, true ) && in_array( 'position_long', $column_names, true ) && in_array( 'timestamp', $column_names, true ) && in_array( 'distance', $column_names, true ) ) {
+				$sql .= '`paused` TINYINT(1), ';
+				$sql .= '`stopped` TINYINT(1), ';
+				$sql .= '`spatial_point` POINT NOT NULL, ';
+				$sql .= 'SPATIAL INDEX spatial_idx (`spatial_point`), ';
+				$sql .= 'INDEX distance (`distance`), ';
+				$sql .= 'INDEX time_idx (`timestamp`), ';
+			} else {
+				$missing_columns = array();
+				if ( ! in_array( 'position_lat', $column_names, true ) ) {
+					$missing_columns[] = 'position_lat';
+				}
+				if ( ! in_array( 'position_long', $column_names, true ) ) {
+					$missing_columns[] = 'position_long';
+				}
+				if ( ! in_array( 'timestamp', $column_names, true ) ) {
+					$missing_columns[] = 'timestamp';
+				}
+				if ( ! in_array( 'distance', $column_names, true ) ) {
+					$missing_columns[] = 'distance';
+				}
+
+				$this->logger->error( 'Error creating table, ' . $table_name . ': missing required columns for spatial index: ' . implode( ', ', $missing_columns ) );
+				throw new \Exception( 'Error creating table, ' . $table_name . ': missing required columns for spatial index: ' . implode( ', ', $missing_columns ) );
+			}
+		}
+
+		$sql = rtrim( $sql, ', ' ) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;';
+
+		try {
+			$this->db->exec( $sql );
+			$this->logger->debug( 'Table created successfully: ' . $table_name );
+		} catch (\PDOException $e) {
+			$this->logger->error( 'Error creating table, ' . $table_name . ': ' . $e->getMessage() );
+			throw $e;
+		}
 
 		return true;
 	}
