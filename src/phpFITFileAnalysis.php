@@ -5417,7 +5417,7 @@ class phpFITFileAnalysis {
 							}
 						}
 
-						$mesg_id = $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'];
+						// $mesg_id = $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'];
 						$this->storeMesg( $tmp_mesg, $local_mesg_type );
 
 					} else {
