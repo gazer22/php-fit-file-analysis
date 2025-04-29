@@ -5508,14 +5508,28 @@ class phpFITFileAnalysis {
 	private function create_table( $local_mesg_type ) {
 		$table_name = $this->data_table . $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
 		$columns    = array();
+        $units = isset( $this->options['units'] ) ? strtolower( $this->options['units'] ) : 'metric';
+        // 'DROP TABLE IF EXISTS ' . $table_name;
+         	// 'CREATE TABLE ' . $table_name . ' (
+			// 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+			// 	timest INT UNSIGNED NOT NULL,
+			// 	lat DECIMAL(10, 7) NOT NULL,
+			// 	lon DECIMAL(11, 7) NOT NULL,
+			// 	spatial_point POINT NOT NULL,
+			// 	elevation DECIMAL(8, 2),
+			// 	distance DECIMAL(10, 4),
+			// 	speed DECIMAL(5, 2),
+			// 	paused TINYINT(1),
+			// 	stopped TINYINT(1),
+			// 	SPATIAL INDEX spatial_idx (spatial_point),
+			// 	INDEX distance (distance),
+			// 	INDEX time_idx (timest)
+			// ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;';
 		foreach ( $this->defn_mesgs[ $local_mesg_type ]['field_defns'] as $field_defn ) {
 			if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ) ) {
 				$columns[] = array(
 					'field_name' => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'],
-					'field_def'  => $field_defn,
-					'scale'      => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['scale'],
-					'offset'     => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['offset'],
-					// 'base_type' => $this->defn_mesgs[ $local_mesg_type ]['field_defns'][ $field_defn['field_definition_number'] ]['base_type'],
+					'type'       => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ][ $units ],
 				);
 			}
 		}
