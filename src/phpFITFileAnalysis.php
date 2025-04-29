@@ -1,6 +1,7 @@
 <?php
 namespace gazer22;
 
+use ArrayAccess;
 use Monolog\Logger;
 use Monolog\Level;
 use Monolog\Handler\StreamHandler;
@@ -47,7 +48,7 @@ if ( ! defined( 'FIT_UNIX_TS_DIFF' ) ) {
 }
 
 // TODO: Implement ArrayAccess to allow $this->data_mesgs['record']['speed'] to be accessed directly.
-class phpFITFileAnalysis {
+class phpFITFileAnalysis implements ArrayAccess {
 
 	public $data_mesgs              = array();  // Used to store the data read from the file in associative arrays.
 	private $dev_field_descriptions = array();
@@ -5489,23 +5490,24 @@ class phpFITFileAnalysis {
 			$mesgs_clean = $this->setUnitsSingle( $mesgs_clean );
 
 			$this->bufferAndLoadMessages( $mesgs_clean, $flush );
-		}
-
-		foreach ( $mesgs as $mesg_key => $mesg ) {
-			if ( 'record' === $mesg_key ) {
-				$timestamp = $mesg['timestamp'] ?? null;
-				// $this->logger->debug( $mesg_key . ', timestamp: ' . $timestamp );
-				foreach ( $mesg as $field_key => $field ) {
-					if ( 'timestamp' === $field_key ) {
-						$this->data_mesgs[ $mesg_key ][ $field_key ][] = $field;
-					} else {
-						$this->data_mesgs[ $mesg_key ][ $field_key ][ $timestamp ] = $field;
+		} else {
+			// Store in $this->data_mesgs
+			foreach ( $mesgs as $mesg_key => $mesg ) {
+				if ( 'record' === $mesg_key ) {
+					$timestamp = $mesg['timestamp'] ?? null;
+					// $this->logger->debug( $mesg_key . ', timestamp: ' . $timestamp );
+					foreach ( $mesg as $field_key => $field ) {
+						if ( 'timestamp' === $field_key ) {
+							$this->data_mesgs[ $mesg_key ][ $field_key ][] = $field;
+						} else {
+							$this->data_mesgs[ $mesg_key ][ $field_key ][ $timestamp ] = $field;
+						}
 					}
-				}
-				// $this->logger->debug( 'Current record array: ' . print_r( $this->data_mesgs[ $mesg_key ], true ) );
-			} else {
-				foreach ( $mesg as $field_key => $field ) {
-					$this->data_mesgs[ $mesg_key ][ $field_key ][] = $field;
+					// $this->logger->debug( 'Current record array: ' . print_r( $this->data_mesgs[ $mesg_key ], true ) );
+				} else {
+					foreach ( $mesg as $field_key => $field ) {
+						$this->data_mesgs[ $mesg_key ][ $field_key ][] = $field;
+					}
 				}
 			}
 		}
@@ -5591,21 +5593,21 @@ class phpFITFileAnalysis {
 		$sql    = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
 		$values = array();
 		foreach ( $mesgs as $mesg ) {
-            // $this->logger->debug( $table . ' mesg: ' . print_r( $mesg, true ) );
+			// $this->logger->debug( $table . ' mesg: ' . print_r( $mesg, true ) );
 			$placeholders = array();
 			foreach ( $all_columns as $column ) {
-                $column_name = trim( $column, '`' );
-                if ( array_key_exists( $column_name, $mesg['data'] ) ) {
-                    $placeholders[] = $this->db->quote( $mesg['data'][ $column_name ] );
-                } else {
-                    $placeholders[] = 'NULL';
-                }
+				$column_name = trim( $column, '`' );
+				if ( array_key_exists( $column_name, $mesg['data'] ) ) {
+					$placeholders[] = $this->db->quote( $mesg['data'][ $column_name ] );
+				} else {
+					$placeholders[] = 'NULL';
+				}
 			}
 			$values[] = '(' . implode( ', ', $placeholders ) . ')';
 		}
 		$sql .= implode( ', ', $values ) . ';';
 
-        // $this->logger->debug( 'SQL: ' . $sql );
+		// $this->logger->debug( 'SQL: ' . $sql );
 
 		try {
 			$this->db->exec( $sql );
@@ -5680,7 +5682,7 @@ class phpFITFileAnalysis {
 		}
 		$sql .= implode( ', ', $values ) . ';';
 
-        // $this->logger->debug( 'SQL: ' . $sql );
+		// $this->logger->debug( 'SQL: ' . $sql );
 
 		try {
 			$this->db->exec( $sql );
@@ -5723,7 +5725,7 @@ class phpFITFileAnalysis {
 		}
 		// $this->logger->debug( 'Creating table: ' . $table_name . ' with columns: ' . print_r( $columns, true ) );
 
-    	$column_names      = array_column( $columns, 'field_name' );
+		$column_names = array_column( $columns, 'field_name' );
 
 		$sql = 'CREATE TABLE ' . $table_name . ' (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, ';
 		foreach ($columns as $column) {
@@ -7961,6 +7963,85 @@ class phpFITFileAnalysis {
 
 		return Level::Debug;
 	}
+
+	/**
+	 * Check if the offset exists.
+	 *
+	 * @param mixed $offset The offset to check.
+	 * @return bool True if the offset exists, false otherwise.
+	 */
+	public function offsetExists( mixed $offset ): bool {
+		return isset( $this->data_mesgs[ $offset ] );
+	}
+
+	/**
+	 * Get the value at the specified offset.
+	 *
+	 * @param mixed $offset The offset to retrieve.
+	 * @return mixed The value at the specified offset.
+	 */
+	public function offsetGet( mixed $offset ): mixed {
+        // TODO: how does this work with multi-dimensional (aka nested) requests?
+		if (!isset( $this->data_mesgs[$offset] )) {
+			$this->data_mesgs[$offset] = $this->fetchDataFromDatabase( $offset );
+		}
+		return $this->data_mesgs[$offset];
+	}
+
+    /**
+     * Set the value at the specified offset.
+     *
+     * @param mixed $offset The offset to set.
+     * @param mixed $value  The value to set at the specified offset.
+     * @return void
+     */
+    public function offsetSet( mixed $offset, mixed $value ): void {
+        return;
+    }
+
+    /**
+     * Unset the value at the specified offset.
+     * 
+     * @param mixed $offset The offset to unset.
+     * @return void
+     */
+    public function offsetUnset( mixed $offset ): void {
+        // TODO: how does this work with multi-dimensional (aka nested) requests?
+        unset( $this->data_mesgs[ $offset ] );
+    }
+
+    /**
+     * Check if data exists in the database.
+     * 
+     * @param mixed $offset The offset to check.
+     * @return bool True if the offset exists, false otherwise.
+     */
+    private function dataExistsInDatabase( mixed $offset ): bool {
+        // TODO: how does this work with multi-dimensional (aka nested) requests?
+        // TODO: Implement logic to check if the data exists in the database
+        // For example:
+        $query = $this->db->prepare("SELECT COUNT(*) FROM your_table WHERE key = :key");
+        $query->execute(['key' => $offset]);
+        return $query->fetchColumn() > 0;
+    }
+
+    /**
+     * Fetch data from the database.
+     * 
+     * @param mixed $offset The offset to fetch.
+     * @return mixed The fetched data.
+     */
+    private function fetchDataFromDatabase( mixed $offset ): mixed {
+        // TODO: how does this work with multi-dimensional (aka nested) requests?
+        // TODO: format result as in orginal class which generally returns timestamp => value for each element
+        // TODO: Implement logic to fetch data from the database
+        // For example:
+        $query = $this->db->prepare("SELECT data FROM your_table WHERE key = :key");
+        $query->execute(['key' => $offset]);
+        $result = $query->fetch(PDO::FETCH_ASSOC);
+        return $result ? $result['data'] : null;
+    }
+
 }
 
 // phpcs:enable WordPress
