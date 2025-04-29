@@ -5509,6 +5509,7 @@ class phpFITFileAnalysis {
 		$table_name = $this->data_table . $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
 		$columns    = array();
         $units = isset( $this->options['units'] ) ? strtolower( $this->options['units'] ) : 'metric';
+        // use $this->db which is a PDO object.
         // 'DROP TABLE IF EXISTS ' . $table_name;
          	// 'CREATE TABLE ' . $table_name . ' (
 			// 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
