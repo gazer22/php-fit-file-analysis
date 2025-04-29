@@ -5421,6 +5421,10 @@ class phpFITFileAnalysis {
 						}
 
 						// $mesg_id = $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'];
+                        if ( 'record' !== $mesg_name ) {
+                            $this->logger->debug( 'Storing message: ' . $mesg_name );
+                        }
+
 						$this->storeMesg( $tmp_mesg, $local_mesg_type );
 
 					} else {
@@ -5466,6 +5470,17 @@ class phpFITFileAnalysis {
 	 * @param bool  $flush            Whether to flush any remaining data to the database.
 	 */
 	private function storeMesg( $mesgs = array(), $local_mesg_type, $flush = false ) {
+        $mesgs_names = array_keys( $mesgs );
+        if (($key = array_search('record', $mesgs_names)) !== false) {
+            unset($mesgs_names[$key]);
+        }
+        $this->logger->debug( 'Storing messages: ' . implode( ', ', $mesgs_names ) );
+
+        if (in_array('file_id', $mesgs_names)) {
+            $this->logger->debug('File ID message: ' . print_r($mesgs, true));
+        }
+
+
 		// If no $mesgs and $flush, just flush buffer to the database.
 		if ( empty( $mesgs ) && $flush && $this->file_buff ) {
 			$this->bufferAndLoadMessages( array(), $flush );
@@ -5477,7 +5492,9 @@ class phpFITFileAnalysis {
 		if ( $this->file_buff ) {
 			if ( $mesgs && $local_mesg_type ) {
            		$mesg_name = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
-                $this->logger->debug( 'Storing message: ' . $mesg_name );
+    
+                if ( 'record' !== $mesg_name )
+                    $this->logger->debug( 'Storing message: ' . $mesg_name );
 
 				if ( ! isset( $this->tables_created[ $mesg_name ] ) ) {
                     $this->logger->debug( 'Creating table for message: ' . $mesg_name );
@@ -5546,7 +5563,7 @@ class phpFITFileAnalysis {
 		}
 
 		if ( $flush || $mesg_count >= $this->buffer_size ) {
-			$this->logger->debug( 'Buffering ' . $mesg_count . ' messages into tables' );
+			$this->logger->debug( 'Buffering ' . $mesg_count . ' messages into tables with message types: ' . implode( ', ', array_keys( $mesgs_buffer ) ) );
 			// $this->logger->debug( 'Buffering messages: ' . print_r( $mesgs_buffer, true ) );
 
             foreach ( $mesgs_buffer as $table => $mesg ) {
