@@ -1,7 +1,6 @@
 <?php
 namespace gazer22;
 
-use ArrayAccess;
 use Monolog\Logger;
 use Monolog\Level;
 use Monolog\Handler\StreamHandler;
@@ -26,6 +25,10 @@ use Monolog\Formatter\LineFormatter;
  * Rafael Nájera edits:
  * Added code to support compressed timestamps (March 2017).
  *
+ * J. Karpick edits:
+ * Refactored so data are loaded to database in batches and cached when
+ * requested.
+ *
  * https://github.com/adriangibbons/phpFITFileAnalysis
  * http://www.thisisant.com/resources/fit
  */
@@ -46,8 +49,6 @@ if ( ! defined( 'FIT_UNIX_TS_DIFF' ) ) {
 	define( 'FIT_UNIX_TS_DIFF', 631065600 );
 }
 
-// TODO: Finish implementing ArrayAccess to allow $this->data_mesgs['record']['speed'] to be accessed directly - see methods at end of class.
-// TODO: Add destructor to flush tables.
 class phpFITFileAnalysis {
 
 	public $data_mesgs              = array();  // Used to store the data read from the file in associative arrays.
@@ -1580,8 +1581,8 @@ class phpFITFileAnalysis {
 					'offset'     => 0,
 					'units'      => 'm',
 					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'DECIMAL(5,3)',
-					'statute'    => 'DECIMAL(5,3)',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'DECIMAL(7,1)',
 				),
 				23  => array(
 					'field_name' => 'total_descent',
@@ -1589,8 +1590,8 @@ class phpFITFileAnalysis {
 					'offset'     => 0,
 					'units'      => 'm',
 					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'DECIMAL(5,3)',
-					'statute'    => 'DECIMAL(5,3)',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'DECIMAL(7,1)',
 				),
 				24  => array(
 					'field_name' => 'total_training_effect',
@@ -2270,8 +2271,8 @@ class phpFITFileAnalysis {
 					'offset'     => 0,
 					'units'      => 'm',
 					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'DECIMAL(5,3)',
-					'statute'    => 'DECIMAL(5,3)',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'DECIMAL(7,1)',
 				),
 				22  => array(
 					'field_name' => 'total_descent',
@@ -2279,8 +2280,8 @@ class phpFITFileAnalysis {
 					'offset'     => 0,
 					'units'      => 'm',
 					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'DECIMAL(5,3)',
-					'statute'    => 'DECIMAL(5,3)',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'DECIMAL(7,1)',
 				),
 				23  => array(
 					'field_name' => 'intensity',
@@ -3890,8 +3891,8 @@ class phpFITFileAnalysis {
 					'offset'     => 0,
 					'units'      => 'm',
 					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'DECIMAL(5,3)',
-					'statute'    => 'DECIMAL(5,3)',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'DECIMAL(7,1)',
 				),
 				22  => array(
 					'field_name' => 'total_descent',
@@ -3899,8 +3900,8 @@ class phpFITFileAnalysis {
 					'offset'     => 0,
 					'units'      => 'm',
 					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'DECIMAL(5,3)',
-					'statute'    => 'DECIMAL(5,3)',
+					'metric'     => 'SMALLINT UNSIGNED',
+					'statute'    => 'DECIMAL(7,1)',
 				),
 				23  => array(
 					'field_name' => 'sport',
@@ -4892,6 +4893,9 @@ class phpFITFileAnalysis {
 	 *     - lock_process( $reset_start_time = true );
 	 */
 	public function __construct( $file_path_or_data, $options = null, $logger = null, $queue = null ) {
+		require_once 'class-pffa-data-mesgs.php';
+		require_once 'class-pffa-table-cache.php';
+
 		if ( null === $logger) {
 			$this->configure_logger();
 		} else {
@@ -4907,7 +4911,7 @@ class phpFITFileAnalysis {
 			try {
 				$this->db = new \PDO( $options['database']['data_source_name'], $options['database']['username'], $options['database']['password'] );
 				$this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
-				$this->logger->debug( 'Connected successfully!' );
+				// $this->logger->debug( 'Connected successfully!' );
 			} catch ( \PDOException $e ) {
 				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
 			}
@@ -4915,7 +4919,7 @@ class phpFITFileAnalysis {
 			$this->file_buff  = true;
 			$this->data_table = $this->cleanTableName( $options['database']['table_name'] ) . '_';
 		} else {
-			$this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
+			// $this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
 		}
 
 		if ( ! isset( $options['input_is_data'] ) ) {
@@ -4959,32 +4963,52 @@ class phpFITFileAnalysis {
 		// Process the file contents.
 		$this->readHeader();
 
-		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
+		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
 
 		$this->readDataRecords( $queue );
 
-		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
+		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
-		$this->oneElementArrays();
+		if ( $this->file_buff ) {
+			$this->data_mesgs = new PFFA_Data_Mesgs( $this->db, $this->tables_created, $this->logger );
+		} else {
+			$this->oneElementArrays();
+			$this->processHrMessages( $queue );
+
+			// $this->logger->debug( 'phpFITFileAnalysis->__construct(): processHrMessages() completed for ' . $file_path_or_data );
+
+			// Handle options.
+			$this->fixData( $this->options, $queue );
+
+			// $this->logger->debug( 'phpFITFileAnalysis->__construct(): fixData() completed for ' . $file_path_or_data );
+
+			$this->setUnits( $this->options, $queue );
+
+			// $this->logger->debug( 'phpFITFileAnalysis->__construct(): setUnits() completed for ' . $file_path_or_data );
+
+		}
 
 		// $this->logger->debug( 'defn_mesgs: ' . print_r( $this->defn_mesgs, true ) );
 		// $this->logger->debug( 'defn_mesgs_all: ' . print_r( $this->defn_mesgs_all, true ) );
 
-		// Process HR messages
-		$this->processHrMessages( $queue );
-
-		$this->logger->debug( 'phpFITFileAnalysis->__construct(): processHrMessages() completed for ' . $file_path_or_data );
-
-		// Handle options.
-		$this->fixData( $this->options, $queue );
-
-		$this->logger->debug( 'phpFITFileAnalysis->__construct(): fixData() completed for ' . $file_path_or_data );
-
-		$this->setUnits( $this->options, $queue );
-
-		$this->logger->debug( 'phpFITFileAnalysis->__construct(): setUnits() completed for ' . $file_path_or_data );
-
 		fclose( $this->file_contents );
+	}
+
+	/**
+	 * Destructor for phpFITFileAnalysis.
+	 * Delete all related tables.
+	 */
+	public function __destruct() {
+		if ( $this->file_buff ) {
+			// $this->logger->debug( 'phpFITFileAnalysis->__destruct(): deleting tables...' );
+			$this->tables_created = array_unique( $this->tables_created );
+			foreach ( $this->tables_created as $table_name ) {
+				$table_name = $this->cleanTableName( $table_name );
+				$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
+				// $this->logger->debug( 'phpFITFileAnalysis->__destruct(): deleted table: ' . $table_name );
+			}
+			$this->db = null; // Closing the PDO connection by setting it to null
+		}
 	}
 
 	/**
@@ -5376,7 +5400,7 @@ class phpFITFileAnalysis {
 							$tmp_mesg[ $mesg_name ][ $field_name ]['data'] = $tmp_data;
 							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], substr( $this->file_contents, $this->file_pointer, $field_defn['size'] ) )['tmp'];
 
-							$this->logger->debug( 'developer_data[' . $field_name . ']: ' . $tmp_data . ' ' . $tmp_mesg[ $mesg_name ][ $field_name ]['units'] );
+							// $this->logger->debug( 'developer_data[' . $field_name . ']: ' . $tmp_data . ' ' . $tmp_mesg[ $mesg_name ][ $field_name ]['units'] );
 
 							$this->file_pointer += $field_defn['size'];
 						}
@@ -5465,9 +5489,9 @@ class phpFITFileAnalysis {
 	 * @param int   $local_mesg_type  Related element of $this->defn_mesgs.
 	 * @param bool  $flush            Whether to flush any remaining data to the database.
 	 */
-	private function storeMesg( $mesgs = array(), $local_mesg_type, $flush = false ) {
+	private function storeMesg( $mesgs, $local_mesg_type, $flush = false ) {
 		// If no $mesgs and $flush, just flush buffer to the database.
-		if ( empty( $mesgs ) && $flush && $this->file_buff ) {
+		if ( ( null === $mesgs || empty( $mesgs ) ) && $flush && $this->file_buff ) {
 			$this->bufferAndLoadMessages( array(), $flush );
 			return;
 		}
@@ -5543,7 +5567,7 @@ class phpFITFileAnalysis {
 		}
 
 		if ( $flush || $mesg_count >= $this->buffer_size ) {
-			$this->logger->debug( 'Buffering ' . $mesg_count . ' messages into tables with message types: ' . implode( ', ', array_keys( $mesgs_buffer ) ) );
+			// $this->logger->debug( 'Buffering ' . $mesg_count . ' messages into tables with message types: ' . implode( ', ', array_keys( $mesgs_buffer ) ) );
 			// $this->logger->debug( 'Buffering messages: ' . print_r( $mesgs_buffer, true ) );
 
 			foreach ( $mesgs_buffer as $table => $mesgs ) {
@@ -5573,21 +5597,23 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'Table name not found for ' . $table );
 		}
 
-		// Collect all unique columns across all messages
+		// Collect all unique columns across all messages, ignoring columns where all related data is '' or null
 		$all_columns = array();
 		foreach ( $mesgs as $mesg ) {
-			$all_columns = array_unique(
-				array_merge(
-					$all_columns,
-					array_map(
-						function ( $column ) {
-							return '`' . $column . '`';
-						},
-						array_keys( $mesg['data'] )
-					)
-				)
-			);
+			foreach ( array_keys( $mesg['data'] ) as $column ) {
+				$has_valid_data = false;
+				foreach ( $mesgs as $check_mesg ) {
+					if ( isset( $check_mesg['data'][ $column ] ) && '' !== $check_mesg['data'][ $column ] && null !== $check_mesg['data'][ $column ] ) {
+						$has_valid_data = true;
+						break;
+					}
+				}
+				if ( $has_valid_data ) {
+					$all_columns[] = '`' . $column . '`';
+				}
+			}
 		}
+		$all_columns = array_unique( $all_columns );
 		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
 
 		$sql    = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
@@ -5597,7 +5623,7 @@ class phpFITFileAnalysis {
 			$placeholders = array();
 			foreach ( $all_columns as $column ) {
 				$column_name = trim( $column, '`' );
-				if ( array_key_exists( $column_name, $mesg['data'] ) ) {
+				if ( array_key_exists( $column_name, $mesg['data'] ) && null !== $mesg['data'][ $column_name ] && '' !== $mesg['data'][ $column_name ] ) {
 					$placeholders[] = $this->db->quote( $mesg['data'][ $column_name ] );
 				} else {
 					$placeholders[] = 'NULL';
@@ -5729,7 +5755,7 @@ class phpFITFileAnalysis {
 
 		$sql = 'CREATE TABLE ' . $table_name . ' (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, ';
 		foreach ($columns as $column) {
-			$sql .= '`' . $column['field_name'] . '` ' . $column['type'] . ', ';
+			$sql .= '`' . $column['field_name'] . '` ' . $column['type'] . ' DEFAULT NULL, ';
 		}
 
 		// If 'record', add spatial point and indexes.
@@ -5744,8 +5770,8 @@ class phpFITFileAnalysis {
 			}
 
 			if ( $mandatory_columns ) {
-				$sql .= '`paused` TINYINT(1), ';
-				$sql .= '`stopped` TINYINT(1), ';
+				$sql .= '`paused` TINYINT(1) DEFAULT NULL, ';
+				$sql .= '`stopped` TINYINT(1) DEFAULT NULL, ';
 				$sql .= '`spatial_point` POINT NOT NULL, ';
 				$sql .= 'SPATIAL INDEX spatial_idx (`spatial_point`), ';
 				$sql .= 'INDEX distance (`distance`), ';
@@ -5757,7 +5783,7 @@ class phpFITFileAnalysis {
 
 		try {
 			$this->db->exec( $sql );
-			$this->logger->debug( 'Table created successfully: ' . $table_name . ' with columns ' . implode( ', ', $column_names ) . ' + more for record messages' );
+			// $this->logger->debug( 'Table created successfully: ' . $table_name . ' with columns ' . implode( ', ', $column_names ) . ' + more for record messages' );
 		} catch (\PDOException $e) {
 			$this->logger->error( 'Error creating table, ' . $table_name . ': ' . $e->getMessage() );
 			throw $e;
@@ -5895,13 +5921,13 @@ class phpFITFileAnalysis {
 					if ( is_array( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
 						foreach ( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] as &$element ) {
 							$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-							$this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to timestamp: ' . $element );
+							// $this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to timestamp: ' . $element );
 
 							$element += FIT_UNIX_TS_DIFF;
 						}
 					} else {
 						$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-						$this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to: ' . $date_time['message_name'] . '->' . $date_time['field_name'] . ': ' . $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] );
+						// $this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to: ' . $date_time['message_name'] . '->' . $date_time['field_name'] . ': ' . $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] );
 
 						$this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] += FIT_UNIX_TS_DIFF;
 					}
@@ -5909,7 +5935,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adjusting timestamps at ' . gmdate( 'H:i:s' ) );
+		// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adjusting timestamps at ' . gmdate( 'H:i:s' ) );
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 		// Find messages that have been unpacked as unsigned integers that should be signed integers.
@@ -5993,7 +6019,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished unsigned int check at ' . gmdate( 'H:i:s' ) );
+		// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished unsigned int check at ' . gmdate( 'H:i:s' ) );
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 		// Remove duplicate timestamps and store original before interpolating
@@ -6094,7 +6120,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		$this->logger->debug( 'phpFITFileAnalysis->fixData(): set up fields to check at ' . gmdate( 'H:i:s' ) );
+		// $this->logger->debug( 'phpFITFileAnalysis->fixData(): set up fields to check at ' . gmdate( 'H:i:s' ) );
 
 		$missing_distance_keys          = array();
 		$missing_hr_keys                = array();
@@ -6158,7 +6184,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished checking for missing data at ' . gmdate( 'H:i:s' ) );
+		// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished checking for missing data at ' . gmdate( 'H:i:s' ) );
 
 		$paused_timestamps = $this->isPaused();
 
@@ -6168,48 +6194,48 @@ class phpFITFileAnalysis {
 
 		if ( $bCadence ) {
 			ksort( $this->data_mesgs['record']['cadence'] );  // no interpolation; zeros added earlier
-			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing cadence data at ' . gmdate( 'H:i:s' ) );
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing cadence data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bDistance ) {
 			$lock_expire = $this->interpolateMissingData( $missing_distance_keys, $this->data_mesgs['record']['distance'], false, $paused_timestamps, $queue, $lock_expire );
-			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing distance data at ' . gmdate( 'H:i:s' ) );
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing distance data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bHeartRate ) {
 			$lock_expire = $this->interpolateMissingData( $missing_hr_keys, $this->data_mesgs['record']['heart_rate'], true, $paused_timestamps, $queue, $lock_expire );
-			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing HR data at ' . gmdate( 'H:i:s' ) );
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing HR data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bLatitudeLongitude ) {
 			$lock_expire = $this->interpolateMissingData( $missing_lat_keys, $this->data_mesgs['record']['position_lat'], false, $paused_timestamps, $queue, $lock_expire );
 			$lock_expire = $this->interpolateMissingData( $missing_lon_keys, $this->data_mesgs['record']['position_long'], false, $paused_timestamps, $queue, $lock_expire );
-			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing lat/long data at ' . gmdate( 'H:i:s' ) );
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing lat/long data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bSpeed ) {
 			$lock_expire = $this->interpolateMissingData( $missing_speed_keys, $this->data_mesgs['record']['speed'], false, $paused_timestamps, $queue, $lock_expire );
-			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing speed data at ' . gmdate( 'H:i:s' ) );
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing speed data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bPower ) {
 			$lock_expire = $this->interpolateMissingData( $missing_power_keys, $this->data_mesgs['record']['power'], true, $paused_timestamps, $queue, $lock_expire );
-			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing power data at ' . gmdate( 'H:i:s' ) );
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing power data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bAltitude ) {
 			$lock_expire = $this->interpolateMissingData( $missing_altitude_keys, $this->data_mesgs['record']['altitude'], false, $paused_timestamps, $queue, $lock_expire );
-			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing altitude data at ' . gmdate( 'H:i:s' ) );
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing altitude data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bEnhancedSpeed ) {
 			$lock_expire = $this->interpolateMissingData( $missing_enhanced_speed_keys, $this->data_mesgs['record']['enhanced_speed'], false, $paused_timestamps, $queue, $lock_expire );
-			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced speed data at ' . gmdate( 'H:i:s' ) );
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced speed data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		if ( $bEnhancedAltitude ) {
 			$lock_expire = $this->interpolateMissingData( $missing_enhanced_altitude_keys, $this->data_mesgs['record']['enhanced_altitude'], false, $paused_timestamps, $queue, $lock_expire );
-			$this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced altitude data at ' . gmdate( 'H:i:s' ) );
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced altitude data at ' . gmdate( 'H:i:s' ) );
 		}
 		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 	}
@@ -7857,7 +7883,7 @@ class phpFITFileAnalysis {
 			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			$this->data_mesgs['record']['heart_rate'][ $idx ] = (int) round( $arr[0] / $arr[1] );
-			$this->logger->debug( 'Set heart Rate: ' . $this->data_mesgs['record']['heart_rate'][ $idx ] );
+			// $this->logger->debug( 'Set heart Rate: ' . $this->data_mesgs['record']['heart_rate'][ $idx ] );
 		}
 	}
 
@@ -7963,85 +7989,6 @@ class phpFITFileAnalysis {
 
 		return Level::Debug;
 	}
-
-	/**
-	 * Check if the offset exists.
-	 *
-	 * @param mixed $offset The offset to check.
-	 * @return bool True if the offset exists, false otherwise.
-	 */
-	public function offsetExists( mixed $offset ): bool {
-		return isset( $this->data_mesgs[ $offset ] );
-	}
-
-	/**
-	 * Get the value at the specified offset.
-	 *
-	 * @param mixed $offset The offset to retrieve.
-	 * @return mixed The value at the specified offset.
-	 */
-	public function offsetGet( mixed $offset ): mixed {
-        // TODO: how does this work with multi-dimensional (aka nested) requests?
-		if (!isset( $this->data_mesgs[$offset] )) {
-			$this->data_mesgs[$offset] = $this->fetchDataFromDatabase( $offset );
-		}
-		return $this->data_mesgs[$offset];
-	}
-
-    /**
-     * Set the value at the specified offset.
-     *
-     * @param mixed $offset The offset to set.
-     * @param mixed $value  The value to set at the specified offset.
-     * @return void
-     */
-    public function offsetSet( mixed $offset, mixed $value ): void {
-        return;
-    }
-
-    /**
-     * Unset the value at the specified offset.
-     * 
-     * @param mixed $offset The offset to unset.
-     * @return void
-     */
-    public function offsetUnset( mixed $offset ): void {
-        // TODO: how does this work with multi-dimensional (aka nested) requests?
-        unset( $this->data_mesgs[ $offset ] );
-    }
-
-    /**
-     * Check if data exists in the database.
-     * 
-     * @param mixed $offset The offset to check.
-     * @return bool True if the offset exists, false otherwise.
-     */
-    private function dataExistsInDatabase( mixed $offset ): bool {
-        // TODO: how does this work with multi-dimensional (aka nested) requests?
-        // TODO: Implement logic to check if the data exists in the database
-        // For example:
-        $query = $this->db->prepare("SELECT COUNT(*) FROM your_table WHERE key = :key");
-        $query->execute(['key' => $offset]);
-        return $query->fetchColumn() > 0;
-    }
-
-    /**
-     * Fetch data from the database.
-     * 
-     * @param mixed $offset The offset to fetch.
-     * @return mixed The fetched data.
-     */
-    private function fetchDataFromDatabase( mixed $offset ): mixed {
-        // TODO: how does this work with multi-dimensional (aka nested) requests?
-        // TODO: format result as in orginal class which generally returns timestamp => value for each element
-        // TODO: Implement logic to fetch data from the database
-        // For example:
-        $query = $this->db->prepare("SELECT data FROM your_table WHERE key = :key");
-        $query->execute(['key' => $offset]);
-        $result = $query->fetch(PDO::FETCH_ASSOC);
-        return $result ? $result['data'] : null;
-    }
-
 }
 
 // phpcs:enable WordPress

@@ -10,7 +10,7 @@
 require __DIR__ . '/../src/phpFITFileAnalysis.php';
 
 // Load environment variables from .env file
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 $dotenv = Dotenv\Dotenv::createImmutable( __DIR__ );
 if ( ! file_exists( __DIR__ . '/.env' ) ) {
 	die( 'Error: .env file not found.' );
@@ -29,10 +29,10 @@ try {
 	$options = array(
 		'buffer_input_to_db' => true,
 		'database'           => array(
-			'table_name'       => 'a_test_event_101',
-			'data_source_name' => 'mysql:host=localhost;dbname=' . $_ENV['DB_NAME'],
-			'username'         => $_ENV['DB_USER'],
-			'password'         => $_ENV['DB_PASSWORD'],
+		'table_name'       => 'a_test_event_101',
+		'data_source_name' => 'mysql:host=localhost;dbname=' . $_ENV['DB_NAME'],
+		'username'         => $_ENV['DB_USER'],
+		'password'         => $_ENV['DB_PASSWORD'],
 		),
 	// Just using the defaults so no need to provide
 	// 'fix_data'  => [],
@@ -40,25 +40,25 @@ try {
 	// 'pace'      => false
 	);
 	$pFFA = new gazer22\phpFITFileAnalysis( __DIR__ . $file, $options );
-    // $pFFA->logger->debug( 'Session: ' . print_r( $pFFA->data_mesgs['session'], true ) );
+	// $pFFA->logger->debug( 'Session: ' . print_r( $pFFA->data_mesgs['session'], true ) );
 } catch ( Exception $e ) {
 	echo 'caught exception: ' . $e->getMessage();
 	die();
 }
 
 // Create an array of lat/long coordiantes for the map
-$position_lat      = $pFFA->data_mesgs['record']['position_lat'];
-$position_long     = $pFFA->data_mesgs['record']['position_long'];
-// $pFFA->logger->debug( 'position_lat: ' . print_r( $position_lat, true ) );
+$position_lat  = $pFFA->data_mesgs['record']['position_lat'];
+$position_long = $pFFA->data_mesgs['record']['position_long'];
+
 $lat_long_combined = array();
 foreach ( $position_lat as $key => $value ) {  // Assumes every lat has a corresponding long
 	$lat_long_combined[] = '[' . $position_lat[ $key ] . ',' . $position_long[ $key ] . ']';
 }
 
-	// Date with Google timezoneAPI removed
-	$date   = new DateTime( 'now', new DateTimeZone( 'UTC' ) );
-	$date_s = $pFFA->data_mesgs['session']['start_time'];
-	$date->setTimestamp( $date_s );
+// Date with Google timezoneAPI removed
+$date   = new DateTime( 'now', new DateTimeZone( 'UTC' ) );
+$date_s = $pFFA->data_mesgs['session']['start_time'];
+$date->setTimestamp( $date_s );
 
 ?>
 <!doctype html>
