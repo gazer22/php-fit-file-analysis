@@ -1376,9 +1376,9 @@ class phpFITFileAnalysis {
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-					'raw'        => 'VARCHAR(16)',
-					'metric'     => 'VARCHAR(16)',
-					'statute'    => 'VARCHAR(16)',
+					'raw'        => 'VARCHAR(33)',
+					'metric'     => 'VARCHAR(33)',
+					'statute'    => 'VARCHAR(33)',
 				),
 			),
 		),
@@ -1711,7 +1711,7 @@ class phpFITFileAnalysis {
 					'statute'    => 'SMALLINT UNSIGNED',
 				),
 				38  => array(
-					'field_name' => 'end_postition_lat',
+					'field_name' => 'end_position_lat',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'semicircles',
@@ -1720,7 +1720,7 @@ class phpFITFileAnalysis {
 					'statute'    => 'DECIMAL(10,7)',
 				),
 				39  => array(
-					'field_name' => 'end_postition_long',
+					'field_name' => 'end_position_long',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'semicircles',
@@ -1967,72 +1967,72 @@ class phpFITFileAnalysis {
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				117 => array(
 					'field_name' => 'avg_left_power_phase_peak',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				118 => array(
 					'field_name' => 'avg_right_power_phase',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				119 => array(
 					'field_name' => 'avg_right_power_phase_peak',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				120 => array(
 					'field_name' => 'avg_power_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'watts',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				121 => array(
 					'field_name' => 'max_power_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'watts',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				122 => array(
 					'field_name' => 'avg_cadence_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'rpm',
-					'raw'        => 'TINYINT UNSIGNED',
-					'metric'     => 'TINYINT UNSIGNED',
-					'statute'    => 'TINYINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				123 => array(
 					'field_name' => 'max_cadence_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'rpm',
-					'raw'        => 'TINYINT UNSIGNED',
-					'metric'     => 'TINYINT UNSIGNED',
-					'statute'    => 'TINYINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				253 => array(
 					'field_name' => 'timestamp',
@@ -2567,72 +2567,72 @@ class phpFITFileAnalysis {
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				103 => array(
 					'field_name' => 'avg_left_power_phase_peak',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				104 => array(
 					'field_name' => 'avg_right_power_phase',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				105 => array(
 					'field_name' => 'avg_right_power_phase_peak',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				106 => array(
 					'field_name' => 'avg_power_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'watts',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				107 => array(
 					'field_name' => 'max_power_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'watts',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				108 => array(
 					'field_name' => 'avg_cadence_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'rpm',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				109 => array(
 					'field_name' => 'max_cadence_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'rpm',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				253 => array(
 					'field_name' => 'timestamp',
@@ -3488,13 +3488,13 @@ class phpFITFileAnalysis {
 			'mesg_name'   => 'hrv',
 			'field_defns' => array(
 				0 => array(
-					'field_name' => 'time',
+					'field_name' => 'times',
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 's',
-					'raw'        => 'DECIMAL(5,3)',
-					'metric'     => 'DECIMAL(5,3)',
-					'statute'    => 'DECIMAL(5,3)',
+					'raw'        => 'VARCHAR(64)',
+					'metric'     => 'VARCHAR(64)',
+					'statute'    => 'VARCHAR(64)',
 				),
 			),
 		),
@@ -5309,8 +5309,8 @@ class phpFITFileAnalysis {
 									} elseif ( $field_defn['base_type'] === 7 ) {
 										// Handle strings appropriately
 											// $this->data_mesgs[ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ][ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ][] = filter_var( $tmp_value, FILTER_SANITIZE_SPECIAL_CHARS );  // JKK: replaced deprecated FILTER_SANITIZE_STRING.
-											$tmp_mesg[ $mesg_name ][ $field_name ][] = filter_var( $tmp_value, FILTER_SANITIZE_SPECIAL_CHARS );
-											// $this->logger->debug( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] . '[' . $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] . ']: ' . filter_var( $tmp_value, FILTER_SANITIZE_SPECIAL_CHARS ) );
+											$tmp_mesg[ $mesg_name ][ $field_name ][] = filter_var( trim( $tmp_value ), FILTER_SANITIZE_SPECIAL_CHARS );
+											// $this->logger->debug( 'Handling string field, ' . $field_name . ': ' . $tmp_value . ' -> ' . filter_var( trim( $tmp_value ), FILTER_SANITIZE_SPECIAL_CHARS ) );
 									} else {
 										// Handle arrays
 										if ( $field_defn['size'] !== $this->types[ $field_defn['base_type'] ]['bytes'] ) {
@@ -5500,6 +5500,16 @@ class phpFITFileAnalysis {
 			if ( $mesgs && null !== $local_mesg_type ) {
 				$mesg_name = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
 
+				if ( 'hrv' === $mesg_name ) {
+					foreach ( $mesgs['hrv']['times'] as &$value ) {
+						if ( 65.535 === $value ) {
+							$value = null;
+						}
+					}
+					unset( $value );
+					$mesgs['hrv']['times'] = json_encode( $mesgs['hrv']['times'] );
+				}
+
 				if ( ! isset( $this->tables_created[ $mesg_name ] ) ) {
 					$this->tables_created[ $mesg_name ] = $this->create_table( $local_mesg_type );
 					if ( ! $this->tables_created[ $mesg_name ] ) {
@@ -5614,27 +5624,35 @@ class phpFITFileAnalysis {
 		$all_columns = array_unique( $all_columns );
 		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
 
-		$sql    = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
-		$values = array();
+		$sql          = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
+		$placeholders = array();
+		$values       = array();
+
 		foreach ( $mesgs as $mesg ) {
 			// $this->logger->debug( $table . ' mesg: ' . print_r( $mesg, true ) );
-			$placeholders = array();
+			$row_placeholders = array();
 			foreach ( $all_columns as $column ) {
 				$column_name = trim( $column, '`' );
 				if ( array_key_exists( $column_name, $mesg['data'] ) && null !== $mesg['data'][ $column_name ] && '' !== $mesg['data'][ $column_name ] ) {
-					$placeholders[] = $this->db->quote( $mesg['data'][ $column_name ] );
+					if (is_array( $mesg['data'][$column_name] )) {
+						$row_placeholders[] = '?';
+						$values[]           = json_encode( $mesg['data'][$column_name] ); // Convert array to JSON string
+						// $this->logger->debug( "Loading {$table} message, value for {$column_name} is an array: " . print_r( $mesg['data'][$column_name], true ) );
+					} else {
+						$row_placeholders[] = '?';
+						$values[]           = $mesg['data'][$column_name];
+					}
 				} else {
-					$placeholders[] = 'NULL';
+					$row_placeholders[] = 'NULL';
 				}
 			}
-			$values[] = '(' . implode( ', ', $placeholders ) . ')';
+			$placeholders[] = '(' . implode( ', ', $row_placeholders ) . ')';
 		}
-		$sql .= implode( ', ', $values ) . ';';
-
-		// $this->logger->debug( 'SQL: ' . $sql );
+		$sql .= implode( ', ', $placeholders ) . ';';
 
 		try {
-			$this->db->exec( $sql );
+			$stmt = $this->db->prepare( $sql );
+			$stmt->execute( $values );
 		} catch ( \PDOException $e ) {
 			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
 			throw $e;
@@ -5685,6 +5703,10 @@ class phpFITFileAnalysis {
 		$sql    = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
 		$values = array();
 		foreach ( $mesgs as $mesg ) {
+			if ( ! isset( $mesg['data']['position_lat'] ) || ! isset( $mesg['data']['position_long'] ) ) {
+				continue;
+			}
+
 			$placeholders = array();
 			foreach ( $all_columns as $column ) {
 				$column_name = trim( $column, '`' );
