@@ -5000,12 +5000,10 @@ class phpFITFileAnalysis {
 	 */
 	public function __destruct() {
 		if ( $this->file_buff ) {
-			// $this->logger->debug( 'phpFITFileAnalysis->__destruct(): deleting tables...' );
 			$this->tables_created = array_unique( $this->tables_created );
 			foreach ( $this->tables_created as $table_name ) {
 				$table_name = $this->cleanTableName( $table_name );
 				$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
-				// $this->logger->debug( 'phpFITFileAnalysis->__destruct(): deleted table: ' . $table_name );
 			}
 			$this->db = null; // Closing the PDO connection by setting it to null
 		}
