@@ -75,8 +75,12 @@ class PFFA_Data_Mesgs implements \ArrayAccess, \Iterator {
 	 * @return mixed The cached or fetched data.
 	 */
 	public function offsetGet( mixed $key ): mixed {
+		if ( ! isset( $this->tables[ $key ] ) ) {
+			throw new \OutOfBoundsException( "Key {$key} does not exist in tables." );
+		}
+
 		if ( ! isset( $this->cache[ $key ] ) ) {
-			$this->cache[ $key ] = new PFFA_Table_Cache( $this->db, $key, $this->tables[ $key ], $this->logger );
+			$this->cache[ $key ] = new PFFA_Table_Cache( $this->db, $key, $this->tables[ $key ]['location'], $this->logger );
 		}
 		return $this->cache[ $key ];
 	}
