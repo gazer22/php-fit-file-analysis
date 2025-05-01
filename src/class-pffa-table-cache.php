@@ -86,6 +86,9 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	 * @throws \RuntimeException If the table cannot be accessed.
 	 */
 	public function __construct( $db, $key, $table_name, $logger ) {
+        if ( ! $db instanceof \PDO ) {
+            throw new \InvalidArgumentException( 'Invalid database connection provided.' );
+        }
 		$this->db         = $db;
 		$this->key        = $key;
 		$this->table_name = $table_name;

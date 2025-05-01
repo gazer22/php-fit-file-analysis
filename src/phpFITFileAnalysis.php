@@ -66,6 +66,9 @@ class phpFITFileAnalysis {
 	private $data_table             = '';       // Base name for data tables in the database.
 	private $tables_created         = array();  // Stores the name and columns of each table created.
 	private $db;                                // PDO object for database connection.
+	private $db_name;                           // Database name.
+	private $db_user;                           // Database user.      
+	private $db_pass;                           // Database password.
 	private $buffer_size = 1000;     // Number of messags to buffer and then load to DB in batch.
 	public $logger;                             // Monolog logger object.
 
@@ -4908,17 +4911,19 @@ class phpFITFileAnalysis {
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
 		} elseif ( isset( $options['buffer_input_to_db'] ) && $options['buffer_input_to_db'] && $this->checkFileBufferOptions( $options['database'] ) ) {
-
-			try {
-				$this->db = new \PDO( $options['database']['data_source_name'], $options['database']['username'], $options['database']['password'] );
-				$this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
-				// $this->logger->debug( 'Connected successfully!' );
-			} catch ( \PDOException $e ) {
-				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
-			}
+			$this->db_name = $options['database']['data_source_name'];
+			$this->db_user = $options['database']['username'];
+			$this->db_pass = $options['database']['password'];
 
 			$this->file_buff  = true;
 			$this->data_table = $this->cleanTableName( $options['database']['table_name'] ) . '_';
+
+			if ( ! $this->connect_to_db() ) {
+				$this->logger->error( 'phpFITFileAnalysis->__construct(): unable to connect to database!' );
+				throw new \Exception( 'phpFITFileAnalysis: unable to connect to database' );
+			} else {
+                $this->logger->debug( 'phpFITFileAnalysis->__construct(): connected to database: ' . $this->db_name );
+            }
 		} else {
 			// $this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
 		}
@@ -5003,6 +5008,25 @@ class phpFITFileAnalysis {
 	}
 
 	/**
+	 * Establish database connection.
+	 */
+	private function connect_to_db() {
+		if ( $this->file_buff ) {
+			try {
+                $this->logger->debug( 'phpFITFileAnalysis: IS THIS THING ON? connecting to database: ' . $this->db_name );
+				$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass );
+                $this->logger->debug( 'phpFITFileAnalysis: connected to database: ' . print_r( $this->db, true ) );
+				// $this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
+                $this->logger->debug( 'phpFITFileAnalysis: connected to database - after attributes: ' . print_r( $this->db, true ) );
+			} catch ( \PDOException $e ) {
+				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Delete all related tables.
 	 */
 	public function drop_tables() {
@@ -5018,6 +5042,16 @@ class phpFITFileAnalysis {
 				$this->logger->error( 'phpFITFileAnalysis: Error dropping tables: ' . $e->getMessage() );
 			}
 		}
+		$this->db = null; // Closing the PDO connection by setting it to null
+	}
+
+	/**
+	 * Get table information.
+	 *
+	 * @return array
+	 */
+	public function getTableInfo() {
+		return $this->tables_created;
 	}
 
 	/**

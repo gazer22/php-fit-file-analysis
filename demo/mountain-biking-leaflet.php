@@ -10,7 +10,8 @@
 require __DIR__ . '/../src/phpFITFileAnalysis.php';
 
 // Load environment variables from .env file
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__ . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+
 $dotenv = Dotenv\Dotenv::createImmutable( __DIR__ );
 if ( ! file_exists( __DIR__ . '/.env' ) ) {
 	die( 'Error: .env file not found.' );
