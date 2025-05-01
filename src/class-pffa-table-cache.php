@@ -17,7 +17,8 @@
  * This class provides functionality to lazily load and cache data messages
  * from a single database table.
  */
-class PFFA_Table_Cache implements \ArrayAccess, \Iterator {  // \IteratorAggregate
+class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
+	// \IteratorAggregate
 	/**
 	 * The PDO database connection instance.
 	 *
@@ -131,7 +132,7 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {  // \IteratorAggrega
 		return $this->columns;
 	}
 
-	/** 
+	/**
 	 * Return $this->columns as array_keys().
 	 */
 	public function get_keys(): array {
@@ -146,15 +147,20 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {  // \IteratorAggrega
 	 */
 	public function offsetGet( mixed $field ): mixed {
 		if ( ! isset( $this->cache[ $field ] ) ) {
-			if ( $this->use_timestamp_as_key ) {
-				$stmt = $this->db->prepare( "SELECT `timestamp`, `{$field}` FROM {$this->table_name} ORDER BY `timestamp`" );
-				$stmt->execute();
-				$this->cache[ $field ] = $stmt->fetchAll( \PDO::FETCH_KEY_PAIR );
-			} else {
-				$stmt = $this->db->prepare( "SELECT `{$field}` FROM {$this->table_name}" );
-				$stmt->execute();
-				$result                = $stmt->fetchAll( \PDO::FETCH_COLUMN );
-				$this->cache[ $field ] = ( count( $result ) === 1 ) ? $result[0] : $result;
+			try {
+				if ( $this->use_timestamp_as_key ) {
+					$stmt = $this->db->prepare( "SELECT `timestamp`, `{$field}` FROM {$this->table_name} ORDER BY `timestamp`" );
+					$stmt->execute();
+					$this->cache[ $field ] = $stmt->fetchAll( \PDO::FETCH_KEY_PAIR );
+				} else {
+					$stmt = $this->db->prepare( "SELECT `{$field}` FROM {$this->table_name}" );
+					$stmt->execute();
+					$result                = $stmt->fetchAll( \PDO::FETCH_COLUMN );
+					$this->cache[ $field ] = ( count( $result ) === 1 ) ? $result[0] : $result;
+				}
+			} catch ( \PDOException $e ) {
+				$this->logger->error( "Error fetching data for field {$field} in table {$this->table_name}: " . $e->getMessage() );
+				throw new \RuntimeException( "Failed to fetch data for field {$field}." );
 			}
 		}
 		return $this->cache[ $field ];

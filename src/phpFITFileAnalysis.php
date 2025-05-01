@@ -5004,12 +5004,16 @@ class phpFITFileAnalysis {
 	 */
 	public function drop_tables() {
 		if ( $this->file_buff ) {
-			foreach ( $this->tables_created as $table ) {
-				$table_name = $this->cleanTableName( $table['location'] );
-				$this->logger->debug( 'phpFITFileAnalysis: dropping table ' . $table_name );
-				$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
-			}
-			$this->db = null; // Closing the PDO connection by setting it to null
+            try {
+                foreach ( $this->tables_created as $table ) {
+                    $table_name = $this->cleanTableName( $table['location'] );
+                    $this->logger->debug( 'phpFITFileAnalysis: dropping table ' . $table_name );
+                    $this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
+                }
+                $this->db = null; // Closing the PDO connection by setting it to null
+            } catch ( \PDOException $e ) {
+                $this->logger->error( 'phpFITFileAnalysis: Error dropping tables: ' . $e->getMessage() );
+            }
 		}
 	}
 
@@ -7279,7 +7283,12 @@ class phpFITFileAnalysis {
 			// Update the stopped field for all matching records in one query.
 			if (!empty( $ids_to_update )) {
 				$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update ) ) . ')';
-				$this->db->exec( $update_query );
+                try {
+				    $this->db->exec( $update_query );
+                }
+                catch (\PDOException $e) {
+                    $this->logger->error( 'Error updating stopped field: ' . $e->getMessage() );
+                }
 			}
 
 			// Increment the offset for the next batch.

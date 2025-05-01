@@ -78,7 +78,12 @@ class PFFA_Data_Mesgs implements \ArrayAccess, \Iterator {
 		}
 
 		if ( ! isset( $this->cache[ $key ] ) ) {
-			$this->cache[ $key ] = new PFFA_Table_Cache( $this->db, $key, $this->tables[ $key ]['location'], $this->logger );
+			try {
+				$this->cache[ $key ] = new PFFA_Table_Cache( $this->db, $key, $this->tables[ $key ]['location'], $this->logger );
+			} catch ( \Exception $e ) {
+				$this->logger->error( "Error fetching data for key {$key}: " . $e->getMessage() );
+				throw new \RuntimeException( "Failed to fetch data for key {$key}." );
+			}
 		}
 		return $this->cache[ $key ];
 	}
