@@ -64,8 +64,11 @@ class phpFITFileAnalysis {
 	private $garmin_timestamps      = false;    // By default the constant FIT_UNIX_TS_DIFF will be added to timestamps.
 	private $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
 	private $data_table             = '';       // Base name for data tables in the database.
-	private $tables_created         = array();  // Stores the name of each table created.
+	private $tables_created         = array();  // Stores the name and columns of each table created.
 	private $db;                                // PDO object for database connection.
+	private $db_name;                           // Database name.
+	private $db_user;                           // Database user.      
+	private $db_pass;                           // Database password.
 	private $buffer_size = 1000;     // Number of messags to buffer and then load to DB in batch.
 	public $logger;                             // Monolog logger object.
 
@@ -1376,9 +1379,9 @@ class phpFITFileAnalysis {
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-					'raw'        => 'VARCHAR(16)',
-					'metric'     => 'VARCHAR(16)',
-					'statute'    => 'VARCHAR(16)',
+					'raw'        => 'VARCHAR(33)',
+					'metric'     => 'VARCHAR(33)',
+					'statute'    => 'VARCHAR(33)',
 				),
 			),
 		),
@@ -1711,7 +1714,7 @@ class phpFITFileAnalysis {
 					'statute'    => 'SMALLINT UNSIGNED',
 				),
 				38  => array(
-					'field_name' => 'end_postition_lat',
+					'field_name' => 'end_position_lat',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'semicircles',
@@ -1720,7 +1723,7 @@ class phpFITFileAnalysis {
 					'statute'    => 'DECIMAL(10,7)',
 				),
 				39  => array(
-					'field_name' => 'end_postition_long',
+					'field_name' => 'end_position_long',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'semicircles',
@@ -1967,72 +1970,72 @@ class phpFITFileAnalysis {
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				117 => array(
 					'field_name' => 'avg_left_power_phase_peak',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				118 => array(
 					'field_name' => 'avg_right_power_phase',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				119 => array(
 					'field_name' => 'avg_right_power_phase_peak',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				120 => array(
 					'field_name' => 'avg_power_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'watts',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				121 => array(
 					'field_name' => 'max_power_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'watts',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				122 => array(
 					'field_name' => 'avg_cadence_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'rpm',
-					'raw'        => 'TINYINT UNSIGNED',
-					'metric'     => 'TINYINT UNSIGNED',
-					'statute'    => 'TINYINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				123 => array(
 					'field_name' => 'max_cadence_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'rpm',
-					'raw'        => 'TINYINT UNSIGNED',
-					'metric'     => 'TINYINT UNSIGNED',
-					'statute'    => 'TINYINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				253 => array(
 					'field_name' => 'timestamp',
@@ -2567,72 +2570,72 @@ class phpFITFileAnalysis {
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				103 => array(
 					'field_name' => 'avg_left_power_phase_peak',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				104 => array(
 					'field_name' => 'avg_right_power_phase',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				105 => array(
 					'field_name' => 'avg_right_power_phase_peak',
 					'scale'      => 0.7111111,
 					'offset'     => 0,
 					'units'      => 'degrees',
-					'raw'        => 'FLOAT',
-					'metric'     => 'FLOAT',
-					'statute'    => 'FLOAT',
+					'raw'        => 'VARCHAR(100)',
+					'metric'     => 'VARCHAR(100)',
+					'statute'    => 'VARCHAR(100)',
 				),
 				106 => array(
 					'field_name' => 'avg_power_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'watts',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				107 => array(
 					'field_name' => 'max_power_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'watts',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				108 => array(
 					'field_name' => 'avg_cadence_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'rpm',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				109 => array(
 					'field_name' => 'max_cadence_position',
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => 'rpm',
-					'raw'        => 'SMALLINT UNSIGNED',
-					'metric'     => 'SMALLINT UNSIGNED',
-					'statute'    => 'SMALLINT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				253 => array(
 					'field_name' => 'timestamp',
@@ -3488,13 +3491,13 @@ class phpFITFileAnalysis {
 			'mesg_name'   => 'hrv',
 			'field_defns' => array(
 				0 => array(
-					'field_name' => 'time',
+					'field_name' => 'times',
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 's',
-					'raw'        => 'DECIMAL(5,3)',
-					'metric'     => 'DECIMAL(5,3)',
-					'statute'    => 'DECIMAL(5,3)',
+					'raw'        => 'VARCHAR(64)',
+					'metric'     => 'VARCHAR(64)',
+					'statute'    => 'VARCHAR(64)',
 				),
 			),
 		),
@@ -4886,13 +4889,14 @@ class phpFITFileAnalysis {
 	 *
 	 * @param string|array           $file_path_or_data  Path to FIT file or the data itself.
 	 * @param array                  $options            Options for processing the FIT file.
+	 * @param callable               $record_callback    Callback function for processing record messages.
 	 * @param Monolog\Logger         $logger             Logger for debugging.
 	 * @param CCM_GPS_Fit_File_Queue $queue              Queue for processing FIT file data.
 	 *   Queue class must implement the following methods:
 	 *     - get_lock_expiration();
 	 *     - lock_process( $reset_start_time = true );
 	 */
-	public function __construct( $file_path_or_data, $options = null, $logger = null, $queue = null ) {
+	public function __construct( $file_path_or_data, $options = null, $record_callback = null, $logger = null, $queue = null ) {
 		require_once 'class-pffa-data-mesgs.php';
 		require_once 'class-pffa-table-cache.php';
 
@@ -4907,17 +4911,19 @@ class phpFITFileAnalysis {
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
 		} elseif ( isset( $options['buffer_input_to_db'] ) && $options['buffer_input_to_db'] && $this->checkFileBufferOptions( $options['database'] ) ) {
-
-			try {
-				$this->db = new \PDO( $options['database']['data_source_name'], $options['database']['username'], $options['database']['password'] );
-				$this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
-				// $this->logger->debug( 'Connected successfully!' );
-			} catch ( \PDOException $e ) {
-				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
-			}
+			$this->db_name = $options['database']['data_source_name'];
+			$this->db_user = $options['database']['username'];
+			$this->db_pass = $options['database']['password'];
 
 			$this->file_buff  = true;
 			$this->data_table = $this->cleanTableName( $options['database']['table_name'] ) . '_';
+
+			if ( ! $this->connect_to_db() ) {
+				$this->logger->error( 'phpFITFileAnalysis->__construct(): unable to connect to database!' );
+				throw new \Exception( 'phpFITFileAnalysis: unable to connect to database' );
+			} else {
+                $this->logger->debug( 'phpFITFileAnalysis->__construct(): connected to database: ' . $this->db_name );
+            }
 		} else {
 			// $this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
 		}
@@ -4963,14 +4969,19 @@ class phpFITFileAnalysis {
 		// Process the file contents.
 		$this->readHeader();
 
-		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
 
 		$this->readDataRecords( $queue );
 
-		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
+
+		if ( $record_callback ) {
+			$this->calculateStopPoints( $record_callback, $queue );
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): calculateStopPoints() completed for ' . $file_path_or_data );
+		}
 
 		if ( $this->file_buff ) {
-			$this->data_mesgs = new PFFA_Data_Mesgs( $this->db, $this->tables_created, $this->logger );
+			$this->data_mesgs = new \PFFA_Data_Mesgs( $this->db, $this->tables_created, $this->logger );
 		} else {
 			$this->oneElementArrays();
 			$this->processHrMessages( $queue );
@@ -4988,6 +4999,8 @@ class phpFITFileAnalysis {
 
 		}
 
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): complete for ' . $file_path_or_data );
+
 		// $this->logger->debug( 'defn_mesgs: ' . print_r( $this->defn_mesgs, true ) );
 		// $this->logger->debug( 'defn_mesgs_all: ' . print_r( $this->defn_mesgs_all, true ) );
 
@@ -4995,20 +5008,50 @@ class phpFITFileAnalysis {
 	}
 
 	/**
-	 * Destructor for phpFITFileAnalysis.
+	 * Establish database connection.
+	 */
+	private function connect_to_db() {
+		if ( $this->file_buff ) {
+			try {
+                $this->logger->debug( 'phpFITFileAnalysis: IS THIS THING ON? connecting to database: ' . $this->db_name );
+				$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass );
+                $this->logger->debug( 'phpFITFileAnalysis: connected to database: ' . print_r( $this->db, true ) );
+				// $this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
+                $this->logger->debug( 'phpFITFileAnalysis: connected to database - after attributes: ' . print_r( $this->db, true ) );
+			} catch ( \PDOException $e ) {
+				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Delete all related tables.
 	 */
-	public function __destruct() {
+	public function drop_tables() {
 		if ( $this->file_buff ) {
-			// $this->logger->debug( 'phpFITFileAnalysis->__destruct(): deleting tables...' );
-			$this->tables_created = array_unique( $this->tables_created );
-			foreach ( $this->tables_created as $table_name ) {
-				$table_name = $this->cleanTableName( $table_name );
-				$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
-				// $this->logger->debug( 'phpFITFileAnalysis->__destruct(): deleted table: ' . $table_name );
+			try {
+				foreach ( $this->tables_created as $table ) {
+					$table_name = $this->cleanTableName( $table['location'] );
+					$this->logger->debug( 'phpFITFileAnalysis: dropping table ' . $table_name );
+					$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
+				}
+				$this->db = null; // Closing the PDO connection by setting it to null
+			} catch ( \PDOException $e ) {
+				$this->logger->error( 'phpFITFileAnalysis: Error dropping tables: ' . $e->getMessage() );
 			}
-			$this->db = null; // Closing the PDO connection by setting it to null
 		}
+		$this->db = null; // Closing the PDO connection by setting it to null
+	}
+
+	/**
+	 * Get table information.
+	 *
+	 * @return array
+	 */
+	public function getTableInfo() {
+		return $this->tables_created;
 	}
 
 	/**
@@ -5142,7 +5185,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Reads the remainder of $this->file_contents and store the data in the $this->data_mesgs array.
 	 *
-	 * @param CCM_GPS_Fit_File_Queue|null $queue Queue for processing FIT file data.
+	 * @param CCM_GPS_Fit_File_Queue|null $queue           Queue for processing FIT file data.
 	 */
 	private function readDataRecords( $queue = null ) {
 		$record_header_byte  = 0;
@@ -5151,6 +5194,8 @@ class phpFITFileAnalysis {
 		$local_mesg_type     = 0;
 		$previousTS          = 0;
 		$record_count        = 0;
+		// $last_definition_num = 0;
+		// $first_data_record   = 0;
 
 		$lock_expire = $this->get_lock_expiration( $queue );
 
@@ -5162,7 +5207,7 @@ class phpFITFileAnalysis {
 			//  $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): record count: ' . $record_count );
 			//  $this->logger->debug( 'Memory usage: ' . $this->formatMemoryUsage( memory_get_usage( true ) ) );
 			// }
-			// ++$record_count;
+			++$record_count;
 
 			$record_header_byte = unpack( 'C1record_header_byte', fread( $this->file_contents, 1 ) )['record_header_byte'];
 			++$this->file_pointer;
@@ -5189,6 +5234,11 @@ class phpFITFileAnalysis {
 
 			switch ( $message_type ) {
 				case DEFINITION_MESSAGE:
+					// $last_definition_num = $record_count;
+					// if ( $first_data_record > 0 && $last_definition_num > $first_data_record ) {
+					//  $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): definition message after data record!' );
+					//  $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): record count: ' . $record_count );
+					// }
 					/**
 					 * D00001275 Flexible & Interoperable Data Transfer (FIT) Protocol Rev 1.7.pdf
 					 * Table 4-1. Normal Header Bit Field Description
@@ -5278,6 +5328,10 @@ class phpFITFileAnalysis {
 					break;
 
 				case DATA_MESSAGE:
+					// if ( $first_data_record === 0 ) {
+					//  $first_data_record = $record_count;
+					// }
+
 					// Check that we have information on the Data Message.
 					if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ] ) ) {
 						// If table is not build for this message type, build it.
@@ -5311,8 +5365,8 @@ class phpFITFileAnalysis {
 									} elseif ( $field_defn['base_type'] === 7 ) {
 										// Handle strings appropriately
 											// $this->data_mesgs[ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ][ $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ][] = filter_var( $tmp_value, FILTER_SANITIZE_SPECIAL_CHARS );  // JKK: replaced deprecated FILTER_SANITIZE_STRING.
-											$tmp_mesg[ $mesg_name ][ $field_name ][] = filter_var( $tmp_value, FILTER_SANITIZE_SPECIAL_CHARS );
-											// $this->logger->debug( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] . '[' . $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] . ']: ' . filter_var( $tmp_value, FILTER_SANITIZE_SPECIAL_CHARS ) );
+											$tmp_mesg[ $mesg_name ][ $field_name ][] = filter_var( trim( $tmp_value ), FILTER_SANITIZE_SPECIAL_CHARS );
+											// $this->logger->debug( 'Handling string field, ' . $field_name . ': ' . $tmp_value . ' -> ' . filter_var( trim( $tmp_value ), FILTER_SANITIZE_SPECIAL_CHARS ) );
 									} else {
 										// Handle arrays
 										if ( $field_defn['size'] !== $this->types[ $field_defn['base_type'] ]['bytes'] ) {
@@ -5485,9 +5539,9 @@ class phpFITFileAnalysis {
 	 *
 	 * Adjusts $this->tables_created
 	 *
-	 * @param array $mesgs            The data to be stored.
-	 * @param int   $local_mesg_type  Related element of $this->defn_mesgs.
-	 * @param bool  $flush            Whether to flush any remaining data to the database.
+	 * @param array    $mesgs            The data to be stored.
+	 * @param int      $local_mesg_type  Related element of $this->defn_mesgs.
+	 * @param bool     $flush            Whether to flush any remaining data to the database.
 	 */
 	private function storeMesg( $mesgs, $local_mesg_type, $flush = false ) {
 		// If no $mesgs and $flush, just flush buffer to the database.
@@ -5502,12 +5556,27 @@ class phpFITFileAnalysis {
 			if ( $mesgs && null !== $local_mesg_type ) {
 				$mesg_name = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
 
+				if ( 'hrv' === $mesg_name ) {
+					foreach ( $mesgs['hrv']['times'] as &$value ) {
+						if ( 65.535 === $value ) {
+							$value = null;
+						}
+					}
+					unset( $value );
+					$mesgs['hrv']['times'] = json_encode( $mesgs['hrv']['times'] );
+				}
+
 				if ( ! isset( $this->tables_created[ $mesg_name ] ) ) {
 					$this->tables_created[ $mesg_name ] = $this->create_table( $local_mesg_type );
 					if ( ! $this->tables_created[ $mesg_name ] ) {
 						return;
 					}
 				}
+
+				// Check if we need to add a column to an already existing table.
+				$this->check_for_columns_in_table( $mesgs, $local_mesg_type );
+
+				// $this->logger->debug( 'Storing messages: ' . print_r( $mesgs, true ) );
 			}
 
 			$mesgs_clean = $this->fixDataSingle( $mesgs );
@@ -5590,7 +5659,7 @@ class phpFITFileAnalysis {
 	 * @param string $table The table name.
 	 */
 	private function storeNonRecordMesg( $mesgs, $table ) {
-		$table_name = $this->tables_created[ $table ];
+		$table_name = $this->tables_created[ $table ]['location'];
 		if ( ! $table_name ) {
 			$this->logger->error( 'Table name not found for ' . $table );
 			$this->logger->error( 'Table names: ' . print_r( $this->tables_created, true ) );
@@ -5616,29 +5685,39 @@ class phpFITFileAnalysis {
 		$all_columns = array_unique( $all_columns );
 		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
 
-		$sql    = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
-		$values = array();
+		$sql          = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
+		$placeholders = array();
+		$values       = array();
+
 		foreach ( $mesgs as $mesg ) {
 			// $this->logger->debug( $table . ' mesg: ' . print_r( $mesg, true ) );
-			$placeholders = array();
+			$row_placeholders = array();
 			foreach ( $all_columns as $column ) {
 				$column_name = trim( $column, '`' );
 				if ( array_key_exists( $column_name, $mesg['data'] ) && null !== $mesg['data'][ $column_name ] && '' !== $mesg['data'][ $column_name ] ) {
-					$placeholders[] = $this->db->quote( $mesg['data'][ $column_name ] );
+					if (is_array( $mesg['data'][$column_name] )) {
+						$row_placeholders[] = '?';
+						$values[]           = json_encode( $mesg['data'][$column_name] ); // Convert array to JSON string
+						// $this->logger->debug( "Loading {$table} message, value for {$column_name} is an array: " . print_r( $mesg['data'][$column_name], true ) );
+					} else {
+						$row_placeholders[] = '?';
+						$values[]           = $mesg['data'][$column_name];
+					}
 				} else {
-					$placeholders[] = 'NULL';
+					$row_placeholders[] = 'NULL';
 				}
 			}
-			$values[] = '(' . implode( ', ', $placeholders ) . ')';
+			$placeholders[] = '(' . implode( ', ', $row_placeholders ) . ')';
 		}
-		$sql .= implode( ', ', $values ) . ';';
-
-		// $this->logger->debug( 'SQL: ' . $sql );
+		$sql .= implode( ', ', $placeholders ) . ';';
 
 		try {
-			$this->db->exec( $sql );
+			$stmt = $this->db->prepare( $sql );
+			$stmt->execute( $values );
 		} catch ( \PDOException $e ) {
 			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
+			$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
+			$this->logger->error( ' values:  ' . implode( ', ', $values ) );
 			throw $e;
 		}
 
@@ -5654,7 +5733,7 @@ class phpFITFileAnalysis {
 	 * @param string $table The table name.
 	 */
 	private function storeRecordMesg( $mesgs, $table ) {
-		$table_name = $this->tables_created[ $table ];
+		$table_name = $this->tables_created[ $table ]['location'];
 		if ( ! $table_name ) {
 			$this->logger->error( 'Table name not found for ' . $table );
 			$this->logger->error( 'Table names: ' . print_r( $this->tables_created, true ) );
@@ -5682,15 +5761,41 @@ class phpFITFileAnalysis {
 			$all_columns[] = '`spatial_point`';
 		}
 
+		// Trim ` from the column names.
+		$all_columns_no_ticks = array();
+		foreach ( $all_columns as $column ) {
+			$all_columns_no_ticks[] = trim( $column, '`' );
+		}
+
+		// Confirm that all columns are represented in the table.
+		// $columns_in_table = $this->db->query( 'SHOW COLUMNS FROM ' . $table_name )->fetchAll( \PDO::FETCH_COLUMN );
+		$columns_in_table = array_column( $this->tables_created[ $table ]['columns'], 'field_name' );
+		// $this->logger->debug( 'Columns in table: ' . print_r( $columns_in_table, true ) );
+		$missing_columns = array_filter(
+			$all_columns_no_ticks,
+			function ( $column ) use ( $columns_in_table ) {
+				return !in_array( $column, $columns_in_table, true );
+			}
+		);
+		if ( ! empty( $missing_columns ) ) {
+			$this->logger->error( 'Missing columns in table ' . $table_name . ': ' . implode( ', ', $missing_columns ) );
+			$this->logger->error( ' All columns in messages: ' . implode( ', ', $all_columns_no_ticks ) );
+			$this->logger->error( ' All columns in table:    ' . implode( ', ', $columns_in_table ) );
+			throw new \Exception( 'Missing columns in table ' . $table_name . ': ' . implode( ', ', $missing_columns ) );
+		}
+
 		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
 
 		$sql    = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
 		$values = array();
 		foreach ( $mesgs as $mesg ) {
+			if ( ! isset( $mesg['data']['position_lat'] ) || ! isset( $mesg['data']['position_long'] ) ) {
+				continue;
+			}
+
 			$placeholders = array();
-			foreach ( $all_columns as $column ) {
-				$column_name = trim( $column, '`' );
-				if ( $column_name === 'spatial_point' ) {
+			foreach ( $all_columns_no_ticks as $column ) {
+				if ( $column === 'spatial_point' ) {
 					if ( isset( $mesg['data']['position_lat'] ) && isset( $mesg['data']['position_long'] ) ) {
 						$lat            = $mesg['data']['position_lat'];
 						$lon            = $mesg['data']['position_long'];
@@ -5698,8 +5803,8 @@ class phpFITFileAnalysis {
 					} else {
 						$placeholders[] = 'NULL';
 					}
-				} elseif ( array_key_exists( $column_name, $mesg['data'] ) ) {
-					$placeholders[] = $this->db->quote( $mesg['data'][ $column_name ] );
+				} elseif ( array_key_exists( $column, $mesg['data'] ) ) {
+					$placeholders[] = $this->db->quote( $mesg['data'][ $column ] );
 				} else {
 					$placeholders[] = 'NULL';
 				}
@@ -5714,6 +5819,8 @@ class phpFITFileAnalysis {
 			$this->db->exec( $sql );
 		} catch ( \PDOException $e ) {
 			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
+			$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
+			$this->logger->error( ' values:  ' . implode( ', ', $values ) );
 			throw $e;
 		}
 
@@ -5776,6 +5883,19 @@ class phpFITFileAnalysis {
 				$sql .= 'SPATIAL INDEX spatial_idx (`spatial_point`), ';
 				$sql .= 'INDEX distance (`distance`), ';
 				$sql .= 'INDEX time_idx (`timestamp`), ';
+
+				$columns[] = array(
+					'field_name' => 'paused',
+					'type'       => 'TINYINT(1) DEFAULT NULL',
+				);
+				$columns[] = array(
+					'field_name' => 'stopped',
+					'type'       => 'TINYINT(1) DEFAULT NULL',
+				);
+				$columns[] = array(
+					'field_name' => 'spatial_point',
+					'type'       => 'POINT NOT NULL',
+				);
 			}
 		}
 
@@ -5789,7 +5909,12 @@ class phpFITFileAnalysis {
 			throw $e;
 		}
 
-		return $table_name;
+		$table_info = array(
+			'location' => $table_name,
+			'columns'  => $columns,
+		);
+
+		return $table_info;
 	}
 
 	/**
@@ -5807,6 +5932,98 @@ class phpFITFileAnalysis {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * Check that all elements in a message are present as columns in the
+	 * related table.
+	 *
+	 * @param array $mesgs The messages to be checked.
+	 * @param int   $local_mesg_type The local message type.
+	 */
+	private function check_for_columns_in_table( $mesgs, $local_mesg_type ) {
+		foreach ( $mesgs as $mesg_name => $mesg ) {
+			$table_columns = array_column( $this->tables_created[ $mesg_name ]['columns'], 'field_name' );
+			$mesg_elements = array_keys( $mesg );
+
+			$missing_columns = array_filter(
+				$mesg_elements,
+				function ( $element ) use ( $table_columns ) {
+					return !in_array( $element, $table_columns, true );
+				}
+			);
+
+			if ( ! empty( $missing_columns ) ) {
+				// $this->logger->debug( 'Missing columns in ' . $mesg_name . ' table, local_mesg_type = ' . $local_mesg_type . ': ' . implode( ', ', $missing_columns ) );
+				// $this->logger->debug( '  Table columns:    ' . implode( ', ', $table_columns ) );
+				// $this->logger->debug( '  Message elements: ' . implode( ', ', $mesg_elements ) );
+				$this->add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns );
+			}
+		}
+	}
+
+	/**
+	 * Add columns to an existing table.
+	 *
+	 * @param string $mesg_name       The name of the table.
+	 * @param int    $local_mesg_type The local message type.
+	 * @param array  $table_columns   The current columns in the table.
+	 */
+	private function add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns ) {
+		$table_name = $this->tables_created[ $mesg_name ]['location'];
+		if ( ! $table_name ) {
+			$this->logger->error( 'Table name not found for ' . $mesg_name );
+			$this->logger->error( 'Table names: ' . print_r( $this->tables_created, true ) );
+			throw new \Exception( 'Table name not found for ' . $mesg_name );
+		}
+
+		$new_columns = array();
+
+		foreach ( $this->defn_mesgs[ $local_mesg_type ]['field_defns'] as $field_defn ) {
+			// $this->logger->debug( $mesg_name . ' field_defn: ' . print_r( $field_defn, true ) );
+
+			$column_def = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ?? null;
+			$units      = isset( $this->options['units'] ) ? strtolower( $this->options['units'] ) : 'metric';
+
+			if ( isset( $column_def['field_name'] ) && ! in_array( $column_def['field_name'], $table_columns, true )) {
+				$this->logger->debug( 'Adding column: ' . $column_def['field_name'] . ' to ' . $mesg_name . ' table' );
+				$new_columns[] = array(
+					'field_name' => $this->cleanTableName( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ),
+					'type'       => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ][ $units ],
+				);
+			}
+
+			// if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ) ) {
+			//  $new_columns[] = array(
+			//      'field_name' => $this->cleanTableName( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ),
+			//      'type'       => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ][ $units ],
+			//  );
+			// }
+		}
+
+		if ( empty( $new_columns ) ) {
+			$this->logger->debug( 'No new columns to add to table ' . $table_name );
+			return;
+		}
+
+		$sql = 'ALTER TABLE ' . $table_name;
+		foreach ( $new_columns as $column ) {
+			$sql .= ' ADD COLUMN `' . $column['field_name'] . '` ' . $column['type'] . ' DEFAULT NULL,';
+			$this->tables_created[ $mesg_name ]['columns'][] = array(
+				'field_name' => $column['field_name'],
+				'type'       => $column['type'],
+			);
+		}
+		$sql = rtrim( $sql, ', ' ) . ';';
+		$this->logger->debug( 'SQL to add columns: ' . $sql );
+
+		try {
+			$this->db->exec( $sql );
+			$this->logger->debug( 'Columns added to table: ' . $table_name );
+		} catch ( \PDOException $e ) {
+			$this->logger->error( 'Error adding columns to table, ' . $table_name . ': ' . $e->getMessage() );
+			throw $e;
+		}
 	}
 
 	/**
@@ -7047,6 +7264,77 @@ class phpFITFileAnalysis {
 
 		return $mesgs;
 	}
+
+	/**
+	 * Calculate stop points and include them in the record table.
+	 *
+	 * @param callable $record_callback Callback function which should return 0 or 1 for stop field.
+	 * @param object   $queue           Queue object
+	 */
+	public function calculateStopPoints( callable $record_callback, $queue = null ) {
+		if ( ! is_callable( $record_callback ) ) {
+			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
+		}
+
+		$lock_expire = $this->get_lock_expiration( $queue );
+
+		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
+		// For each row in the table, call $record_callback and if it returns 1, set the stopped field for that table row to 1.
+		$batch_size      = 1000; // Define the batch size for processing.
+		$offset          = 0; // Start from the first record.
+		$total_processed = 0;
+
+		while (true) {
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+			// Fetch a batch of records sorted by timestamp ASC.
+			$query = 'SELECT id, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
+			$stmt  = $this->db->prepare( $query );
+			$stmt->bindValue( ':batch_size', $batch_size, \PDO::PARAM_INT );
+			$stmt->bindValue( ':offset', $offset, \PDO::PARAM_INT );
+			$stmt->execute();
+
+			$records = $stmt->fetchAll( \PDO::FETCH_ASSOC );
+
+			// Break the loop if no more records are found.
+			if (empty( $records )) {
+				break;
+			}
+
+			// Track IDs that need to be updated.
+			$ids_to_update = array();
+
+			// Iterate through the records and apply the callback.
+			foreach ($records as $record) {
+				$stopped = call_user_func( $record_callback, $record );
+				if ( 1 === $stopped) {
+					$ids_to_update[] = $record['id'];
+				}
+			}
+
+			// Update the stopped field for all matching records in one query.
+			if (!empty( $ids_to_update )) {
+				$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update ) ) . ')';
+				try {
+					$this->db->exec( $update_query );
+				} catch (\PDOException $e) {
+					$this->logger->error( 'Error updating stopped field: ' . $e->getMessage() );
+				}
+			}
+
+			$total_processed += count( $records );
+
+			if ($total_processed % 10000 === 0) {
+				$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
+			}
+
+			// Increment the offset for the next batch.
+			$offset += $batch_size;
+		}
+
+		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
+	}
+
 
 
 	/**

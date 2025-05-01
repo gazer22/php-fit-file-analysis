@@ -9,8 +9,6 @@
  * @package gazer22
  */
 
-namespace gazer22;
-
 // phpcs:disable WordPress
 
 /**
@@ -20,6 +18,7 @@ namespace gazer22;
  * from a single database table.
  */
 class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
+	// \IteratorAggregate
 	/**
 	 * The PDO database connection instance.
 	 *
@@ -87,6 +86,9 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	 * @throws \RuntimeException If the table cannot be accessed.
 	 */
 	public function __construct( $db, $key, $table_name, $logger ) {
+        if ( ! $db instanceof \PDO ) {
+            throw new \InvalidArgumentException( 'Invalid database connection provided.' );
+        }
 		$this->db         = $db;
 		$this->key        = $key;
 		$this->table_name = $table_name;
@@ -112,6 +114,35 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	}
 
 	/**
+	 * Implement __toArray() magic method.
+	 * This will pull all data from the database and return it as an array.
+	 */
+	public function __toArray(): array {
+		$results = array();
+
+		foreach ( $this->columns as $column ) {
+			$results[$column] = $this->offsetGet( $column );
+		}
+
+		return $results;
+	}
+
+	/**
+	 * Implement __debugInfo() magic method.
+	 * This will return the current state of the object for debugging purposes.
+	 */
+	public function __debugInfo(): array {
+		return $this->columns;
+	}
+
+	/**
+	 * Return $this->columns as array_keys().
+	 */
+	public function get_keys(): array {
+		return ( $this->columns );
+	}
+
+	/**
 	 * Retrieve an item from the cache or database.
 	 *
 	 * @param mixed $field The offset to retrieve.
@@ -119,15 +150,20 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	 */
 	public function offsetGet( mixed $field ): mixed {
 		if ( ! isset( $this->cache[ $field ] ) ) {
-			if ( $this->use_timestamp_as_key ) {
-				$stmt = $this->db->prepare( "SELECT `timestamp`, `{$field}` FROM {$this->table_name}" );
-				$stmt->execute();
-				$this->cache[ $field ] = $stmt->fetchAll( \PDO::FETCH_KEY_PAIR );
-			} else {
-				$stmt = $this->db->prepare( "SELECT `{$field}` FROM {$this->table_name}" );
-				$stmt->execute();
-				$result                = $stmt->fetchAll( \PDO::FETCH_COLUMN );
-				$this->cache[ $field ] = ( count( $result ) === 1 ) ? $result[0] : $result;
+			try {
+				if ( $this->use_timestamp_as_key ) {
+					$stmt = $this->db->prepare( "SELECT `timestamp`, `{$field}` FROM {$this->table_name} ORDER BY `timestamp`" );
+					$stmt->execute();
+					$this->cache[ $field ] = $stmt->fetchAll( \PDO::FETCH_KEY_PAIR );
+				} else {
+					$stmt = $this->db->prepare( "SELECT `{$field}` FROM {$this->table_name}" );
+					$stmt->execute();
+					$result                = $stmt->fetchAll( \PDO::FETCH_COLUMN );
+					$this->cache[ $field ] = ( count( $result ) === 1 ) ? $result[0] : $result;
+				}
+			} catch ( \PDOException $e ) {
+				$this->logger->error( "Error fetching data for field {$field} in table {$this->table_name}: " . $e->getMessage() );
+				throw new \RuntimeException( "Failed to fetch data for field {$field}." );
 			}
 		}
 		return $this->cache[ $field ];
@@ -161,20 +197,6 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	 */
 	public function offsetUnset( $field ): void {
 		unset( $this->cache[ $field ] );
-	}
-
-	/**
-	 * Implement __toArray() magic method.
-	 * This will pull all data from the database and return it as an array.
-	 */
-	public function __toArray(): array {
-		$results = array();
-
-		foreach ( $this->columns as $column ) {
-			$results[$column] = $this->offsetGet( $column );
-		}
-
-		return $results;
 	}
 
 	/**
@@ -219,6 +241,17 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	 */
 	public function valid(): bool {
 		return $this->position < count( $this->columns );
+	}
+
+	/**
+	 * Get an iterator for the columns array.
+	 *
+	 * This allows the object to be used in functions like array_keys().
+	 *
+	 * @return \ArrayIterator An iterator for the columns array.
+	 */
+	public function getIterator(): \ArrayIterator {
+		return new \ArrayIterator( $this->columns );
 	}
 }
 

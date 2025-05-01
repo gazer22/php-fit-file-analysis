@@ -6,8 +6,6 @@
  * @package phpFITFileAnalysis
  */
 
-namespace gazer22;
-
 // phpcs:disable WordPress
 
 // TODO: Modify so that it has a list of tables (e.g., tables_created from phpFITFileAnalysis Class)
@@ -63,6 +61,9 @@ class PFFA_Data_Mesgs implements \ArrayAccess, \Iterator {
 	 * @param \Psr\Log\LoggerInterface $logger The logger instance for logging messages.
 	 */
 	public function __construct( $db, $tables, $logger ) {
+        if ( ! $db instanceof \PDO ) {
+            throw new \InvalidArgumentException( 'Invalid database connection provided.' );
+        }
 		$this->db     = $db;
 		$this->tables = $tables;
 		$this->logger = $logger;
@@ -75,8 +76,17 @@ class PFFA_Data_Mesgs implements \ArrayAccess, \Iterator {
 	 * @return mixed The cached or fetched data.
 	 */
 	public function offsetGet( mixed $key ): mixed {
+		if ( ! isset( $this->tables[ $key ] ) ) {
+			throw new \OutOfBoundsException( "Key {$key} does not exist in tables." );
+		}
+
 		if ( ! isset( $this->cache[ $key ] ) ) {
-			$this->cache[ $key ] = new PFFA_Table_Cache( $this->db, $key, $this->tables[ $key ], $this->logger );
+			try {
+				$this->cache[ $key ] = new PFFA_Table_Cache( $this->db, $key, $this->tables[ $key ]['location'], $this->logger );
+			} catch ( \Exception $e ) {
+				$this->logger->error( "Error fetching data for key {$key}: " . $e->getMessage() );
+				throw new \RuntimeException( "Failed to fetch data for key {$key}." );
+			}
 		}
 		return $this->cache[ $key ];
 	}
