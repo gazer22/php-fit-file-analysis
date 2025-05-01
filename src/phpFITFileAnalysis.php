@@ -5013,11 +5013,9 @@ class phpFITFileAnalysis {
 	private function connect_to_db() {
 		if ( $this->file_buff ) {
 			try {
-                $this->logger->debug( 'phpFITFileAnalysis: IS THIS THING ON? connecting to database: ' . $this->db_name );
 				$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass );
-                $this->logger->debug( 'phpFITFileAnalysis: connected to database: ' . print_r( $this->db, true ) );
-				// $this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
-                $this->logger->debug( 'phpFITFileAnalysis: connected to database - after attributes: ' . print_r( $this->db, true ) );
+				$this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
+                // $this->logger->debug( 'phpFITFileAnalysis: connected to database - after attributes: ' . print_r( $this->db, true ) );
 			} catch ( \PDOException $e ) {
 				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
 				return false;
@@ -5043,15 +5041,6 @@ class phpFITFileAnalysis {
 			}
 		}
 		$this->db = null; // Closing the PDO connection by setting it to null
-	}
-
-	/**
-	 * Get table information.
-	 *
-	 * @return array
-	 */
-	public function getTableInfo() {
-		return $this->tables_created;
 	}
 
 	/**
@@ -8250,7 +8239,7 @@ class phpFITFileAnalysis {
 	 * Add a trailing slash to a path if it doesn't already have one.
 	 */
 	private function trailingslashit( $path ) {
-		return rtrim( $path, '/\\' ) . '/';
+		return rtrim( $path, '/\\' ) . DIRECTORY_SEPARATOR;
 	}
 
 	/**
