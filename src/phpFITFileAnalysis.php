@@ -67,7 +67,7 @@ class phpFITFileAnalysis {
 	private $tables_created         = array();  // Stores the name and columns of each table created.
 	private $db;                                // PDO object for database connection.
 	private $db_name;                           // Database name.
-	private $db_user;                           // Database user.      
+	private $db_user;                           // Database user.
 	private $db_pass;                           // Database password.
 	private $buffer_size = 1000;     // Number of messags to buffer and then load to DB in batch.
 	public $logger;                             // Monolog logger object.
@@ -4922,8 +4922,8 @@ class phpFITFileAnalysis {
 				$this->logger->error( 'phpFITFileAnalysis->__construct(): unable to connect to database!' );
 				throw new \Exception( 'phpFITFileAnalysis: unable to connect to database' );
 			} else {
-                $this->logger->debug( 'phpFITFileAnalysis->__construct(): connected to database: ' . $this->db_name );
-            }
+				$this->logger->debug( 'phpFITFileAnalysis->__construct(): connected to database: ' . $this->db_name );
+			}
 		} else {
 			// $this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
 		}
@@ -5015,7 +5015,7 @@ class phpFITFileAnalysis {
 			try {
 				$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass );
 				$this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
-                // $this->logger->debug( 'phpFITFileAnalysis: connected to database - after attributes: ' . print_r( $this->db, true ) );
+				// $this->logger->debug( 'phpFITFileAnalysis: connected to database - after attributes: ' . print_r( $this->db, true ) );
 			} catch ( \PDOException $e ) {
 				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
 				return false;
@@ -7283,51 +7283,64 @@ class phpFITFileAnalysis {
 		$total_processed = 0;
 
 		while (true) {
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			try {
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
-			// Fetch a batch of records sorted by timestamp ASC.
-			$query = 'SELECT id, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
-			$stmt  = $this->db->prepare( $query );
-			$stmt->bindValue( ':batch_size', $batch_size, \PDO::PARAM_INT );
-			$stmt->bindValue( ':offset', $offset, \PDO::PARAM_INT );
-			$stmt->execute();
+				// Fetch a batch of records sorted by timestamp ASC.
+				$query = 'SELECT id, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
+				$stmt  = $this->db->prepare( $query );
+				$stmt->bindValue( ':batch_size', $batch_size, \PDO::PARAM_INT );
+				$stmt->bindValue( ':offset', $offset, \PDO::PARAM_INT );
+				$stmt->execute();
 
-			$records = $stmt->fetchAll( \PDO::FETCH_ASSOC );
+				$records = $stmt->fetchAll( \PDO::FETCH_ASSOC );
 
-			// Break the loop if no more records are found.
-			if (empty( $records )) {
-				break;
-			}
-
-			// Track IDs that need to be updated.
-			$ids_to_update = array();
-
-			// Iterate through the records and apply the callback.
-			foreach ($records as $record) {
-				$stopped = call_user_func( $record_callback, $record );
-				if ( 1 === $stopped) {
-					$ids_to_update[] = $record['id'];
+				// Break the loop if no more records are found.
+				if (empty( $records )) {
+					break;
 				}
-			}
 
-			// Update the stopped field for all matching records in one query.
-			if (!empty( $ids_to_update )) {
-				$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update ) ) . ')';
-				try {
+				// Track IDs that need to be updated.
+				$ids_to_update = array();
+
+				// Iterate through the records and apply the callback.
+				foreach ($records as $record) {
+					$stopped = call_user_func( $record_callback, $record );
+					if ( 1 === $stopped) {
+						$ids_to_update[] = $record['id'];
+					}
+				}
+
+				// Update the stopped field for all matching records in one query.
+				if (!empty( $ids_to_update )) {
+					$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update ) ) . ')';
 					$this->db->exec( $update_query );
-				} catch (\PDOException $e) {
-					$this->logger->error( 'Error updating stopped field: ' . $e->getMessage() );
+				}
+
+				$total_processed += count( $records );
+
+				if ($total_processed % 10000 === 0) {
+					$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
+				}
+
+				// Increment the offset for the next batch.
+				$offset += $batch_size;
+			} catch ( \PDOException $e ) {
+				// Check if the error is related to a lost connection.
+				if (strpos( $e->getMessage(), 'server has gone away' ) !== false || strpos( $e->getMessage(), 'no connection to the server' ) !== false) {
+					$this->logger->error( 'Database connection lost. Attempting to reconnect...' );
+					try {
+						$this->connect_to_db(); // Reconnect to the database.
+						$this->logger->info( 'Reconnected to the database successfully.' );
+					} catch (\PDOException $reconnectException) {
+						$this->logger->error( 'Failed to reconnect to the database: ' . $reconnectException->getMessage() );
+						throw $reconnectException; // Exit the loop if reconnection fails.
+					}
+				} else {
+					// Rethrow other exceptions.
+					throw $e;
 				}
 			}
-
-			$total_processed += count( $records );
-
-			if ($total_processed % 10000 === 0) {
-				$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
-			}
-
-			// Increment the offset for the next batch.
-			$offset += $batch_size;
 		}
 
 		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
