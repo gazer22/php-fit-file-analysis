@@ -4975,7 +4975,7 @@ class phpFITFileAnalysis {
 		}
 
 		if ( $this->file_buff ) {
-			$this->data_mesgs = new PFFA_Data_Mesgs( $this->db, $this->tables_created, $this->logger );
+			$this->data_mesgs = new \PFFA_Data_Mesgs( $this->db, $this->tables_created, $this->logger );
 		} else {
 			$this->oneElementArrays();
 			$this->processHrMessages( $queue );
@@ -5006,9 +5006,14 @@ class phpFITFileAnalysis {
 	public function __destruct() {
 		if ( $this->file_buff ) {
 			global $wpdb;
+            if ( $wpdb ) {
+                $prefix = $wpdb->prefix;
+            } else {
+                $prefix = '';
+            }
+
 			foreach ( $this->tables_created as $table ) {
-				global $wpdb;
-				$table_name = $wpdb->prefix . $this->cleanTableName( $table['location'] );
+				$table_name = $prefix . $this->cleanTableName( $table['location'] );
 				$this->logger->debug( 'phpFITFileAnalysis->__destruct(): dropping table ' . $table_name );
 				$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
 			}

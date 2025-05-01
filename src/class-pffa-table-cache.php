@@ -9,8 +9,6 @@
  * @package gazer22
  */
 
-namespace gazer22;
-
 // phpcs:disable WordPress
 
 /**

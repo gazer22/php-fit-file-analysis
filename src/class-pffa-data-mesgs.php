@@ -6,8 +6,6 @@
  * @package phpFITFileAnalysis
  */
 
-namespace gazer22;
-
 // phpcs:disable WordPress
 
 // TODO: Modify so that it has a list of tables (e.g., tables_created from phpFITFileAnalysis Class)
