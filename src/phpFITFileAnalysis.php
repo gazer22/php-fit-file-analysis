@@ -5000,20 +5000,12 @@ class phpFITFileAnalysis {
 	}
 
 	/**
-	 * Destructor for phpFITFileAnalysis.
 	 * Delete all related tables.
 	 */
-	public function __destruct() {
+	public function drop_tables() {
 		if ( $this->file_buff ) {
-			global $wpdb;
-            if ( $wpdb ) {
-                $prefix = $wpdb->prefix;
-            } else {
-                $prefix = '';
-            }
-
 			foreach ( $this->tables_created as $table ) {
-				$table_name = $prefix . $this->cleanTableName( $table['location'] );
+				$table_name = $this->cleanTableName( $table['location'] );
 				$this->logger->debug( 'phpFITFileAnalysis->__destruct(): dropping table ' . $table_name );
 				$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
 			}
