@@ -5055,6 +5055,15 @@ class phpFITFileAnalysis {
 	}
 
 	/**
+	 * Get table information.
+	 *
+	 * @return array
+	 */
+	public function getTableInfo() {
+		return $this->tables_created;
+	}
+
+	/**
 	 * Check validity of file buffer and database options.
 	 *
 	 * @param array $options expects:
