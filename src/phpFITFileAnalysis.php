@@ -4892,6 +4892,7 @@ class phpFITFileAnalysis {
 	 *   Queue class must implement the following methods:
 	 *     - get_lock_expiration();
 	 *     - lock_process( $reset_start_time = true );
+	 *     - get_lock_time();
 	 */
 	public function __construct( $file_path_or_data, $options = null, $record_callback = null, $logger = null, $queue = null ) {
 		require_once 'class-pffa-data-mesgs.php';
@@ -8168,19 +8169,19 @@ class phpFITFileAnalysis {
 	}
 
 	/**
-	 * Maybe set lock expiration if within 5 minutes of expiration.
+	 * Maybe set lock expiration if within 50% of expiration.
 	 *
 	 * @param CCM_GPS_Fit_File_Queue|null $queue       Queue for processing FIT file data.
 	 * @param int|bool                    $lock_expire Lock expiration time.
 	 */
 	protected function maybe_set_lock_expiration( $queue, $lock_expire ) {
 		if ( $queue && $lock_expire ) {
-			if ( time() > ( $lock_expire - 300 ) ) { // 5 minutes = 300 seconds
+			$lock_duration = $queue->get_lock_time();
+			if ( time() > ( $lock_expire - ( $lock_duration / 2 ) ) ) {
 				$queue->lock_process( false );
 				$lock_expire = $queue->get_lock_expiration();
 			}
 		}
-
 		return $lock_expire;
 	}
 
