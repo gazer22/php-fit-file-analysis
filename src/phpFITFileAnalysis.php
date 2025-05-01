@@ -4971,8 +4971,8 @@ class phpFITFileAnalysis {
 		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
 		if ( $record_callback ) {
-			$this->calculateStopPoints( $record_callback );
-            $this->logger->debug( 'phpFITFileAnalysis->__construct(): calculateStopPoints() completed for ' . $file_path_or_data );
+			$this->calculateStopPoints( $record_callback, $queue );
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): calculateStopPoints() completed for ' . $file_path_or_data );
 		}
 
 		if ( $this->file_buff ) {
@@ -4994,8 +4994,7 @@ class phpFITFileAnalysis {
 
 		}
 
-        $this->logger->debug( 'phpFITFileAnalysis->__construct(): complete for ' . $file_path_or_data );
-
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): complete for ' . $file_path_or_data );
 
 		// $this->logger->debug( 'defn_mesgs: ' . print_r( $this->defn_mesgs, true ) );
 		// $this->logger->debug( 'defn_mesgs_all: ' . print_r( $this->defn_mesgs_all, true ) );
@@ -5008,16 +5007,16 @@ class phpFITFileAnalysis {
 	 */
 	public function drop_tables() {
 		if ( $this->file_buff ) {
-            try {
-                foreach ( $this->tables_created as $table ) {
-                    $table_name = $this->cleanTableName( $table['location'] );
-                    $this->logger->debug( 'phpFITFileAnalysis: dropping table ' . $table_name );
-                    $this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
-                }
-                $this->db = null; // Closing the PDO connection by setting it to null
-            } catch ( \PDOException $e ) {
-                $this->logger->error( 'phpFITFileAnalysis: Error dropping tables: ' . $e->getMessage() );
-            }
+			try {
+				foreach ( $this->tables_created as $table ) {
+					$table_name = $this->cleanTableName( $table['location'] );
+					$this->logger->debug( 'phpFITFileAnalysis: dropping table ' . $table_name );
+					$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
+				}
+				$this->db = null; // Closing the PDO connection by setting it to null
+			} catch ( \PDOException $e ) {
+				$this->logger->error( 'phpFITFileAnalysis: Error dropping tables: ' . $e->getMessage() );
+			}
 		}
 	}
 
@@ -7245,18 +7244,24 @@ class phpFITFileAnalysis {
 	 * Calculate stop points and include them in the record table.
 	 *
 	 * @param callable $record_callback Callback function which should return 0 or 1 for stop field.
+	 * @param object   $queue           Queue object
 	 */
-	public function calculateStopPoints( callable $record_callback ) {
+	public function calculateStopPoints( callable $record_callback, $queue = null ) {
 		if ( ! is_callable( $record_callback ) ) {
 			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
 		}
 
+		$lock_expire = $this->get_lock_expiration( $queue );
+
 		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
 		// For each row in the table, call $record_callback and if it returns 1, set the stopped field for that table row to 1.
-		$batch_size = 1000; // Define the batch size for processing.
-		$offset     = 0; // Start from the first record.
+		$batch_size      = 1000; // Define the batch size for processing.
+		$offset          = 0; // Start from the first record.
+		$total_processed = 0;
 
 		while (true) {
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
 			// Fetch a batch of records sorted by timestamp ASC.
 			$query = 'SELECT id, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
 			$stmt  = $this->db->prepare( $query );
@@ -7282,22 +7287,27 @@ class phpFITFileAnalysis {
 				}
 			}
 
-			// $this->logger->debug( 'Fetched ' . count( $records ) . ' records from the database, identified stops: ' . implode( ', ', $ids_to_update ) );
-
 			// Update the stopped field for all matching records in one query.
 			if (!empty( $ids_to_update )) {
 				$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update ) ) . ')';
-                try {
-				    $this->db->exec( $update_query );
-                }
-                catch (\PDOException $e) {
-                    $this->logger->error( 'Error updating stopped field: ' . $e->getMessage() );
-                }
+				try {
+					$this->db->exec( $update_query );
+				} catch (\PDOException $e) {
+					$this->logger->error( 'Error updating stopped field: ' . $e->getMessage() );
+				}
+			}
+
+			$total_processed += count( $records );
+
+			if ($total_processed % 10000 === 0) {
+				$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
 			}
 
 			// Increment the offset for the next batch.
 			$offset += $batch_size;
 		}
+
+		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
 	}
 
 
