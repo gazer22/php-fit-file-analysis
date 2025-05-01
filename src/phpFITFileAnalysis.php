@@ -4964,14 +4964,15 @@ class phpFITFileAnalysis {
 		// Process the file contents.
 		$this->readHeader();
 
-		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
 
 		$this->readDataRecords( $queue );
 
-		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
+		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
 		if ( $record_callback ) {
 			$this->calculateStopPoints( $record_callback );
+            $this->logger->debug( 'phpFITFileAnalysis->__construct(): calculateStopPoints() completed for ' . $file_path_or_data );
 		}
 
 		if ( $this->file_buff ) {
@@ -4992,6 +4993,9 @@ class phpFITFileAnalysis {
 			// $this->logger->debug( 'phpFITFileAnalysis->__construct(): setUnits() completed for ' . $file_path_or_data );
 
 		}
+
+        $this->logger->debug( 'phpFITFileAnalysis->__construct(): complete for ' . $file_path_or_data );
+
 
 		// $this->logger->debug( 'defn_mesgs: ' . print_r( $this->defn_mesgs, true ) );
 		// $this->logger->debug( 'defn_mesgs_all: ' . print_r( $this->defn_mesgs_all, true ) );
