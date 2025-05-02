@@ -4896,6 +4896,7 @@ class phpFITFileAnalysis {
 	 *     - get_lock_expiration();
 	 *     - lock_process( $reset_start_time = true );
 	 *     - get_lock_time();
+	 *     - maybe_set_lock_expiration();
 	 */
 	public function __construct( $file_path_or_data, $options = null, $record_callback = null, $logger = null, $queue = null ) {
 		require_once 'class-pffa-data-mesgs.php';
@@ -5196,11 +5197,9 @@ class phpFITFileAnalysis {
 		// $last_definition_num = 0;
 		// $first_data_record   = 0;
 
-		$lock_expire = $this->get_lock_expiration( $queue );
-
 		while ( $this->file_header['header_size'] + $this->file_header['data_size'] > $this->file_pointer ) {
 			// Check if we need to re-lock the process
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			$this->maybe_set_lock_expiration( $queue );
 
 			// if ($record_count % 1000 === 0) {
 			//  $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): record count: ' . $record_count );
@@ -7275,8 +7274,6 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
 		}
 
-		$lock_expire = $this->get_lock_expiration( $queue );
-
 		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
 		// For each row in the table, call $record_callback and if it returns 1, set the stopped field for that table row to 1.
 		$batch_size      = 1000; // Define the batch size for processing.
@@ -7285,7 +7282,7 @@ class phpFITFileAnalysis {
 
 		while (true) {
 			try {
-				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				$lock_expire = $this->maybe_set_lock_expiration( $queue );
 
 				// Fetch a batch of records sorted by timestamp ASC.
 				$query = 'SELECT id, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
@@ -8103,14 +8100,12 @@ class phpFITFileAnalysis {
 			return;
 		}
 
-		$lock_expire = $this->get_lock_expiration( $queue );
-
 		$hr         = array();
 		$timestamps = array();
 
 		// Load all filtered_bpm values into the $hr array
 		foreach ( $this->data_mesgs['hr']['filtered_bpm'] as $hr_val ) {
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			 $this->maybe_set_lock_expiration( $queue );
 
 			if ( is_array( $hr_val ) ) {
 				foreach ( $hr_val as $sub_hr_val ) {
@@ -8132,7 +8127,7 @@ class phpFITFileAnalysis {
 		// Determine timestamps (similar to compressed timestamps)
 		foreach ( $this->data_mesgs['hr']['event_timestamp_12'] as $event_timestamp_12_val ) {
 
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			$this->maybe_set_lock_expiration( $queue );
 
 			$j = 0;
 			for ( $i = 0; $i < 11; $i++ ) {
@@ -8163,7 +8158,7 @@ class phpFITFileAnalysis {
 		$max_record_ts    = max( $this->data_mesgs['record']['timestamp'] );
 		foreach ( $timestamps as $idx => $timestamp ) {
 
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			$this->maybe_set_lock_expiration( $queue );
 
 			$ts_secs = round( $timestamp + $start_timestamp );
 
@@ -8180,7 +8175,7 @@ class phpFITFileAnalysis {
 
 		// Populate the heart_rate fields for record messages
 		foreach ( $filtered_bpm_arr as $idx => $arr ) {
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			$this->maybe_set_lock_expiration( $queue );
 
 			$this->data_mesgs['record']['heart_rate'][ $idx ] = (int) round( $arr[0] / $arr[1] );
 			// $this->logger->debug( 'Set heart Rate: ' . $this->data_mesgs['record']['heart_rate'][ $idx ] );
@@ -8208,17 +8203,11 @@ class phpFITFileAnalysis {
 	 * Maybe set lock expiration if within 50% of expiration.
 	 *
 	 * @param CCM_GPS_Fit_File_Queue|null $queue       Queue for processing FIT file data.
-	 * @param int|bool                    $lock_expire Lock expiration time.
 	 */
-	protected function maybe_set_lock_expiration( $queue, $lock_expire ) {
-		if ( $queue && $lock_expire ) {
-			$lock_duration = $queue->get_lock_time();
-			if ( time() > ( $lock_expire - ( $lock_duration / 2 ) ) ) {
-				$queue->lock_process( false );
-				$lock_expire = $queue->get_lock_expiration();
-			}
+	protected function maybe_set_lock_expiration( $queue ) {
+		if ( $queue ) {
+			$queue->maybe_set_lock_expiration();
 		}
-		return $lock_expire;
 	}
 
 	/**
