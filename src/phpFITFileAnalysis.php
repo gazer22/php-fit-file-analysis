@@ -5322,7 +5322,7 @@ class phpFITFileAnalysis {
 						'total_size'            => $total_size,
 					);
 
-					// $this->logger->debug( "phpFITFileAnalysis->readDataRecords() - read definition message, $local_mesg_type: " . print_r( $this->defn_mesgs[ $local_mesg_type ], true ) );
+					$this->logger->debug( "phpFITFileAnalysis->readDataRecords() - read definition message, $local_mesg_type: " . print_r( $this->defn_mesgs[ $local_mesg_type ], true ) );
 					break;
 
 				case DATA_MESSAGE:
@@ -5416,6 +5416,9 @@ class phpFITFileAnalysis {
 						}
 
 						// Handle Developer Data
+						// JKK.
+						$this->logger->debug( "defn_mesgs[ $local_mesg_type ] : " . print_r( $this->defn_mesgs[ $local_mesg_type], true ) );
+						$this->logger->debug( 'tmp_record_array: ' . print_r( $tmp_record_array, true ) );
 						if ( $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] === 206 ) {
 							$mesg_name               = 'developer_data';
 							$developer_data_index    = $tmp_record_array['developer_data_index'];
@@ -5432,6 +5435,10 @@ class phpFITFileAnalysis {
 							unset( $tmp_record_array );
 						}
 						foreach ( $this->defn_mesgs[ $local_mesg_type ]['dev_field_definitions'] as $field_defn ) {
+							// JKK.
+							$this->logger->debug( 'phpFITFileAnalysis->readDataRecords() - read developer data field definition: ' . print_r( $field_defn, true ) );
+							$this->logger->debug( '  dev_field_descriptions: ' . print_r( $this->dev_field_descriptions, true ) );
+
 							$field_name = $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'];
 
 							// Units
@@ -5573,12 +5580,12 @@ class phpFITFileAnalysis {
 
 				// Check if we need to add a column to an already existing table.
 				$this->check_for_columns_in_table( $mesgs, $local_mesg_type );
-
-				// $this->logger->debug( 'Storing messages: ' . print_r( $mesgs, true ) );
 			}
 
 			$mesgs_clean = $this->fixDataSingle( $mesgs );
 			$mesgs_clean = $this->setUnitsSingle( $mesgs_clean );
+
+			// $this->logger->debug( 'Storing messages: ' . print_r( $mesgs_clean, true ) );
 
 			$this->bufferAndLoadMessages( $mesgs_clean, $flush );
 		} else {
@@ -5952,9 +5959,9 @@ class phpFITFileAnalysis {
 			);
 
 			if ( ! empty( $missing_columns ) ) {
-				// $this->logger->debug( 'Missing columns in ' . $mesg_name . ' table, local_mesg_type = ' . $local_mesg_type . ': ' . implode( ', ', $missing_columns ) );
-				// $this->logger->debug( '  Table columns:    ' . implode( ', ', $table_columns ) );
-				// $this->logger->debug( '  Message elements: ' . implode( ', ', $mesg_elements ) );
+				$this->logger->debug( 'Missing columns in ' . $mesg_name . ' table, local_mesg_type = ' . $local_mesg_type . ': ' . implode( ', ', $missing_columns ) );
+				$this->logger->debug( '  Table columns:    ' . implode( ', ', $table_columns ) );
+				$this->logger->debug( '  Message elements: ' . implode( ', ', $mesg_elements ) );
 				$this->add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns );
 			}
 		}
@@ -5990,14 +5997,9 @@ class phpFITFileAnalysis {
 					'type'       => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ][ $units ],
 				);
 			}
-
-			// if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ) ) {
-			//  $new_columns[] = array(
-			//      'field_name' => $this->cleanTableName( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ),
-			//      'type'       => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ][ $units ],
-			//  );
-			// }
 		}
+
+		// TODO: need to handle $this->defn_mesgs[ $local_mesg_type ]['dev_field_defns'].
 
 		if ( empty( $new_columns ) ) {
 			$this->logger->debug( 'No new columns to add to table ' . $table_name );
@@ -7274,6 +7276,8 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
 		}
 
+		$lock_expire = $this->get_lock_expiration( $queue );
+
 		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
 		// For each row in the table, call $record_callback and if it returns 1, set the stopped field for that table row to 1.
 		$batch_size      = 1000; // Define the batch size for processing.
@@ -8100,12 +8104,14 @@ class phpFITFileAnalysis {
 			return;
 		}
 
+		$lock_expire = $this->get_lock_expiration( $queue );
+
 		$hr         = array();
 		$timestamps = array();
 
 		// Load all filtered_bpm values into the $hr array
 		foreach ( $this->data_mesgs['hr']['filtered_bpm'] as $hr_val ) {
-			 $this->maybe_set_lock_expiration( $queue );
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			if ( is_array( $hr_val ) ) {
 				foreach ( $hr_val as $sub_hr_val ) {
@@ -8127,7 +8133,7 @@ class phpFITFileAnalysis {
 		// Determine timestamps (similar to compressed timestamps)
 		foreach ( $this->data_mesgs['hr']['event_timestamp_12'] as $event_timestamp_12_val ) {
 
-			$this->maybe_set_lock_expiration( $queue );
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			$j = 0;
 			for ( $i = 0; $i < 11; $i++ ) {
@@ -8158,7 +8164,7 @@ class phpFITFileAnalysis {
 		$max_record_ts    = max( $this->data_mesgs['record']['timestamp'] );
 		foreach ( $timestamps as $idx => $timestamp ) {
 
-			$this->maybe_set_lock_expiration( $queue );
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			$ts_secs = round( $timestamp + $start_timestamp );
 
@@ -8175,7 +8181,7 @@ class phpFITFileAnalysis {
 
 		// Populate the heart_rate fields for record messages
 		foreach ( $filtered_bpm_arr as $idx => $arr ) {
-			$this->maybe_set_lock_expiration( $queue );
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
 			$this->data_mesgs['record']['heart_rate'][ $idx ] = (int) round( $arr[0] / $arr[1] );
 			// $this->logger->debug( 'Set heart Rate: ' . $this->data_mesgs['record']['heart_rate'][ $idx ] );
