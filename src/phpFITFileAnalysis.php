@@ -4929,6 +4929,12 @@ class phpFITFileAnalysis {
 
 		$this->data_mesg_info_original = $this->data_mesg_info; // Store original data message info for reference.
 
+		if ( isset( $options['tables_created'] ) ) {
+			$this->tables_created = $options['tables_created'];
+		} else {
+			$this->tables_created = array();
+		}
+
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
 		} elseif ( isset( $options['buffer_input_to_db'] ) && $options['buffer_input_to_db'] && $this->checkFileBufferOptions( $options['database'] ) ) {
@@ -5664,9 +5670,22 @@ class phpFITFileAnalysis {
 
 		if ( $mesgs ) {
 			$count = count( $mesgs );
+			$mesgs_names  = array_keys( $mesgs );
+			$mesgs_values = array_values( $mesgs );
 			for ( $i=0; $i < $count; $i++ ) {
-				$mesg_name = array_keys( $mesgs )[$i];
-				$mesg      = array_values( $mesgs )[$i];
+				$mesg_name = $mesgs_names[$i];
+				$mesg      = $mesgs_values[$i];
+
+				// $this->logger->debug( 'Buffering message: ' . $mesg_name . ' - ' . print_r( $mesg, true ) );
+
+				// Ignore record messages which do not contain mandatory fields.
+				if ( 'record' === $mesg_name ) {
+					$has_mandatory_fields = $this->checkForMandatoryFields( array_keys( $mesg ) );
+					if ( ! $has_mandatory_fields ) {
+						// $this->logger->debug( 'Skipping record message with missing mandatory fields: ' . print_r( $mesg, true ) );
+						continue;
+					}
+				}
 
 				// Buffer the messages
 				$mesgs_buffer[$mesg_name][] = array(
@@ -5908,36 +5927,25 @@ class phpFITFileAnalysis {
 
 		// If 'record', add spatial point and indexes.
 		if ( 'record' === $mesg_name ) {
-			$mandatory_columns = array( 'position_lat', 'position_long', 'timestamp', 'distance' );
+			$sql .= '`paused` TINYINT(1) DEFAULT NULL, ';
+			$sql .= '`stopped` TINYINT(1) DEFAULT NULL, ';
+			$sql .= '`spatial_point` POINT NOT NULL, ';
+			$sql .= 'SPATIAL INDEX spatial_idx (`spatial_point`), ';
+			$sql .= 'INDEX distance (`distance`), ';
+			$sql .= 'INDEX time_idx (`timestamp`), ';
 
-			try {
-				$mandatory_columns = $this->checkForMandatoryColumns( $mandatory_columns, $column_names );
-			} catch ( \Exception $e ) {
-				$this->logger->error( 'Error creating table, ' . $table_name . ': ' . $e->getMessage() );
-				throw $e;
-			}
-
-			if ( $mandatory_columns ) {
-				$sql .= '`paused` TINYINT(1) DEFAULT NULL, ';
-				$sql .= '`stopped` TINYINT(1) DEFAULT NULL, ';
-				$sql .= '`spatial_point` POINT NOT NULL, ';
-				$sql .= 'SPATIAL INDEX spatial_idx (`spatial_point`), ';
-				$sql .= 'INDEX distance (`distance`), ';
-				$sql .= 'INDEX time_idx (`timestamp`), ';
-
-				$columns[] = array(
-					'field_name' => 'paused',
-					'type'       => 'TINYINT(1) DEFAULT NULL',
-				);
-				$columns[] = array(
-					'field_name' => 'stopped',
-					'type'       => 'TINYINT(1) DEFAULT NULL',
-				);
-				$columns[] = array(
-					'field_name' => 'spatial_point',
-					'type'       => 'POINT NOT NULL',
-				);
-			}
+			$columns[] = array(
+				'field_name' => 'paused',
+				'type'       => 'TINYINT(1) DEFAULT NULL',
+			);
+			$columns[] = array(
+				'field_name' => 'stopped',
+				'type'       => 'TINYINT(1) DEFAULT NULL',
+			);
+			$columns[] = array(
+				'field_name' => 'spatial_point',
+				'type'       => 'POINT NOT NULL',
+			);
 		}
 
 		$sql = rtrim( $sql, ', ' ) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;';
@@ -5959,17 +5967,17 @@ class phpFITFileAnalysis {
 	}
 
 	/**
-	 * Check for mandatory columns.
+	 * Check for mandatory fields.
 	 *
-	 * @param array $mandatory_columns The mandatory columns to check.
-	 * @param array $column_names The column names to check against.
-	 * @return bool True if all mandatory columns are present, false otherwise.
-	 * @throws Exception if any mandatory columns are missing.
+	 * @param array $field_names The field names to check against.
+	 * @return bool True if all mandatory field are present, false otherwise.
 	 */
-	private function checkForMandatoryColumns( $mandatory_columns, $column_names ) {
-		foreach ( $mandatory_columns as $column ) {
-			if ( ! in_array( $column, $column_names, true ) ) {
-				throw new \Exception( 'Missing mandatory column: ' . $column );
+	private function checkForMandatoryFields( $field_names ) {
+		static $mandatory_fields = array( 'position_lat', 'position_long', 'timestamp', 'distance' );
+
+		foreach ( $mandatory_fields as $field ) {
+			if ( ! in_array( $field, $field_names, true ) ) {
+				return false;
 			}
 		}
 		return true;
