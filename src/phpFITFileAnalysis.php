@@ -85,6 +85,25 @@ class phpFITFileAnalysis {
 			2 => 'antfs',
 			3 => 'private',
 		),
+        'base_type'           => array(
+            0 => 'enum',    // enum.
+            1 => 'TINYINT',   // sint8.
+            2 => 'TINYINT UNSIGNED',   // uint8.
+            131 => 'SMALLINT', // sint16.
+            132 => 'SMALLINT UNSIGNED', // uint16.
+            133 => 'INT', // sint32.
+            134 => 'INT UNSIGNED', // uint32.
+            7 => 'VARCHAR', // string.  TODO: how to deal with size?
+            136 => 'FLOAT', // float32.
+            137 => 'DOUBLE', // float64.
+            10 => 'uint8z', // uint8z.
+            139 => 'TINYINT UNSIGNED', // uint16z.
+            140 => 'INT UNSIGNED', // uint32z.
+            13 => 'BINARY', // byte. // TODO: how to deal with size?
+            142 => 'BIGINT', // sint64.
+            143 => 'BIGINT UNSIGNED', // uint64.
+            144 => 'BIGINT UNSIGNED', // uint64z.
+        ),
 		'battery_status'      => array(
 			1 => 'new',
 			2 => 'good',
@@ -5322,7 +5341,7 @@ class phpFITFileAnalysis {
 						'total_size'            => $total_size,
 					);
 
-					$this->logger->debug( "phpFITFileAnalysis->readDataRecords() - read definition message, $local_mesg_type: " . print_r( $this->defn_mesgs[ $local_mesg_type ], true ) );
+					// $this->logger->debug( "phpFITFileAnalysis->readDataRecords() - read definition message, $local_mesg_type: " . print_r( $this->defn_mesgs[ $local_mesg_type ], true ) );
 					break;
 
 				case DATA_MESSAGE:
@@ -5417,8 +5436,8 @@ class phpFITFileAnalysis {
 
 						// Handle Developer Data
 						// JKK.
-						$this->logger->debug( "defn_mesgs[ $local_mesg_type ] : " . print_r( $this->defn_mesgs[ $local_mesg_type], true ) );
-						$this->logger->debug( 'tmp_record_array: ' . print_r( $tmp_record_array, true ) );
+						// $this->logger->debug( "defn_mesgs[ $local_mesg_type ] : " . print_r( $this->defn_mesgs[ $local_mesg_type], true ) );
+						// $this->logger->debug( 'tmp_record_array: ' . print_r( $tmp_record_array, true ) );
 						if ( $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] === 206 ) {
 							$mesg_name               = 'developer_data';
 							$developer_data_index    = $tmp_record_array['developer_data_index'];
@@ -5436,8 +5455,8 @@ class phpFITFileAnalysis {
 						}
 						foreach ( $this->defn_mesgs[ $local_mesg_type ]['dev_field_definitions'] as $field_defn ) {
 							// JKK.
-							$this->logger->debug( 'phpFITFileAnalysis->readDataRecords() - read developer data field definition: ' . print_r( $field_defn, true ) );
-							$this->logger->debug( '  dev_field_descriptions: ' . print_r( $this->dev_field_descriptions, true ) );
+							// $this->logger->debug( 'phpFITFileAnalysis->readDataRecords() - read developer data field definition: ' . print_r( $field_defn, true ) );
+							// $this->logger->debug( '  dev_field_descriptions: ' . print_r( $this->dev_field_descriptions, true ) );
 
 							$field_name = $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'];
 
@@ -5451,13 +5470,19 @@ class phpFITFileAnalysis {
 							}
 
 							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['units'] = $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['units'] ?? null;
-							$tmp_mesg[ $mesg_name ][ $field_name ]['units'] = $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['units'] ?? null;
+
+                            // Don't store units in the data_mesg array.
+							// $tmp_mesg[ $mesg_name ][ $field_name ]['units'] = $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['units'] ?? null;
 
 							// Data
 							$tmp_data = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], fread( $this->file_contents, $field_defn['size'] ) )['tmp'];
 							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = $tmp_data;
-							$tmp_mesg[ $mesg_name ][ $field_name ]['data'] = $tmp_data;
-							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], substr( $this->file_contents, $this->file_pointer, $field_defn['size'] ) )['tmp'];
+
+                            // Just store the data in the data_mesg array.
+                            // $tmp_mesg[ $mesg_name ][ $field_name ]['data'] = $tmp_data;
+                            $tmp_mesg[ $mesg_name ][ $field_name ] = $tmp_data;
+
+                            // $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], substr( $this->file_contents, $this->file_pointer, $field_defn['size'] ) )['tmp'];
 
 							// $this->logger->debug( 'developer_data[' . $field_name . ']: ' . $tmp_data . ' ' . $tmp_mesg[ $mesg_name ][ $field_name ]['units'] );
 
@@ -5959,9 +5984,9 @@ class phpFITFileAnalysis {
 			);
 
 			if ( ! empty( $missing_columns ) ) {
-				$this->logger->debug( 'Missing columns in ' . $mesg_name . ' table, local_mesg_type = ' . $local_mesg_type . ': ' . implode( ', ', $missing_columns ) );
-				$this->logger->debug( '  Table columns:    ' . implode( ', ', $table_columns ) );
-				$this->logger->debug( '  Message elements: ' . implode( ', ', $mesg_elements ) );
+				// $this->logger->debug( 'Missing columns in ' . $mesg_name . ' table, local_mesg_type = ' . $local_mesg_type . ': ' . implode( ', ', $missing_columns ) );
+				// $this->logger->debug( '  Table columns:    ' . implode( ', ', $table_columns ) );
+				// $this->logger->debug( '  Message elements: ' . implode( ', ', $mesg_elements ) );
 				$this->add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns );
 			}
 		}
@@ -5993,13 +6018,46 @@ class phpFITFileAnalysis {
 			if ( isset( $column_def['field_name'] ) && ! in_array( $column_def['field_name'], $table_columns, true )) {
 				$this->logger->debug( 'Adding column: ' . $column_def['field_name'] . ' to ' . $mesg_name . ' table' );
 				$new_columns[] = array(
-					'field_name' => $this->cleanTableName( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ),
-					'type'       => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ][ $units ],
+					'field_name' => $this->cleanTableName( $column_def['field_name'] ),
+					'type'       => $column_def[ $units ],
 				);
 			}
 		}
 
 		// TODO: need to handle $this->defn_mesgs[ $local_mesg_type ]['dev_field_defns'].
+        foreach ( $this->defn_mesgs[ $local_mesg_type ]['dev_field_definitions'] as $dev_field_defn ) {
+            // $this->logger->debug( $mesg_name . ' dev_field_defn: ' . print_r( $dev_field_defn, true ) );
+            
+            $column_def = $this->dev_field_descriptions[ $dev_field_defn['developer_data_index'] ][ $dev_field_defn['field_definition_number'] ] ?? null;
+
+            // $this->logger->debug( 'Dev field column_def: ' . print_r( $column_def, true ) );
+
+            if ( isset( $column_def['field_name'] ) && ! in_array( $column_def['field_name'], $table_columns, true )) {
+                // $this->logger->debug( 'Adding column: ' . $column_def['field_name'] . ' to ' . $mesg_name . ' table' );
+                // $this->logger->debug( ' column_def: ' . print_r( $column_def, true ) );
+
+                $base_type = $column_def['fit_base_type_id'] ?? null;
+                $type      = $this->enum_data['base_type'][ $base_type ] ?? null;
+
+                // add size to string and byte types
+				if ( in_array( $base_type, array(7, 13), true ) ) {
+					$size = $dev_field_defn['size'] ?? null;
+                    if ( $size ) {
+                        $type .= '(' . $size . ')';
+                    }
+                }
+
+                $new_column = array(
+                    'field_name' => $this->cleanTableName( $column_def['field_name'] ),
+                    'type'       => $type,
+                );
+
+                $new_columns[] = $new_column;
+
+                $this->logger->debug( 'New column: ' . $new_column['field_name'] . ', type: ' . $new_column['type'] );
+            }
+        }
+        // $this->logger->debug( 'New columns: ' . print_r( $new_columns, true ) );
 
 		if ( empty( $new_columns ) ) {
 			$this->logger->debug( 'No new columns to add to table ' . $table_name );
@@ -6015,7 +6073,7 @@ class phpFITFileAnalysis {
 			);
 		}
 		$sql = rtrim( $sql, ', ' ) . ';';
-		$this->logger->debug( 'SQL to add columns: ' . $sql );
+		// $this->logger->debug( 'SQL to add columns: ' . $sql );
 
 		try {
 			$this->db->exec( $sql );

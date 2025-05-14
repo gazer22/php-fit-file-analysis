@@ -133,11 +133,11 @@ foreach ( $pFFA->data_mesgs as $mesg_key => $mesg ) {
 <?php
 	// Output all the Fields found in Record messages within the FIT file.
 foreach ( $pFFA->data_mesgs['record'] as $mesg_key => $mesg ) {
-	if ( $mesg_key == 'speed' || $mesg_key == 'heart_rate' ) {
+	if ( $mesg_key == 'speed' ) {
 		echo '<strong><mark><u>';
 	}
 	echo $mesg_key . '<br>';
-	if ( $mesg_key == 'speed' || $mesg_key == 'heart_rate' ) {
+	if ( $mesg_key == 'speed' ) {
 		echo '</strong></mark></u>';
 	}
 }
@@ -155,7 +155,6 @@ foreach ( $pFFA->data_mesgs['record'] as $mesg_key => $mesg ) {
 			<div class="panel-body">
 			<div class="col-md-12">
 				<div id="speed" style="width:100%; height:75px; margin-bottom:8px"></div>
-				<div id="heart_rate" style="width:100%; height:75px; margin-bottom:8px"></div>
 			</div>
 			</div>
 		</div>
@@ -215,42 +214,8 @@ foreach ( $pFFA->data_mesgs['record']['speed'] as $key => $value ) {
 		]
 	};
 	
-	var heart_rate_options = {
-		lines: { show: true, fill: true, fillColor: 'rgba(255, 0, 0, .4)', lineWidth: 1 },
-		points: { show: false },
-		xaxis: {
-		show: false
-		},
-		yaxis: {
-		min: 80,
-		tickFormatter: function(label, series) {
-			return label + ' bpm';
-		}
-		},
-		grid: {
-		borderWidth: {
-			top: 0,
-			right: 0,
-			bottom: 0,
-			left: 0
-		}
-		}
-	};
-	var heart_rate = {
-		'color': 'rgba(255, 0, 0, 0.8)',
-		'data': [
-<?php
-	$tmp = array();
-foreach ( $pFFA->data_mesgs['record']['heart_rate'] as $key => $value ) {
-	$tmp[] = '[' . $key . ', ' . $value . ']';
-}
-	echo implode( ', ', $tmp );
-?>
-		]
-	};
 			
 	$.plot('#speed', [speed], speed_options);
-	$.plot('#heart_rate', [heart_rate], heart_rate_options);
 	
 	// Leaflet maps
 	var latlngs = [<?php echo implode( ',', $lat_long_combined ); ?>];
