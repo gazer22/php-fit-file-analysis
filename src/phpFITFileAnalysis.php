@@ -85,25 +85,25 @@ class phpFITFileAnalysis {
 			2 => 'antfs',
 			3 => 'private',
 		),
-        'base_type'           => array(
-            0 => 'enum',    // enum.
-            1 => 'TINYINT',   // sint8.
-            2 => 'TINYINT UNSIGNED',   // uint8.
-            131 => 'SMALLINT', // sint16.
-            132 => 'SMALLINT UNSIGNED', // uint16.
-            133 => 'INT', // sint32.
-            134 => 'INT UNSIGNED', // uint32.
-            7 => 'VARCHAR', // string.  TODO: how to deal with size?
-            136 => 'FLOAT', // float32.
-            137 => 'DOUBLE', // float64.
-            10 => 'uint8z', // uint8z.
-            139 => 'TINYINT UNSIGNED', // uint16z.
-            140 => 'INT UNSIGNED', // uint32z.
-            13 => 'BINARY', // byte. // TODO: how to deal with size?
-            142 => 'BIGINT', // sint64.
-            143 => 'BIGINT UNSIGNED', // uint64.
-            144 => 'BIGINT UNSIGNED', // uint64z.
-        ),
+		'base_type'           => array(
+			0 => 'enum',    // enum.
+			1 => 'TINYINT',   // sint8.
+			2 => 'TINYINT UNSIGNED',   // uint8.
+			131 => 'SMALLINT', // sint16.
+			132 => 'SMALLINT UNSIGNED', // uint16.
+			133 => 'INT', // sint32.
+			134 => 'INT UNSIGNED', // uint32.
+			7 => 'VARCHAR', // string.
+			136 => 'FLOAT', // float32.
+			137 => 'DOUBLE', // float64.
+			10 => 'uint8z', // uint8z.
+			139 => 'TINYINT UNSIGNED', // uint16z.
+			140 => 'INT UNSIGNED', // uint32z.
+			13 => 'BINARY', // byte.
+			142 => 'BIGINT', // sint64.
+			143 => 'BIGINT UNSIGNED', // uint64.
+			144 => 'BIGINT UNSIGNED', // uint64z.
+		),
 		'battery_status'      => array(
 			1 => 'new',
 			2 => 'good',
@@ -5149,23 +5149,26 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'phpFITFileAnalysis->limit_data(): options must be an array!' );
 		}
 
-        // ensure $options contains the mandatory fields: 'field_description' and 'developer_data_id'.
-        if ( ! isset( $options['field_description'] ) ) {
-            $options['field_description'] = array();
-        }
-        if ( ! isset( $options['developer_data_id'] ) ) {
-            $options['developer_data_id'] = array();
-        }
+		// ensure $options contains the mandatory fields: 'field_description' and 'developer_data_id'.
+		if ( ! isset( $options['field_description'] ) ) {
+			$options['field_description'] = array();
+		}
+		if ( ! isset( $options['developer_data_id'] ) ) {
+			$options['developer_data_id'] = array();
+		}
+
+		// $this->logger->debug( 'phpFITFileAnalysis->limit_data(): limiting data to ' . print_r( $options, true ) );
 
 		foreach ( $this->data_mesg_info as $mesg_num => $mesg_info ) {
-			if ( isset( $options[ $mesg_info['mesg_name'] ] ) && is_array( $options[ $mesg_info['mesg_name'] ] ) ) {
+			if ( isset( $options[ $mesg_info['mesg_name'] ] ) && is_array( $options[ $mesg_info['mesg_name'] ] ) && count( $options[ $mesg_info['mesg_name'] ] ) > 0 ) {
 				foreach ( $this->data_mesg_info[ $mesg_num ]['field_defns'] as $field_num => $field_defn ) {
 					if ( ! in_array( $field_defn['field_name'], $options[ $mesg_info['mesg_name'] ], true ) && 'timestamp' !== $field_defn['field_name'] ) {
 						unset( $this->data_mesg_info[ $mesg_num ]['field_defns'][ $field_num ] );
 					}
 				}
-			} else {
+			} elseif ( ! isset( $options[ $mesg_info['mesg_name'] ] ) ) {
 				// If no options are provided, remove all fields.
+				// $this->logger->debug( 'phpFITFileAnalysis->limit_data(): removing all fields for ' . $mesg_info['mesg_name'] );
 				unset( $this->data_mesg_info[ $mesg_num ] );
 			}
 		}
@@ -5479,18 +5482,18 @@ class phpFITFileAnalysis {
 
 							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['units'] = $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['units'] ?? null;
 
-                            // Don't store units in the data_mesg array.
+							// Don't store units in the data_mesg array.
 							// $tmp_mesg[ $mesg_name ][ $field_name ]['units'] = $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['units'] ?? null;
 
 							// Data
 							$tmp_data = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], fread( $this->file_contents, $field_defn['size'] ) )['tmp'];
 							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = $tmp_data;
 
-                            // Just store the data in the data_mesg array.
-                            // $tmp_mesg[ $mesg_name ][ $field_name ]['data'] = $tmp_data;
-                            $tmp_mesg[ $mesg_name ][ $field_name ] = $tmp_data;
+							// Just store the data in the data_mesg array.
+							// $tmp_mesg[ $mesg_name ][ $field_name ]['data'] = $tmp_data;
+							$tmp_mesg[ $mesg_name ][ $field_name ] = $tmp_data;
 
-                            // $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], substr( $this->file_contents, $this->file_pointer, $field_defn['size'] ) )['tmp'];
+							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], substr( $this->file_contents, $this->file_pointer, $field_defn['size'] ) )['tmp'];
 
 							// $this->logger->debug( 'developer_data[' . $field_name . ']: ' . $tmp_data . ' ' . $tmp_mesg[ $mesg_name ][ $field_name ]['units'] );
 
@@ -6033,39 +6036,39 @@ class phpFITFileAnalysis {
 		}
 
 		// TODO: need to handle $this->defn_mesgs[ $local_mesg_type ]['dev_field_defns'].
-        foreach ( $this->defn_mesgs[ $local_mesg_type ]['dev_field_definitions'] as $dev_field_defn ) {
-            // $this->logger->debug( $mesg_name . ' dev_field_defn: ' . print_r( $dev_field_defn, true ) );
-            
-            $column_def = $this->dev_field_descriptions[ $dev_field_defn['developer_data_index'] ][ $dev_field_defn['field_definition_number'] ] ?? null;
+		foreach ( $this->defn_mesgs[ $local_mesg_type ]['dev_field_definitions'] as $dev_field_defn ) {
+			// $this->logger->debug( $mesg_name . ' dev_field_defn: ' . print_r( $dev_field_defn, true ) );
 
-            // $this->logger->debug( 'Dev field column_def: ' . print_r( $column_def, true ) );
+			$column_def = $this->dev_field_descriptions[ $dev_field_defn['developer_data_index'] ][ $dev_field_defn['field_definition_number'] ] ?? null;
 
-            if ( isset( $column_def['field_name'] ) && ! in_array( $column_def['field_name'], $table_columns, true )) {
-                // $this->logger->debug( 'Adding column: ' . $column_def['field_name'] . ' to ' . $mesg_name . ' table' );
-                // $this->logger->debug( ' column_def: ' . print_r( $column_def, true ) );
+			// $this->logger->debug( 'Dev field column_def: ' . print_r( $column_def, true ) );
 
-                $base_type = $column_def['fit_base_type_id'] ?? null;
-                $type      = $this->enum_data['base_type'][ $base_type ] ?? null;
+			if ( isset( $column_def['field_name'] ) && ! in_array( $column_def['field_name'], $table_columns, true )) {
+				// $this->logger->debug( 'Adding column: ' . $column_def['field_name'] . ' to ' . $mesg_name . ' table' );
+				// $this->logger->debug( ' column_def: ' . print_r( $column_def, true ) );
 
-                // add size to string and byte types
-				if ( in_array( $base_type, array(7, 13), true ) ) {
+				$base_type = $column_def['fit_base_type_id'] ?? null;
+				$type      = $this->enum_data['base_type'][ $base_type ] ?? null;
+
+				// add size to string and byte types
+				if ( in_array( $base_type, array( 7, 13 ), true ) ) {
 					$size = $dev_field_defn['size'] ?? null;
-                    if ( $size ) {
-                        $type .= '(' . $size . ')';
-                    }
-                }
+					if ( $size ) {
+						$type .= '(' . $size . ')';
+					}
+				}
 
-                $new_column = array(
-                    'field_name' => $this->cleanTableName( $column_def['field_name'] ),
-                    'type'       => $type,
-                );
+				$new_column = array(
+					'field_name' => $this->cleanTableName( $column_def['field_name'] ),
+					'type'       => $type,
+				);
 
-                $new_columns[] = $new_column;
+				$new_columns[] = $new_column;
 
-                $this->logger->debug( 'New column: ' . $new_column['field_name'] . ', type: ' . $new_column['type'] );
-            }
-        }
-        // $this->logger->debug( 'New columns: ' . print_r( $new_columns, true ) );
+				$this->logger->debug( 'New column: ' . $new_column['field_name'] . ', type: ' . $new_column['type'] );
+			}
+		}
+		// $this->logger->debug( 'New columns: ' . print_r( $new_columns, true ) );
 
 		if ( empty( $new_columns ) ) {
 			$this->logger->debug( 'No new columns to add to table ' . $table_name );
