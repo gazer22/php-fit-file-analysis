@@ -17,10 +17,10 @@
   <div class="col-md-4">
     <div class="panel panel-default">
       <div class="panel-heading">
-        <h3 class="panel-title"><i class="fa fa-file-code-o"></i> Mountain Biking</h3>
+        <h3 class="panel-title"><i class="fa fa-file-code-o"></i> Josh Biking (Leaflet maps)</h3>
       </div>
       <div class="panel-body text-center">
-        <a href="mountain-biking.php"><img src="img/mountain-biking.jpg" alt="Mountain Biking"></a>
+        <a href="josh-biking.php"><img src="img/mountain-biking.jpg" alt="Josh Biking"></a>
       </div>
     </div>
   </div>
