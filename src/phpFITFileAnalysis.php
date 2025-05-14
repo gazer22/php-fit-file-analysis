@@ -5149,6 +5149,14 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'phpFITFileAnalysis->limit_data(): options must be an array!' );
 		}
 
+        // ensure $options contains the mandatory fields: 'field_description' and 'developer_data_id'.
+        if ( ! isset( $options['field_description'] ) ) {
+            $options['field_description'] = array();
+        }
+        if ( ! isset( $options['developer_data_id'] ) ) {
+            $options['developer_data_id'] = array();
+        }
+
 		foreach ( $this->data_mesg_info as $mesg_num => $mesg_info ) {
 			if ( isset( $options[ $mesg_info['mesg_name'] ] ) && is_array( $options[ $mesg_info['mesg_name'] ] ) ) {
 				foreach ( $this->data_mesg_info[ $mesg_num ]['field_defns'] as $field_num => $field_defn ) {
