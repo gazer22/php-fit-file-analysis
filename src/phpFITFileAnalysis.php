@@ -51,7 +51,7 @@ if ( ! defined( 'FIT_UNIX_TS_DIFF' ) ) {
 
 class phpFITFileAnalysis {
 
-	public $data_mesgs = array();  				// Used to store the data read from the file in associative arrays.
+	public $data_mesgs              = array();               // Used to store the data read from the file in associative arrays.
 	private $dev_field_descriptions = array();
 	private $options                = null;     // Options provided to __construct().
 	private $file_contents          = '';       // FIT file is read-in to memory as a string, split into an array, and reversed. See __construct().
@@ -5279,11 +5279,16 @@ class phpFITFileAnalysis {
 			// Check if we need to re-lock the process
 			$this->maybe_set_lock_expiration( $queue );
 
+			++$record_count;
+
+			if ($record_count % 50000 === 0) {
+				$this->logger->debug( 'readDataRecords: Processed ' . number_format( $record_count ) . ' records from the fit file so far' );
+			}
+
 			// if ($record_count % 1000 === 0) {
 			//  $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): record count: ' . $record_count );
 			//  $this->logger->debug( 'Memory usage: ' . $this->formatMemoryUsage( memory_get_usage( true ) ) );
 			// }
-			++$record_count;
 
 			$record_header_byte = unpack( 'C1record_header_byte', fread( $this->file_contents, 1 ) )['record_header_byte'];
 			++$this->file_pointer;
@@ -7402,7 +7407,7 @@ class phpFITFileAnalysis {
 		$batch_size      = 1000; // Define the batch size for processing.
 		$offset          = 0; // Start from the first record.
 		$total_processed = 0;
-		$last_distance = 0;
+		$last_distance   = 0;
 
 		while (true) {
 			try {
