@@ -61,13 +61,23 @@ class PFFA_Data_Mesgs implements \ArrayAccess, \Iterator {
 	 * @param \Psr\Log\LoggerInterface $logger The logger instance for logging messages.
 	 */
 	public function __construct( $db, $tables, $logger ) {
-        if ( ! $db instanceof \PDO ) {
-            throw new \InvalidArgumentException( 'Invalid database connection provided.' );
-        }
+		if ( ! $db instanceof \PDO ) {
+			throw new \InvalidArgumentException( 'Invalid database connection provided.' );
+		}
 		$this->db     = $db;
 		$this->tables = $tables;
 		$this->logger = $logger;
 	}
+
+	/**
+	 * Set the tables property.
+	 *
+	 * @param array $tables The list of tables to set.
+	 */
+	public function setTables( array $tables ) {
+		$this->tables = $tables;
+	}
+
 
 	/**
 	 * Retrieve an item from the cache or database.

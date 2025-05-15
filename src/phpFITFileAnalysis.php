@@ -51,7 +51,7 @@ if ( ! defined( 'FIT_UNIX_TS_DIFF' ) ) {
 
 class phpFITFileAnalysis {
 
-	public $data_mesgs              = array();  // Used to store the data read from the file in associative arrays.
+	public $data_mesgs = array();  				// Used to store the data read from the file in associative arrays.
 	private $dev_field_descriptions = array();
 	private $options                = null;     // Options provided to __construct().
 	private $file_contents          = '';       // FIT file is read-in to memory as a string, split into an array, and reversed. See __construct().
@@ -4929,12 +4929,6 @@ class phpFITFileAnalysis {
 
 		$this->data_mesg_info_original = $this->data_mesg_info; // Store original data message info for reference.
 
-		if ( isset( $options['tables_created'] ) ) {
-			$this->tables_created = $options['tables_created'];
-		} else {
-			$this->tables_created = array();
-		}
-
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
 		} elseif ( isset( $options['buffer_input_to_db'] ) && $options['buffer_input_to_db'] && $this->checkFileBufferOptions( $options['database'] ) ) {
@@ -5030,6 +5024,54 @@ class phpFITFileAnalysis {
 
 		// $this->logger->debug( 'defn_mesgs: ' . print_r( $this->defn_mesgs, true ) );
 		// $this->logger->debug( 'defn_mesgs_all: ' . print_r( $this->defn_mesgs_all, true ) );
+
+		fclose( $this->file_contents );
+	}
+
+	/**
+	 * Add another fit file to the data.
+	 *
+	 * @param string $file_path Path to the FIT file.
+	 * @param string $queue     Queue for processing FIT file data.
+	 */
+	public function addFile( $file_path, $queue = null ) {
+		if ( isset( $this->options['buffer_input_to_db'] ) && $this->options['buffer_input_to_db'] && $this->checkFileBufferOptions( $this->options['database'] ) ) {
+			if ( ! $this->connect_to_db() ) {
+				$this->logger->error( 'phpFITFileAnalysis->addFile(): unable to connect to database!' );
+				throw new \Exception( 'phpFITFileAnalysis: unable to connect to database' );
+			} else {
+				$this->logger->debug( 'phpFITFileAnalysis->addFile(): connected to database: ' . $this->db_name );
+			}
+		}
+
+		if ( ! isset( $options['input_is_data'] ) ) {
+			if ( empty( $file_path ) ) {
+				throw new \Exception( 'phpFITFileAnalysis->addFile(): file_path is empty!' );
+			}
+			if ( ! file_exists( $file_path ) ) {
+				throw new \Exception( 'phpFITFileAnalysis->addFile(): file \'' . $file_path_or_data . '\' does not exist!' );
+			}
+			$handle = fopen( $file_path, 'rb' );
+			if ( ! $handle ) {
+				throw new \Exception( 'phpFITFileAnalysis->addFile(): unable to open file \'' . $file_path_or_data . '\'!' );
+			}
+
+			$this->file_contents = $handle;
+		}
+
+		$this->readHeader();
+		$this->logger->debug( 'phpFITFileAnalysis->addFile(): readHeader() completed for ' . $file_path );
+
+		$this->readDataRecords( $queue );
+		$this->logger->debug( 'phpFITFileAnalysis->addFile(): readDataRecords() completed for ' . $file_path );
+
+		if ( $this->file_buff ) {
+			$this->data_mesgs->setTables( $this->tables_created );
+		} else {
+			throw new \Exception( 'phpFITFileAnalysis->addFile(): you can\'t add a file unless data is stored in tables' );
+		}
+
+		$this->logger->debug( 'phpFITFileAnalysis->addFile(): complete for ' . $file_path );
 
 		fclose( $this->file_contents );
 	}
@@ -5669,7 +5711,7 @@ class phpFITFileAnalysis {
 		static $mesgs_buffer = array();
 
 		if ( $mesgs ) {
-			$count = count( $mesgs );
+			$count        = count( $mesgs );
 			$mesgs_names  = array_keys( $mesgs );
 			$mesgs_values = array_values( $mesgs );
 			for ( $i=0; $i < $count; $i++ ) {
@@ -7360,6 +7402,7 @@ class phpFITFileAnalysis {
 		$batch_size      = 1000; // Define the batch size for processing.
 		$offset          = 0; // Start from the first record.
 		$total_processed = 0;
+		$last_distance = 0;
 
 		while (true) {
 			try {
