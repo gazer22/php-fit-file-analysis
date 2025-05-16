@@ -7400,6 +7400,15 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
 		}
 
+		if ( isset( $this->options['buffer_input_to_db'] ) && $this->options['buffer_input_to_db'] && $this->checkFileBufferOptions( $this->options['database'] ) ) {
+			if ( ! $this->connect_to_db() ) {
+				$this->logger->error( 'phpFITFileAnalysis->calculateStopPoints(): unable to connect to database!' );
+				throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints: unable to connect to database' );
+			} else {
+				$this->logger->debug( 'phpFITFileAnalysis->calculateStopPoints(): connected to database: ' . $this->db_name );
+			}
+		}
+
 		$lock_expire = $this->get_lock_expiration( $queue );
 
 		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
@@ -7408,6 +7417,10 @@ class phpFITFileAnalysis {
 		$offset          = 0; // Start from the first record.
 		$total_processed = 0;
 		$last_distance   = 0;
+		$dist_delta      = 0;
+
+		$this->create_temp_update_table();
+		$this->logger->debug( 'calculateStopPoints: created temp update table' );
 
 		while (true) {
 			try {
@@ -7428,19 +7441,51 @@ class phpFITFileAnalysis {
 				}
 
 				// Track IDs that need to be updated.
-				$ids_to_update = array();
+				$ids_to_update_stops = array();
+				$placeholders        = array();
+				$distance_updates    = array();
 
 				// Iterate through the records and apply the callback.
 				foreach ($records as $record) {
+					// Look for non-increasing distance values and adjust them.
+					$record['distance'] += $dist_delta;
+					if ($record['distance'] < $last_distance) {
+						$dist_delta         += $last_distance - $record['distance'];
+						$record['distance'] += $dist_delta;
+					}
+					$last_distance = $record['distance'];
+
+					// Add any changed points to the updates arrays.
+					if ( $dist_delta > 0 ) {
+						$placeholders[]      = '(?,?)';
+						$distance_updates[]  = $record['id'];
+						$distance_updates[]  = $record['distance'];
+					}
+
+					// Identify stops.
 					$stopped = call_user_func( $record_callback, $record );
 					if ( 1 === $stopped) {
-						$ids_to_update[] = $record['id'];
+						$ids_to_update_stops[] = $record['id'];
 					}
 				}
 
+				if ( ! empty( $distance_updates ) ) {
+					$sql  = 'INSERT INTO pffa_temp_update_table (id, new_dist) VALUES ' . implode( ',', $placeholders );
+					$stmt = $this->db->prepare( $sql );
+					$stmt->execute( $distance_updates );
+					$stmt->closeCursor();
+
+					$sql  = 'UPDATE ' . $this->tables_created['record']['location'] . ' r JOIN pffa_temp_update_table t ON r.id = t.id SET r.distance = t.new_dist';
+					$stmt = $this->db->prepare( $sql );
+					$stmt->execute();
+					$stmt->closeCursor();
+
+					$this->truncate_temp_update_table();
+				}
+
 				// Update the stopped field for all matching records in one query.
-				if (!empty( $ids_to_update )) {
-					$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update ) ) . ')';
+				if (! empty( $ids_to_update_stops ) ) {
+					$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update_stops ) ) . ')';
 					$this->db->exec( $update_query );
 				}
 
@@ -7470,10 +7515,37 @@ class phpFITFileAnalysis {
 			}
 		}
 
+		$this->drop_temp_update_table();
+
 		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
 	}
 
+	/**
+	 * Create a temporary update table for the record data.
+	 */
+	private function create_temp_update_table() {
+		// Create a temporary table to store the updated records.
+		$query = 'CREATE TEMPORARY TABLE IF NOT EXISTS pffa_temp_update_table (id BIGINT UNSIGNED PRIMARY KEY, new_dist DECIMAL(10,5))';
+		$this->db->exec( $query );
+	}
 
+	/**
+	 * Truncate the temporary update table.
+	 */
+	private function truncate_temp_update_table() {
+		// Truncate the temporary table to remove old data.
+		$query = 'TRUNCATE TABLE pffa_temp_update_table';
+		$this->db->exec( $query );
+	}
+
+	/**
+	 * Drop the temporary update table.
+	 */
+	private function drop_temp_update_table() {
+		// Drop the temporary table.
+		$query = 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_update_table';
+		$this->db->exec( $query );
+	}
 
 	/**
 	 * Calculate HR zones using HRmax formula: zone = HRmax * percentage.
