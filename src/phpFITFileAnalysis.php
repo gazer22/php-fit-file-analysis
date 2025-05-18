@@ -5963,6 +5963,24 @@ class phpFITFileAnalysis {
 				);
 			}
 		}
+
+		if ($mesg_name === 'record') {
+			// Ensure mandatory columns are present for 'record' table
+			$mandatory_columns = array(
+				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][0]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][0][ $units ] ),      // position_lat.
+				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][1]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][1][ $units ] ),      // position_long.
+				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][5]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][5][ $units ] ),      // distance.
+				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][253]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][253][ $units ] ),  // timestamp.
+				array( 'field_name' => 'timestamp', 'type' => 'INT UNSIGNED' ),
+			);
+			$existing_fields   = array_column( $columns, 'field_name' );
+			foreach ($mandatory_columns as $mandatory) {
+				if (!in_array( $mandatory['field_name'], $existing_fields, true )) {
+					$columns[] = $mandatory;
+				}
+			}
+		}
+
 		// $this->logger->debug( 'Creating table: ' . $table_name . ' with columns: ' . print_r( $columns, true ) );
 
 		$column_names = array_column( $columns, 'field_name' );
@@ -7457,9 +7475,9 @@ class phpFITFileAnalysis {
 
 					// Add any changed points to the updates arrays.
 					if ( $dist_delta > 0 ) {
-						$placeholders[]      = '(?,?)';
-						$distance_updates[]  = $record['id'];
-						$distance_updates[]  = $record['distance'];
+						$placeholders[]     = '(?,?)';
+						$distance_updates[] = $record['id'];
+						$distance_updates[] = $record['distance'];
 					}
 
 					// Identify stops.
