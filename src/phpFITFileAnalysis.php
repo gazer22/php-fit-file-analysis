@@ -5282,8 +5282,7 @@ class phpFITFileAnalysis {
 			++$record_count;
 
 			if ($record_count % 10000 === 0) {
-				$this->logger->debug( 'readDataRecords: Processed ' . number_format( $record_count ) . ' records from the fit file so far' );
-				$this->logger->debug( 'Memory usage: ' . $this->formatMemoryUsage( memory_get_usage( true ) ) );
+				$this->logger->debug( 'readDataRecords: Processed ' . number_format( $record_count ) . ' records from the fit file so far, memory usage: ' . $this->formatMemoryUsage( memory_get_usage( true ) ) );
 			}
 
 			// if ($record_count % 1000 === 0) {
