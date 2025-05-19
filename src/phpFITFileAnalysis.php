@@ -4994,6 +4994,19 @@ class phpFITFileAnalysis {
 
 		$this->readDataRecords( $queue );
 
+        $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs =  ' . count( $this->defn_mesgs ) );
+        // $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs_all =  ' . count( $this->defn_mesgs_all ) );
+
+        // foreach ( $this->defn_mesgs as $mesg_num => $mesg ) {
+        //     $this->logger->debug( ' ' . $mesg['record_count'] . ': $this->defn_mesgs[' . $mesg_num . '] = ' . $mesg['global_mesg_num'] . ': ' . $mesg['num_fields'] . ' fields, ' . $mesg['num_dev_fields'] . ' dev fields, total size = ' . $mesg['total_size'] );
+        // }
+
+        // $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs_all:' );
+        // foreach ( $this->defn_mesgs_all as $mesg_num => $mesg ) {
+        //     $this->logger->debug( ' ' . $mesg['record_count'] . ': $this->defn_mesgs_all[' . $mesg_num . '][' . $mesg['local_mesg_type'] . '] = ' . $mesg['global_mesg_num'] . ': ' . $mesg['num_fields'] . ' fields, ' . $mesg['num_dev_fields'] . ' dev fields, total size = ' . $mesg['total_size'] );
+        // }
+
+
 		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
 		if ( $record_callback ) {
@@ -5272,10 +5285,24 @@ class phpFITFileAnalysis {
 		$local_mesg_type     = 0;
 		$previousTS          = 0;
 		$record_count        = 0;
-		// $last_definition_num = 0;
-		// $first_data_record   = 0;
+
+		// Timing accumulators
+		$timing = array(
+			'header' => 0,
+			'definition' => 0,
+			'data_message' => 0,
+			'store_mesg' => 0,
+		);
+		$counts = array(
+			'definition' => 0,
+			'data_message' => 0,
+		);
+
+		$start_total = microtime( true );
 
 		while ( $this->file_header['header_size'] + $this->file_header['data_size'] > $this->file_pointer ) {
+			$step_start = microtime( true );
+
 			// Check if we need to re-lock the process
 			$this->maybe_set_lock_expiration( $queue );
 
@@ -5289,6 +5316,8 @@ class phpFITFileAnalysis {
 			//  $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): record count: ' . $record_count );
 			//  $this->logger->debug( 'Memory usage: ' . $this->formatMemoryUsage( memory_get_usage( true ) ) );
 			// }
+
+			$header_start = microtime( true );
 
 			$record_header_byte = unpack( 'C1record_header_byte', fread( $this->file_contents, 1 ) )['record_header_byte'];
 			++$this->file_pointer;
@@ -5313,8 +5342,13 @@ class phpFITFileAnalysis {
 				$local_mesg_type     = $record_header_byte & 15;  // bindec('1111') == 15
 			}
 
+			$timing['header'] += microtime( true ) - $header_start;
+
 			switch ( $message_type ) {
 				case DEFINITION_MESSAGE:
+					++$counts['definition'];
+					$definition_start = microtime( true );
+
 					// $last_definition_num = $record_count;
 					// if ( $first_data_record > 0 && $last_definition_num > $first_data_record ) {
 					//  $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): definition message after data record!' );
@@ -5395,17 +5429,25 @@ class phpFITFileAnalysis {
 						'num_dev_fields'        => $num_dev_fields,
 						'dev_field_definitions' => $dev_field_definitions,
 						'total_size'            => $total_size,
+                        'record_count'          => $record_count,
 					);
-					$this->defn_mesgs_all[]               = array(
-						'global_mesg_num'       => $global_mesg_num,
-						'num_fields'            => $num_fields,
-						'field_defns'           => $field_definitions,
-						'num_dev_fields'        => $num_dev_fields,
-						'dev_field_definitions' => $dev_field_definitions,
-						'total_size'            => $total_size,
-					);
+                    // Shouldn't need to store this in a separate array if messages are processed in order.
+                    // TODO: Maybe need to flush buffer before a message re-definition.
+					// $this->defn_mesgs_all[]               = array(
+					// 	'global_mesg_num'       => $global_mesg_num,
+					// 	'num_fields'            => $num_fields,
+					// 	'field_defns'           => $field_definitions,
+					// 	'num_dev_fields'        => $num_dev_fields,
+					// 	'dev_field_definitions' => $dev_field_definitions,
+					// 	'total_size'            => $total_size,
+                    //     'local_mesg_type'       => $local_mesg_type,
+                    //     'record_count'          => $record_count,
+					// );
 
 					// $this->logger->debug( "phpFITFileAnalysis->readDataRecords() - read definition message, $local_mesg_type: " . print_r( $this->defn_mesgs[ $local_mesg_type ], true ) );
+
+					$timing['definition'] += microtime( true ) - $definition_start;
+					++$counts['definition'];
 					break;
 
 				case DATA_MESSAGE:
@@ -5415,6 +5457,8 @@ class phpFITFileAnalysis {
 
 					// Check that we have information on the Data Message.
 					if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ] ) ) {
+						$data_mesg_start = microtime( true );
+
 						// If table is not build for this message type, build it.
 						// Use $this->defn_mesgs[ $local_mesg_type ]['field_defns']
 						// to set column names.  How do we think about column type?
@@ -5599,18 +5643,33 @@ class phpFITFileAnalysis {
 							}
 						}
 
+						$timing['data_message'] += microtime( true ) - $data_mesg_start;
+						++$counts['data_message'];
+
+						$store_mesg_start = microtime( true );
 						$this->storeMesg( $tmp_mesg, $local_mesg_type );
+						$timing['store_mesg'] += microtime( true ) - $store_mesg_start;
 
 					} else {
 						fseek( $this->file_contents, $this->defn_mesgs[ $local_mesg_type ]['total_size'], SEEK_CUR );
 						$this->file_pointer += $this->defn_mesgs[ $local_mesg_type ]['total_size'];
-						$skipped_mesg        = $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ?? $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'];
+						// $skipped_mesg        = $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ?? $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'];
 						// $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): skipping message type: ' . $skipped_mesg );
 					}
 			}
 		}  // while loop
 
 		$this->storeMesg( null, null, true );  // Flush any remaining data to the database
+
+		$total_time                     = microtime( true ) - $start_total;
+		$timing_summary                 = array();
+		$timing_summary['header']       = round( $timing['header'] / max( $record_count, 1 ) * 1000, 4 ) . ' ms/header';
+		$timing_summary['definition']   = round( $timing['definition'] / max( $counts['definition'], 1 ) * 1000, 4 ) . ' ms/definition';
+		$timing_summary['data_message'] = round( $timing['data_message'] / max( $counts['data_message'], 1 ) * 1000, 4 ) . ' ms/data_message';
+		$timing_summary['store_mesg']   = round( $timing['store_mesg'] / max( $counts['data_message'], 1 ) * 1000, 4 ) . ' ms/store_mesg';
+
+		$this->logger->info( 'readDataRecords timing per record: ' . implode( ', ', $timing_summary ) . ', total: ' . round( $total_time, 2 ) . ' secs' );
+		$this->logger->info( '  headers: ' . $record_count . ', definitions: ' . $counts['definition'] . ', data_messages: ' . $counts['data_message'] . ', stored_messages: ' . $counts['data_message'] );
 
 		// Overwrite native FIT fields (e.g. Power, HR, Cadence, etc) with developer data by default
 		// JKK - don't do this for now.
@@ -5645,9 +5704,36 @@ class phpFITFileAnalysis {
 	 * @param bool     $flush            Whether to flush any remaining data to the database.
 	 */
 	private function storeMesg( $mesgs, $local_mesg_type, $flush = false ) {
+		static $timings = array(
+			'column_check' => 0,
+			'fixDataSingle' => 0,
+			'setUnitsSingle' => 0,
+			'bufferAndLoadMessages' => 0,
+		);
+        static $counts = array(
+            'column_check' => 0,
+            'fixDataSingle' => 0,
+            'setUnitsSingle' => 0,
+            'bufferAndLoadMessages' => 0,
+        );
+
 		// If no $mesgs and $flush, just flush buffer to the database.
 		if ( ( null === $mesgs || empty( $mesgs ) ) && $flush && $this->file_buff ) {
+            $buffer_start = microtime( true );
 			$this->bufferAndLoadMessages( array(), $flush );
+            $timings['bufferAndLoadMessages'] += microtime( true ) - $buffer_start;
+            $counts['bufferAndLoadMessages']++;
+
+            // Log timing
+            $this->logger->debug( 'Flushing buffer to database' );
+            $timing_summary = array();
+            $count_summary  = array();
+            foreach ( $timings as $type => $timer ) {
+                $timing_summary[$type] = round( $timer / max( $counts[$type], 1 ) * 1000, 4 ) . ' ms/' . $type;
+                $count_summary[$type]  = "$type: " . $counts[$type];
+            }
+            $this->logger->debug( 'Buffering timing per record: ' . implode( ', ', $timing_summary ) );
+            $this->logger->debug( ' counts: ' . implode( ', ', $count_summary ) );
 			return;
 		}
 
@@ -5675,15 +5761,28 @@ class phpFITFileAnalysis {
 				}
 
 				// Check if we need to add a column to an already existing table.
+                $column_check_start = microtime( true );
 				$this->check_for_columns_in_table( $mesgs, $local_mesg_type );
+                $timings['column_check'] += microtime( true ) - $column_check_start;
+                $counts['column_check']++;
 			}
 
+            $fix_data_start = microtime( true );
 			$mesgs_clean = $this->fixDataSingle( $mesgs );
+            $timings['fixDataSingle'] += microtime( true ) - $fix_data_start;
+            $counts['fixDataSingle']++;
+
+            $set_units_start = microtime( true );
 			$mesgs_clean = $this->setUnitsSingle( $mesgs_clean );
+            $timings['setUnitsSingle'] += microtime( true ) - $set_units_start;
+            $counts['setUnitsSingle']++;
 
 			// $this->logger->debug( 'Storing messages: ' . print_r( $mesgs_clean, true ) );
 
+            $buffer_start = microtime( true );
 			$this->bufferAndLoadMessages( $mesgs_clean, $flush );
+            $timings['bufferAndLoadMessages'] += microtime( true ) - $buffer_start;
+            $counts['bufferAndLoadMessages']++;
 		} else {
 			// Store in $this->data_mesgs
 			foreach ( $mesgs as $mesg_key => $mesg ) {
@@ -6711,7 +6810,7 @@ class phpFITFileAnalysis {
 		// 131    s    signed short (always 16 bit, machine byte order)
 		// 133    l    signed long (always 32 bit, machine byte order)
 		// 142    q    signed long long (always 64 bit, machine byte order)
-		foreach ( $this->defn_mesgs_all as $mesg ) {
+		foreach ( $this->defn_mesgs as $mesg ) {
 			if ( isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ] ) ) {
 				$mesg_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['mesg_name'];
 
