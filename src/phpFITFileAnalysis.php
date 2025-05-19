@@ -1086,9 +1086,9 @@ class phpFITFileAnalysis {
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-					'raw'        => 'INT UNSIGNED',
-					'metric'     => 'INT UNSIGNED',
-					'statute'    => 'INT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				4 => array(
 					'field_name' => 'time_created',
@@ -3298,9 +3298,9 @@ class phpFITFileAnalysis {
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-					'raw'        => 'INT UNSIGNED',
-					'metric'     => 'INT UNSIGNED',
-					'statute'    => 'INT UNSIGNED',
+					'raw'        => 'VARCHAR(50)',
+					'metric'     => 'VARCHAR(50)',
+					'statute'    => 'VARCHAR(50)',
 				),
 				4   => array(
 					'field_name' => 'product',
@@ -3316,9 +3316,9 @@ class phpFITFileAnalysis {
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-					'raw'        => 'DECIMAL(5,2)',
-					'metric'     => 'DECIMAL(5,2)',
-					'statute'    => 'DECIMAL(5,2)',
+					'raw'        => 'DECIMAL(8,2)',
+					'metric'     => 'DECIMAL(8,2)',
+					'statute'    => 'DECIMAL(8,2)',
 				),
 				6   => array(
 					'field_name' => 'hardware_version',
@@ -4092,9 +4092,9 @@ class phpFITFileAnalysis {
 					'scale'      => 1,
 					'offset'     => 0,
 					'units'      => '',
-					'raw'        => 'VARCHAR(16)',
-					'metric'     => 'VARCHAR(16)',
-					'statute'    => 'VARCHAR(16)',
+					'raw'        => 'VARCHAR(128)',
+					'metric'     => 'VARCHAR(128)',
+					'statute'    => 'VARCHAR(128)',
 				),
 				66  => array(
 					'field_name' => 'avg_fractional_cadence',
@@ -5281,8 +5281,9 @@ class phpFITFileAnalysis {
 
 			++$record_count;
 
-			if ($record_count % 50000 === 0) {
+			if ($record_count % 10000 === 0) {
 				$this->logger->debug( 'readDataRecords: Processed ' . number_format( $record_count ) . ' records from the fit file so far' );
+				$this->logger->debug( 'Memory usage: ' . $this->formatMemoryUsage( memory_get_usage( true ) ) );
 			}
 
 			// if ($record_count % 1000 === 0) {
@@ -5522,13 +5523,15 @@ class phpFITFileAnalysis {
 							// $this->logger->debug( 'phpFITFileAnalysis->readDataRecords() - read developer data field definition: ' . print_r( $field_defn, true ) );
 							// $this->logger->debug( '  dev_field_descriptions: ' . print_r( $this->dev_field_descriptions, true ) );
 
+							// INCLUDE THIS
 							$field_name = $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'];
 
-							// Units
-							if ( ! isset( $this->data_mesgs['developer_data'] ) ) {
-								$this->data_mesgs['developer_data'] = array();
-							}
+							// Units -leave this to storeMesg?
+							// if ( ! isset( $this->data_mesgs['developer_data'] ) ) {
+							//  $this->data_mesgs['developer_data'] = array();
+							// }
 
+							// INCLUDE THIS
 							if ( ! isset( $this->dev_field_descriptions[ $field_defn['developer_data_index'] ] ) ) {
 								continue;
 							}
@@ -5538,24 +5541,28 @@ class phpFITFileAnalysis {
 							// Don't store units in the data_mesg array.
 							// $tmp_mesg[ $mesg_name ][ $field_name ]['units'] = $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['units'] ?? null;
 
+							// INCLUDE THIS
 							// Data
 							$tmp_data = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], fread( $this->file_contents, $field_defn['size'] ) )['tmp'];
 							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = $tmp_data;
 
+							// INCLUDE THIS
 							// Just store the data in the data_mesg array.
 							// $tmp_mesg[ $mesg_name ][ $field_name ]['data'] = $tmp_data;
 							$tmp_mesg[ $mesg_name ][ $field_name ] = $tmp_data;
 
 							// $this->data_mesgs['developer_data'][ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['field_name'] ]['data'][] = unpack( $this->types[ $this->dev_field_descriptions[ $field_defn['developer_data_index'] ][ $field_defn['field_definition_number'] ]['fit_base_type_id'] ]['format'], substr( $this->file_contents, $this->file_pointer, $field_defn['size'] ) )['tmp'];
 
-							// $this->logger->debug( 'developer_data[' . $field_name . ']: ' . $tmp_data . ' ' . $tmp_mesg[ $mesg_name ][ $field_name ]['units'] );
+							// $this->logger->debug( 'developer_data: [' . $mesg_name . '][' . $field_name . '] = ' . $tmp_data );
 
 							$this->file_pointer += $field_defn['size'];
 						}
 
 						// Process the temporary array and load values into the public data messages array
 						if ( ! empty( $tmp_record_array ) ) {
-							$timestamp = isset( $this->data_mesgs['record']['timestamp'] ) ? max( $this->data_mesgs['record']['timestamp'] ) + 1 : 0;
+							// $timestamp = isset( $this->data_mesgs['record']['timestamp'] ) ? max( $this->data_mesgs['record']['timestamp'] ) + 1 : 0;
+							// Timestamp should be set in $tmp_record_array
+							$timestamp = 0;
 							if ( $compressedTimestamp ) {
 								if ( $previousTS === 0 ) {
 									// This should not happen! Throw exception?
@@ -5607,25 +5614,26 @@ class phpFITFileAnalysis {
 		$this->storeMesg( null, null, true );  // Flush any remaining data to the database
 
 		// Overwrite native FIT fields (e.g. Power, HR, Cadence, etc) with developer data by default
-		if ( ! empty( $this->dev_field_descriptions ) ) {
-			foreach ( $this->dev_field_descriptions as $developer_data_index ) {
-				foreach ( $developer_data_index as $field_definition_number ) {
-					if ( isset( $field_definition_number['native_field_num'] ) ) {
-						if ( isset( $this->data_mesgs['record'][ $field_definition_number['field_name'] ] ) && ! $this->options['overwrite_with_dev_data'] ) {
-							continue;
-						}
+		// JKK - don't do this for now.
+		// if ( ! empty( $this->dev_field_descriptions ) ) {
+		//  foreach ( $this->dev_field_descriptions as $developer_data_index ) {
+		//      foreach ( $developer_data_index as $field_definition_number ) {
+		//          if ( isset( $field_definition_number['native_field_num'] ) ) {
+		//              if ( isset( $this->data_mesgs['record'][ $field_definition_number['field_name'] ] ) && ! $this->options['overwrite_with_dev_data'] ) {
+		//                  continue;
+		//              }
 
-						if ( isset( $this->data_mesgs['developer_data'][ $field_definition_number['field_name'] ]['data'] ) ) {
-							$this->data_mesgs['record'][ $field_definition_number['field_name'] ] = $this->data_mesgs['developer_data'][ $field_definition_number['field_name'] ]['data'];
-							$tmp_mesg['record'][ $field_definition_number['field_name'] ]         = $this->data_mesgs['developer_data'][ $field_definition_number['field_name'] ]['data'];
-						} else {
-							$this->data_mesgs['record'][ $field_definition_number['field_name'] ] = array();
-							$tmp_mesg['record'][ $field_definition_number['field_name'] ]         = array();
-						}
-					}
-				}
-			}
-		}
+		//              if ( isset( $this->data_mesgs['developer_data'][ $field_definition_number['field_name'] ]['data'] ) ) {
+		//                  $this->data_mesgs['record'][ $field_definition_number['field_name'] ] = $this->data_mesgs['developer_data'][ $field_definition_number['field_name'] ]['data'];
+		//                  $tmp_mesg['record'][ $field_definition_number['field_name'] ]         = $this->data_mesgs['developer_data'][ $field_definition_number['field_name'] ]['data'];
+		//              } else {
+		//                  $this->data_mesgs['record'][ $field_definition_number['field_name'] ] = array();
+		//                  $tmp_mesg['record'][ $field_definition_number['field_name'] ]         = array();
+		//              }
+		//          }
+		//      }
+		//  }
+		// }
 	}
 
 	/**
@@ -5963,6 +5971,24 @@ class phpFITFileAnalysis {
 				);
 			}
 		}
+
+		if ($mesg_name === 'record') {
+			// Ensure mandatory columns are present for 'record' table
+			$mandatory_columns = array(
+				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][0]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][0][ $units ] ),      // position_lat.
+				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][1]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][1][ $units ] ),      // position_long.
+				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][5]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][5][ $units ] ),      // distance.
+				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][253]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][253][ $units ] ),  // timestamp.
+				array( 'field_name' => 'timestamp', 'type' => 'INT UNSIGNED' ),
+			);
+			$existing_fields   = array_column( $columns, 'field_name' );
+			foreach ($mandatory_columns as $mandatory) {
+				if (!in_array( $mandatory['field_name'], $existing_fields, true )) {
+					$columns[] = $mandatory;
+				}
+			}
+		}
+
 		// $this->logger->debug( 'Creating table: ' . $table_name . ' with columns: ' . print_r( $columns, true ) );
 
 		$column_names = array_column( $columns, 'field_name' );
@@ -7400,6 +7426,15 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
 		}
 
+		if ( isset( $this->options['buffer_input_to_db'] ) && $this->options['buffer_input_to_db'] && $this->checkFileBufferOptions( $this->options['database'] ) ) {
+			if ( ! $this->connect_to_db() ) {
+				$this->logger->error( 'phpFITFileAnalysis->calculateStopPoints(): unable to connect to database!' );
+				throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints: unable to connect to database' );
+			} else {
+				$this->logger->debug( 'phpFITFileAnalysis->calculateStopPoints(): connected to database: ' . $this->db_name );
+			}
+		}
+
 		$lock_expire = $this->get_lock_expiration( $queue );
 
 		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
@@ -7408,6 +7443,10 @@ class phpFITFileAnalysis {
 		$offset          = 0; // Start from the first record.
 		$total_processed = 0;
 		$last_distance   = 0;
+		$dist_delta      = 0;
+
+		$this->create_temp_update_table();
+		$this->logger->debug( 'calculateStopPoints: created temp update table' );
 
 		while (true) {
 			try {
@@ -7428,19 +7467,51 @@ class phpFITFileAnalysis {
 				}
 
 				// Track IDs that need to be updated.
-				$ids_to_update = array();
+				$ids_to_update_stops = array();
+				$placeholders        = array();
+				$distance_updates    = array();
 
 				// Iterate through the records and apply the callback.
 				foreach ($records as $record) {
+					// Look for non-increasing distance values and adjust them.
+					$record['distance'] += $dist_delta;
+					if ($record['distance'] < $last_distance) {
+						$dist_delta         += $last_distance - $record['distance'];
+						$record['distance'] += $dist_delta;
+					}
+					$last_distance = $record['distance'];
+
+					// Add any changed points to the updates arrays.
+					if ( $dist_delta > 0 ) {
+						$placeholders[]     = '(?,?)';
+						$distance_updates[] = $record['id'];
+						$distance_updates[] = $record['distance'];
+					}
+
+					// Identify stops.
 					$stopped = call_user_func( $record_callback, $record );
 					if ( 1 === $stopped) {
-						$ids_to_update[] = $record['id'];
+						$ids_to_update_stops[] = $record['id'];
 					}
 				}
 
+				if ( ! empty( $distance_updates ) ) {
+					$sql  = 'INSERT INTO pffa_temp_update_table (id, new_dist) VALUES ' . implode( ',', $placeholders );
+					$stmt = $this->db->prepare( $sql );
+					$stmt->execute( $distance_updates );
+					$stmt->closeCursor();
+
+					$sql  = 'UPDATE ' . $this->tables_created['record']['location'] . ' r JOIN pffa_temp_update_table t ON r.id = t.id SET r.distance = t.new_dist';
+					$stmt = $this->db->prepare( $sql );
+					$stmt->execute();
+					$stmt->closeCursor();
+
+					$this->truncate_temp_update_table();
+				}
+
 				// Update the stopped field for all matching records in one query.
-				if (!empty( $ids_to_update )) {
-					$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update ) ) . ')';
+				if (! empty( $ids_to_update_stops ) ) {
+					$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update_stops ) ) . ')';
 					$this->db->exec( $update_query );
 				}
 
@@ -7470,10 +7541,37 @@ class phpFITFileAnalysis {
 			}
 		}
 
+		$this->drop_temp_update_table();
+
 		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
 	}
 
+	/**
+	 * Create a temporary update table for the record data.
+	 */
+	private function create_temp_update_table() {
+		// Create a temporary table to store the updated records.
+		$query = 'CREATE TEMPORARY TABLE IF NOT EXISTS pffa_temp_update_table (id BIGINT UNSIGNED PRIMARY KEY, new_dist DECIMAL(10,5))';
+		$this->db->exec( $query );
+	}
 
+	/**
+	 * Truncate the temporary update table.
+	 */
+	private function truncate_temp_update_table() {
+		// Truncate the temporary table to remove old data.
+		$query = 'TRUNCATE TABLE pffa_temp_update_table';
+		$this->db->exec( $query );
+	}
+
+	/**
+	 * Drop the temporary update table.
+	 */
+	private function drop_temp_update_table() {
+		// Drop the temporary table.
+		$query = 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_update_table';
+		$this->db->exec( $query );
+	}
 
 	/**
 	 * Calculate HR zones using HRmax formula: zone = HRmax * percentage.

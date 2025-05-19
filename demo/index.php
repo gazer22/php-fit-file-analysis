@@ -14,6 +14,26 @@
   </div>
 </div>
 <div class="container">
+<div class="col-md-4">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title"><i class="fa fa-file-code-o"></i> Josh 400k (Leaflet maps)</h3>
+      </div>
+      <div class="panel-body text-center">
+        <a href="josh-400k.php"><img src="img/mountain-biking.jpg" alt="Josh 400k"></a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="panel panel-default">
+      <div class="panel-heading">
+        <h3 class="panel-title"><i class="fa fa-file-code-o"></i> Jon 400k (Leaflet maps)</h3>
+      </div>
+      <div class="panel-body text-center">
+        <a href="jon-400k.php"><img src="img/mountain-biking.jpg" alt="Jon 400k"></a>
+      </div>
+    </div>
+  </div>
   <div class="col-md-4">
     <div class="panel panel-default">
       <div class="panel-heading">
