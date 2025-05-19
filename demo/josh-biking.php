@@ -30,11 +30,12 @@ try {
 	$options = array(
 		'buffer_input_to_db' => true,
 		'database'           => array(
-		'table_name'       => 'a_test_event_101',
-		'data_source_name' => 'mysql:host=localhost;dbname=' . $_ENV['DB_NAME'],
-		'username'         => $_ENV['DB_USER'],
-		'password'         => $_ENV['DB_PASSWORD'],
+			'table_name'       => 'a_test_event_101',
+			'data_source_name' => 'mysql:host=localhost;dbname=' . $_ENV['DB_NAME'],
+			'username'         => $_ENV['DB_USER'],
+			'password'         => $_ENV['DB_PASSWORD'],
 		),
+		'file_id'            => 2,
 	// Just using the defaults so no need to provide
 	// 'fix_data'  => [],
 	// 'units'     => 'metric',

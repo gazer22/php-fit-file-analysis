@@ -65,6 +65,7 @@ class phpFITFileAnalysis {
 	private $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
 	private $data_table             = '';       // Base name for data tables in the database.
 	private $tables_created         = array();  // Stores the name and columns of each table created.
+	private $file_id                = null;     // File ID. 
 	private $db;                                // PDO object for database connection.
 	private $db_name;                           // Database name.
 	private $db_user;                           // Database user.
@@ -4939,6 +4940,9 @@ class phpFITFileAnalysis {
 			$this->file_buff  = true;
 			$this->data_table = $this->cleanTableName( $options['database']['table_name'] ) . '_';
 
+			$this->file_id = $options['file_id'];
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): file_id: ' . $this->file_id );
+
 			if ( ! $this->connect_to_db() ) {
 				$this->logger->error( 'phpFITFileAnalysis->__construct(): unable to connect to database!' );
 				throw new \Exception( 'phpFITFileAnalysis: unable to connect to database' );
@@ -4994,7 +4998,7 @@ class phpFITFileAnalysis {
 
 		$this->readDataRecords( $queue );
 
-        $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs =  ' . count( $this->defn_mesgs ) );
+        // $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs =  ' . count( $this->defn_mesgs ) );
         // $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs_all =  ' . count( $this->defn_mesgs_all ) );
 
         // foreach ( $this->defn_mesgs as $mesg_num => $mesg ) {
@@ -5898,13 +5902,18 @@ class phpFITFileAnalysis {
 		$all_columns = array_unique( $all_columns );
 		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
 
-		$sql          = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
+		$sql          = 'INSERT INTO ' . $table_name . ' (`file_id`,' . implode( ', ', $all_columns ) . ') VALUES ';
 		$placeholders = array();
 		$values       = array();
 
 		foreach ( $mesgs as $mesg ) {
 			// $this->logger->debug( $table . ' mesg: ' . print_r( $mesg, true ) );
-			$row_placeholders = array();
+			if ( $this->file_id ) {
+				$row_placeholders = array( '?' );  // start with file_id.
+				$values[]         = $this->file_id;
+			} else {
+				$row_placeholders = array();
+			}
 			foreach ( $all_columns as $column ) {
 				$column_name = trim( $column, '`' );
 				if ( array_key_exists( $column_name, $mesg['data'] ) && null !== $mesg['data'][ $column_name ] && '' !== $mesg['data'][ $column_name ] ) {
@@ -5999,37 +6008,48 @@ class phpFITFileAnalysis {
 
 		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
 
-		$sql    = 'INSERT INTO ' . $table_name . ' (' . implode( ', ', $all_columns ) . ') VALUES ';
+		$sql    = 'INSERT INTO ' . $table_name . ' (`file_id`,' . implode( ', ', $all_columns ) . ') VALUES ';
+		$placeholders = array();
 		$values = array();
+
 		foreach ( $mesgs as $mesg ) {
 			if ( ! isset( $mesg['data']['position_lat'] ) || ! isset( $mesg['data']['position_long'] ) ) {
 				continue;
 			}
 
-			$placeholders = array();
+			if ( $this->file_id ) {
+				$row_placeholders = array( '?' );  // start with file_id.
+				$values[]         = $this->file_id;
+			} else {
+				$row_placeholders = array();
+			}
+
 			foreach ( $all_columns_no_ticks as $column ) {
 				if ( $column === 'spatial_point' ) {
 					if ( isset( $mesg['data']['position_lat'] ) && isset( $mesg['data']['position_long'] ) ) {
 						$lat            = $mesg['data']['position_lat'];
 						$lon            = $mesg['data']['position_long'];
-						$placeholders[] = "POINT($lon, $lat)";
+						$row_placeholders[] = '?';
+						$values[] = "POINT($lon, $lat)";
 					} else {
-						$placeholders[] = 'NULL';
+						$row_placeholders[] = 'NULL';
 					}
 				} elseif ( array_key_exists( $column, $mesg['data'] ) ) {
-					$placeholders[] = $this->db->quote( $mesg['data'][ $column ] );
+					$row_placeholders[] = '?';
+					$values[] = $this->db->quote( $mesg['data'][ $column ] );
 				} else {
-					$placeholders[] = 'NULL';
+					$row_placeholders[] = 'NULL';
 				}
 			}
-			$values[] = '(' . implode( ', ', $placeholders ) . ')';
+			$placeholders[] = '(' . implode( ', ', $row_placeholders ) . ')';
 		}
-		$sql .= implode( ', ', $values ) . ';';
+		$sql .= implode( ', ', $placeholders ) . ';';
 
 		// $this->logger->debug( 'SQL: ' . $sql );
 
 		try {
-			$this->db->exec( $sql );
+			$stmt = $this->db->prepare( $sql );
+			$stmt->execute( $values );
 		} catch ( \PDOException $e ) {
 			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
 			$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
@@ -6092,6 +6112,10 @@ class phpFITFileAnalysis {
 		$column_names = array_column( $columns, 'field_name' );
 
 		$sql = 'CREATE TABLE ' . $table_name . ' (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, ';
+		if ( $this->file_id ) {
+			$sql .= '`file_id` BIGINT UNSIGNED DEFAULT NULL, ';
+		}
+
 		foreach ($columns as $column) {
 			$sql .= '`' . $column['field_name'] . '` ' . $column['type'] . ' DEFAULT NULL, ';
 		}

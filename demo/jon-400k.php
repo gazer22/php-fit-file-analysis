@@ -35,6 +35,7 @@ try {
 		'username'         => $_ENV['DB_USER'],
 		'password'         => $_ENV['DB_PASSWORD'],
 		),
+        'file_id'            => 4,
 	// Just using the defaults so no need to provide
 	// 'fix_data'  => [],
 	// 'units'     => 'metric',
