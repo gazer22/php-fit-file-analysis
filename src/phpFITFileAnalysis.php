@@ -65,12 +65,12 @@ class phpFITFileAnalysis {
 	private $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
 	private $data_table             = '';       // Base name for data tables in the database.
 	private $tables_created         = array();  // Stores the name and columns of each table created.
-	private $file_id                = null;     // File ID. 
+	private $file_num               = null;     // File ID.
 	private $db;                                // PDO object for database connection.
 	private $db_name;                           // Database name.
 	private $db_user;                           // Database user.
 	private $db_pass;                           // Database password.
-	private $buffer_size = 1000;     // Number of messags to buffer and then load to DB in batch.
+	private $buffer_size = 5000;                // Number of messags to buffer and then load to DB in batch.
 	public $logger;                             // Monolog logger object.
 
 	// Enumerated data looked up by enumData().
@@ -1828,18 +1828,18 @@ class phpFITFileAnalysis {
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 's',
-					'raw'        => 'DECIMAL(10,3)',
-					'metric'     => 'DECIMAL(10,3)',
-					'statute'    => 'DECIMAL(10,3)',
+					'raw'        => 'JSON',
+					'metric'     => 'JSON',
+					'statute'    => 'JSON',
 				),
 				68  => array(
 					'field_name' => 'time_in_power_zone',
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 's',
-					'raw'        => 'DECIMAL(10,3)',
-					'metric'     => 'DECIMAL(10,3)',
-					'statute'    => 'DECIMAL(10,3)',
+					'raw'        => 'JSON',
+					'metric'     => 'JSON',
+					'statute'    => 'JSON',
 				),
 				89  => array(
 					'field_name' => 'avg_vertical_oscillation',
@@ -2428,18 +2428,18 @@ class phpFITFileAnalysis {
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 's',
-					'raw'        => 'DECIMAL(10,3)',
-					'metric'     => 'DECIMAL(10,3)',
-					'statute'    => 'DECIMAL(10,3)',
+					'raw'        => 'JSON',
+					'metric'     => 'JSON',
+					'statute'    => 'JSON',
 				),
 				60  => array(
 					'field_name' => 'time_in_power_zone',
 					'scale'      => 1000,
 					'offset'     => 0,
 					'units'      => 's',
-					'raw'        => 'DECIMAL(10,3)',
-					'metric'     => 'DECIMAL(10,3)',
-					'statute'    => 'DECIMAL(10,3)',
+					'raw'        => 'JSON',
+					'metric'     => 'JSON',
+					'statute'    => 'JSON',
 				),
 				71  => array(
 					'field_name' => 'wkt_step_index',
@@ -4940,8 +4940,8 @@ class phpFITFileAnalysis {
 			$this->file_buff  = true;
 			$this->data_table = $this->cleanTableName( $options['database']['table_name'] ) . '_';
 
-			$this->file_id = $options['file_id'];
-			$this->logger->debug( 'phpFITFileAnalysis->__construct(): file_id: ' . $this->file_id );
+			$this->file_num = $options['file_id'];
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): file_num: ' . $this->file_num );
 
 			if ( ! $this->connect_to_db() ) {
 				$this->logger->error( 'phpFITFileAnalysis->__construct(): unable to connect to database!' );
@@ -4998,18 +4998,17 @@ class phpFITFileAnalysis {
 
 		$this->readDataRecords( $queue );
 
-        // $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs =  ' . count( $this->defn_mesgs ) );
-        // $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs_all =  ' . count( $this->defn_mesgs_all ) );
+		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs =  ' . count( $this->defn_mesgs ) );
+		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs_all =  ' . count( $this->defn_mesgs_all ) );
 
-        // foreach ( $this->defn_mesgs as $mesg_num => $mesg ) {
-        //     $this->logger->debug( ' ' . $mesg['record_count'] . ': $this->defn_mesgs[' . $mesg_num . '] = ' . $mesg['global_mesg_num'] . ': ' . $mesg['num_fields'] . ' fields, ' . $mesg['num_dev_fields'] . ' dev fields, total size = ' . $mesg['total_size'] );
-        // }
+		// foreach ( $this->defn_mesgs as $mesg_num => $mesg ) {
+		//     $this->logger->debug( ' ' . $mesg['record_count'] . ': $this->defn_mesgs[' . $mesg_num . '] = ' . $mesg['global_mesg_num'] . ': ' . $mesg['num_fields'] . ' fields, ' . $mesg['num_dev_fields'] . ' dev fields, total size = ' . $mesg['total_size'] );
+		// }
 
-        // $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs_all:' );
-        // foreach ( $this->defn_mesgs_all as $mesg_num => $mesg ) {
-        //     $this->logger->debug( ' ' . $mesg['record_count'] . ': $this->defn_mesgs_all[' . $mesg_num . '][' . $mesg['local_mesg_type'] . '] = ' . $mesg['global_mesg_num'] . ': ' . $mesg['num_fields'] . ' fields, ' . $mesg['num_dev_fields'] . ' dev fields, total size = ' . $mesg['total_size'] );
-        // }
-
+		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs_all:' );
+		// foreach ( $this->defn_mesgs_all as $mesg_num => $mesg ) {
+		//     $this->logger->debug( ' ' . $mesg['record_count'] . ': $this->defn_mesgs_all[' . $mesg_num . '][' . $mesg['local_mesg_type'] . '] = ' . $mesg['global_mesg_num'] . ': ' . $mesg['num_fields'] . ' fields, ' . $mesg['num_dev_fields'] . ' dev fields, total size = ' . $mesg['total_size'] );
+		// }
 
 		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
@@ -5433,19 +5432,19 @@ class phpFITFileAnalysis {
 						'num_dev_fields'        => $num_dev_fields,
 						'dev_field_definitions' => $dev_field_definitions,
 						'total_size'            => $total_size,
-                        'record_count'          => $record_count,
+						'record_count'          => $record_count,
 					);
-                    // Shouldn't need to store this in a separate array if messages are processed in order.
-                    // TODO: Maybe need to flush buffer before a message re-definition.
+					// Shouldn't need to store this in a separate array if messages are processed in order.
+					// TODO: Maybe need to flush buffer before a message re-definition.
 					// $this->defn_mesgs_all[]               = array(
-					// 	'global_mesg_num'       => $global_mesg_num,
-					// 	'num_fields'            => $num_fields,
-					// 	'field_defns'           => $field_definitions,
-					// 	'num_dev_fields'        => $num_dev_fields,
-					// 	'dev_field_definitions' => $dev_field_definitions,
-					// 	'total_size'            => $total_size,
-                    //     'local_mesg_type'       => $local_mesg_type,
-                    //     'record_count'          => $record_count,
+					//  'global_mesg_num'       => $global_mesg_num,
+					//  'num_fields'            => $num_fields,
+					//  'field_defns'           => $field_definitions,
+					//  'num_dev_fields'        => $num_dev_fields,
+					//  'dev_field_definitions' => $dev_field_definitions,
+					//  'total_size'            => $total_size,
+					//     'local_mesg_type'       => $local_mesg_type,
+					//     'record_count'          => $record_count,
 					// );
 
 					// $this->logger->debug( "phpFITFileAnalysis->readDataRecords() - read definition message, $local_mesg_type: " . print_r( $this->defn_mesgs[ $local_mesg_type ], true ) );
@@ -5714,30 +5713,30 @@ class phpFITFileAnalysis {
 			'setUnitsSingle' => 0,
 			'bufferAndLoadMessages' => 0,
 		);
-        static $counts = array(
-            'column_check' => 0,
-            'fixDataSingle' => 0,
-            'setUnitsSingle' => 0,
-            'bufferAndLoadMessages' => 0,
-        );
+		static $counts  = array(
+			'column_check' => 0,
+			'fixDataSingle' => 0,
+			'setUnitsSingle' => 0,
+			'bufferAndLoadMessages' => 0,
+		);
 
 		// If no $mesgs and $flush, just flush buffer to the database.
 		if ( ( null === $mesgs || empty( $mesgs ) ) && $flush && $this->file_buff ) {
-            $buffer_start = microtime( true );
+			$buffer_start = microtime( true );
 			$this->bufferAndLoadMessages( array(), $flush );
-            $timings['bufferAndLoadMessages'] += microtime( true ) - $buffer_start;
-            $counts['bufferAndLoadMessages']++;
+			$timings['bufferAndLoadMessages'] += microtime( true ) - $buffer_start;
+			++$counts['bufferAndLoadMessages'];
 
-            // Log timing
-            $this->logger->debug( 'Flushing buffer to database' );
-            $timing_summary = array();
-            $count_summary  = array();
-            foreach ( $timings as $type => $timer ) {
-                $timing_summary[$type] = round( $timer / max( $counts[$type], 1 ) * 1000, 4 ) . ' ms/' . $type;
-                $count_summary[$type]  = "$type: " . $counts[$type];
-            }
-            $this->logger->debug( 'Buffering timing per record: ' . implode( ', ', $timing_summary ) );
-            $this->logger->debug( ' counts: ' . implode( ', ', $count_summary ) );
+			// Log timing
+			$this->logger->debug( 'Flushing buffer to database' );
+			$timing_summary = array();
+			$count_summary  = array();
+			foreach ( $timings as $type => $timer ) {
+				$timing_summary[$type] = round( $timer / max( $counts[$type], 1 ) * 1000, 4 ) . ' ms/' . $type;
+				$count_summary[$type]  = "$type: " . $counts[$type];
+			}
+			$this->logger->debug( 'Buffering timing per record: ' . implode( ', ', $timing_summary ) );
+			$this->logger->debug( ' counts: ' . implode( ', ', $count_summary ) );
 			return;
 		}
 
@@ -5765,28 +5764,28 @@ class phpFITFileAnalysis {
 				}
 
 				// Check if we need to add a column to an already existing table.
-                $column_check_start = microtime( true );
+				$column_check_start = microtime( true );
 				$this->check_for_columns_in_table( $mesgs, $local_mesg_type );
-                $timings['column_check'] += microtime( true ) - $column_check_start;
-                $counts['column_check']++;
+				$timings['column_check'] += microtime( true ) - $column_check_start;
+				++$counts['column_check'];
 			}
 
-            $fix_data_start = microtime( true );
-			$mesgs_clean = $this->fixDataSingle( $mesgs );
-            $timings['fixDataSingle'] += microtime( true ) - $fix_data_start;
-            $counts['fixDataSingle']++;
+			$fix_data_start            = microtime( true );
+			$mesgs_clean               = $this->fixDataSingle( $mesgs );
+			$timings['fixDataSingle'] += microtime( true ) - $fix_data_start;
+			++$counts['fixDataSingle'];
 
-            $set_units_start = microtime( true );
-			$mesgs_clean = $this->setUnitsSingle( $mesgs_clean );
-            $timings['setUnitsSingle'] += microtime( true ) - $set_units_start;
-            $counts['setUnitsSingle']++;
+			$set_units_start            = microtime( true );
+			$mesgs_clean                = $this->setUnitsSingle( $mesgs_clean );
+			$timings['setUnitsSingle'] += microtime( true ) - $set_units_start;
+			++$counts['setUnitsSingle'];
 
 			// $this->logger->debug( 'Storing messages: ' . print_r( $mesgs_clean, true ) );
 
-            $buffer_start = microtime( true );
+			$buffer_start = microtime( true );
 			$this->bufferAndLoadMessages( $mesgs_clean, $flush );
-            $timings['bufferAndLoadMessages'] += microtime( true ) - $buffer_start;
-            $counts['bufferAndLoadMessages']++;
+			$timings['bufferAndLoadMessages'] += microtime( true ) - $buffer_start;
+			++$counts['bufferAndLoadMessages'];
 		} else {
 			// Store in $this->data_mesgs
 			foreach ( $mesgs as $mesg_key => $mesg ) {
@@ -5876,6 +5875,8 @@ class phpFITFileAnalysis {
 	 * @param string $table The table name.
 	 */
 	private function storeNonRecordMesg( $mesgs, $table ) {
+		// $this->logger->debug( 'Storing non-record messages: ' . print_r( $mesgs, true ) );
+
 		$table_name = $this->tables_created[ $table ]['location'];
 		if ( ! $table_name ) {
 			$this->logger->error( 'Table name not found for ' . $table );
@@ -5902,15 +5903,15 @@ class phpFITFileAnalysis {
 		$all_columns = array_unique( $all_columns );
 		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
 
-		$sql          = 'INSERT INTO ' . $table_name . ' (`file_id`,' . implode( ', ', $all_columns ) . ') VALUES ';
+		$sql          = 'INSERT INTO ' . $table_name . ' (`file_num`,' . implode( ', ', $all_columns ) . ') VALUES ';
 		$placeholders = array();
 		$values       = array();
 
 		foreach ( $mesgs as $mesg ) {
 			// $this->logger->debug( $table . ' mesg: ' . print_r( $mesg, true ) );
-			if ( $this->file_id ) {
-				$row_placeholders = array( '?' );  // start with file_id.
-				$values[]         = $this->file_id;
+			if ( $this->file_num ) {
+				$row_placeholders = array( '?' );  // start with file_num.
+				$values[]         = $this->file_num;
 			} else {
 				$row_placeholders = array();
 			}
@@ -5933,8 +5934,16 @@ class phpFITFileAnalysis {
 		}
 		$sql .= implode( ', ', $placeholders ) . ';';
 
+		// $this->logger->debug( 'Nonrecord SQL: ' . $sql );
+
+		if ( empty( $all_columns ) ) {
+			return;
+		}
+
 		try {
 			$stmt = $this->db->prepare( $sql );
+			// $this->logger->debug( 'Prepared nonrecord SQL: ' . $stmt->queryString );
+			// $this->logger->debug( 'Nonrecord values: ' . print_r( $values, true ) );
 			$stmt->execute( $values );
 		} catch ( \PDOException $e ) {
 			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
@@ -6008,8 +6017,7 @@ class phpFITFileAnalysis {
 
 		// $this->logger->debug( 'All columns: ' . implode( ', ', $all_columns ) );
 
-		$sql    = 'INSERT INTO ' . $table_name . ' (`file_id`,' . implode( ', ', $all_columns ) . ') VALUES ';
-		$placeholders = array();
+		$sql    = 'INSERT INTO ' . $table_name . ' (`file_num`,' . implode( ', ', $all_columns ) . ') VALUES ';
 		$values = array();
 
 		foreach ( $mesgs as $mesg ) {
@@ -6017,11 +6025,10 @@ class phpFITFileAnalysis {
 				continue;
 			}
 
-			if ( $this->file_id ) {
-				$row_placeholders = array( '?' );  // start with file_id.
-				$values[]         = $this->file_id;
+			if ( $this->file_num ) {
+				$placeholders = array( $this->file_num );  // start with file_num.
 			} else {
-				$row_placeholders = array();
+				$placeholders = array();
 			}
 
 			foreach ( $all_columns_no_ticks as $column ) {
@@ -6029,27 +6036,28 @@ class phpFITFileAnalysis {
 					if ( isset( $mesg['data']['position_lat'] ) && isset( $mesg['data']['position_long'] ) ) {
 						$lat            = $mesg['data']['position_lat'];
 						$lon            = $mesg['data']['position_long'];
-						$row_placeholders[] = '?';
-						$values[] = "POINT($lon, $lat)";
+						$placeholders[] = "POINT($lon, $lat)";
 					} else {
-						$row_placeholders[] = 'NULL';
+						$placeholders[] = 'NULL';
 					}
 				} elseif ( array_key_exists( $column, $mesg['data'] ) ) {
-					$row_placeholders[] = '?';
-					$values[] = $this->db->quote( $mesg['data'][ $column ] );
+					$placeholders[] = $this->db->quote( $mesg['data'][ $column ] );
 				} else {
-					$row_placeholders[] = 'NULL';
+					$placeholders[] = 'NULL';
 				}
 			}
-			$placeholders[] = '(' . implode( ', ', $row_placeholders ) . ')';
+			$values[] = '(' . implode( ', ', $placeholders ) . ')';
 		}
-		$sql .= implode( ', ', $placeholders ) . ';';
+		$sql .= implode( ', ', $values ) . ';';
 
-		// $this->logger->debug( 'SQL: ' . $sql );
+		// $this->logger->debug( 'Record SQL: ' . $sql );
+
+		if ( empty( $all_columns_no_ticks ) ) {
+			return;
+		}
 
 		try {
-			$stmt = $this->db->prepare( $sql );
-			$stmt->execute( $values );
+			$this->db->exec( $sql );
 		} catch ( \PDOException $e ) {
 			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
 			$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
@@ -6112,8 +6120,8 @@ class phpFITFileAnalysis {
 		$column_names = array_column( $columns, 'field_name' );
 
 		$sql = 'CREATE TABLE ' . $table_name . ' (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, ';
-		if ( $this->file_id ) {
-			$sql .= '`file_id` BIGINT UNSIGNED DEFAULT NULL, ';
+		if ( $this->file_num ) {
+			$sql .= '`file_num` BIGINT UNSIGNED DEFAULT NULL, ';
 		}
 
 		foreach ($columns as $column) {
