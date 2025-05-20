@@ -5919,7 +5919,7 @@ class phpFITFileAnalysis {
 				$row_placeholders = array( '?' );  // start with file_num.
 				$values[]         = $this->file_num;
 			} else {
-				$row_placeholders = array( 'NULL');
+				$row_placeholders = array( 'NULL' );
 			}
 			foreach ( $all_columns as $column ) {
 				$column_name = trim( $column, '`' );
@@ -6033,2128 +6033,2126 @@ class phpFITFileAnalysis {
 
 			if ( $this->file_num ) {
 				$placeholders = array( $this->file_num );  // start with file_num.
-			if ( $this->file_num ) {
-				$placeholders = array( $this->file_num );  // start with file_num.
-			} else {
-				$placeholders = array( 'NULL' );
-			}
+				if ( $this->file_num ) {
+					$placeholders = array( $this->file_num );  // start with file_num.
+				} else {
+					$placeholders = array( 'NULL' );
+				}
 
-			foreach ( $all_columns_no_ticks as $column ) {
-				if ( $column === 'spatial_point' ) {
-					if ( isset( $mesg['data']['position_lat'] ) && isset( $mesg['data']['position_long'] ) ) {
-						$lat            = $mesg['data']['position_lat'];
-						$lon            = $mesg['data']['position_long'];
-						$placeholders[] = "POINT($lon, $lat)";
+				foreach ( $all_columns_no_ticks as $column ) {
+					if ( $column === 'spatial_point' ) {
+						if ( isset( $mesg['data']['position_lat'] ) && isset( $mesg['data']['position_long'] ) ) {
+							$lat            = $mesg['data']['position_lat'];
+							$lon            = $mesg['data']['position_long'];
+							$placeholders[] = "POINT($lon, $lat)";
+						} else {
+							$placeholders[] = 'NULL';
+						}
+					} elseif ( array_key_exists( $column, $mesg['data'] ) ) {
+						$placeholders[] = $this->db->quote( $mesg['data'][ $column ] );
 					} else {
 						$placeholders[] = 'NULL';
 					}
-				} elseif ( array_key_exists( $column, $mesg['data'] ) ) {
-					$placeholders[] = $this->db->quote( $mesg['data'][ $column ] );
-				} else {
-					$placeholders[] = 'NULL';
 				}
+				$values[] = '(' . implode( ', ', $placeholders ) . ')';
 			}
-			$values[] = '(' . implode( ', ', $placeholders ) . ')';
-		}
-		$sql .= implode( ', ', $values ) . ';';
+			$sql .= implode( ', ', $values ) . ';';
 
-		// $this->logger->debug( 'Record SQL: ' . $sql );
+			// $this->logger->debug( 'Record SQL: ' . $sql );
 
-		if ( empty( $all_columns_no_ticks ) ) {
-			return;
-		}
+			if ( empty( $all_columns_no_ticks ) ) {
+				return;
+			}
 
-		try {
-			$this->db->exec( $sql );
-		} catch ( \PDOException $e ) {
-			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
-			$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
-			$this->logger->error( ' values:  ' . implode( ', ', $values ) );
-			throw $e;
-		}
+			try {
+				$this->db->exec( $sql );
+			} catch ( \PDOException $e ) {
+				$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
+				$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
+				$this->logger->error( ' values:  ' . implode( ', ', $values ) );
+				throw $e;
+			}
 
-		// $this->logger->debug( 'Loading messages into table: ' . $table_name );
-	}
-
-
-	/**
-	 * Create a table for the given message type.
-	 *
-	 * @param int $local_mesg_type The message type.
-	 * @return bool True if the table was created successfully, null otherwise.
-	 */
-	private function create_table( $local_mesg_type ) {
-		$mesg_name  = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
-		$table_name = $this->data_table . $mesg_name;
-		$table_name = $this->cleanTableName( $table_name );
-		$columns    = array();
-		$units      = isset( $this->options['units'] ) ? strtolower( $this->options['units'] ) : 'metric';
-
-		try {
-			$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
-		} catch ( \PDOException $e ) {
-			$this->logger->error( 'Error dropping table, ' . $table_name . ': ' . $e->getMessage() );
-			throw $e;
+			// $this->logger->debug( 'Loading messages into table: ' . $table_name );
 		}
 
-		foreach ( $this->defn_mesgs[ $local_mesg_type ]['field_defns'] as $field_defn ) {
-			if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ) ) {
-				$columns[] = array(
+		/**
+		 * Create a table for the given message type.
+		 *
+		 * @param int $local_mesg_type The message type.
+		 * @return bool True if the table was created successfully, null otherwise.
+		 */
+		private function create_table( $local_mesg_type ) {
+			$mesg_name  = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
+			$table_name = $this->data_table . $mesg_name;
+			$table_name = $this->cleanTableName( $table_name );
+			$columns    = array();
+			$units      = isset( $this->options['units'] ) ? strtolower( $this->options['units'] ) : 'metric';
+
+			try {
+				$this->db->exec( 'DROP TABLE IF EXISTS ' . $table_name );
+			} catch ( \PDOException $e ) {
+				$this->logger->error( 'Error dropping table, ' . $table_name . ': ' . $e->getMessage() );
+				throw $e;
+			}
+
+			foreach ( $this->defn_mesgs[ $local_mesg_type ]['field_defns'] as $field_defn ) {
+				if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ) ) {
+					$columns[] = array(
 					'field_name' => $this->cleanTableName( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'] ),
 					'type'       => $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ][ $units ],
-				);
+					);
+				}
 			}
-		}
 
-		if ($mesg_name === 'record') {
-			// Ensure mandatory columns are present for 'record' table
-			$mandatory_columns = array(
+			if ($mesg_name === 'record') {
+				// Ensure mandatory columns are present for 'record' table
+				$mandatory_columns = array(
 				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][0]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][0][ $units ] ),      // position_lat.
 				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][1]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][1][ $units ] ),      // position_long.
 				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][5]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][5][ $units ] ),      // distance.
 				array( 'field_name' => $this->data_mesg_info[20]['field_defns'][253]['field_name'], 'type' => $this->data_mesg_info[20]['field_defns'][253][ $units ] ),  // timestamp.
 				array( 'field_name' => 'timestamp', 'type' => 'INT UNSIGNED' ),
-			);
-			$existing_fields   = array_column( $columns, 'field_name' );
-			foreach ($mandatory_columns as $mandatory) {
-				if (!in_array( $mandatory['field_name'], $existing_fields, true )) {
-					$columns[] = $mandatory;
+				);
+				$existing_fields   = array_column( $columns, 'field_name' );
+				foreach ($mandatory_columns as $mandatory) {
+					if (!in_array( $mandatory['field_name'], $existing_fields, true )) {
+						$columns[] = $mandatory;
+					}
 				}
 			}
-		}
 
-		// $this->logger->debug( 'Creating table: ' . $table_name . ' with columns: ' . print_r( $columns, true ) );
+			// $this->logger->debug( 'Creating table: ' . $table_name . ' with columns: ' . print_r( $columns, true ) );
 
-		$column_names = array_column( $columns, 'field_name' );
+			$column_names = array_column( $columns, 'field_name' );
 
-		$sql = 'CREATE TABLE ' . $table_name . ' (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, ';
-		if ( $this->file_num ) {
-			$sql .= '`file_num` BIGINT UNSIGNED DEFAULT NULL, ';
-		}
+			$sql = 'CREATE TABLE ' . $table_name . ' (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, ';
+			if ( $this->file_num ) {
+				$sql .= '`file_num` BIGINT UNSIGNED DEFAULT NULL, ';
+			}
 
-		foreach ($columns as $column) {
-			$sql .= '`' . $column['field_name'] . '` ' . $column['type'] . ' DEFAULT NULL, ';
-		}
+			foreach ($columns as $column) {
+				$sql .= '`' . $column['field_name'] . '` ' . $column['type'] . ' DEFAULT NULL, ';
+			}
 
-		// If 'record', add spatial point and indexes.
-		if ( 'record' === $mesg_name ) {
-			$sql .= '`paused` TINYINT(1) DEFAULT NULL, ';
-			$sql .= '`stopped` TINYINT(1) DEFAULT NULL, ';
-			$sql .= '`spatial_point` POINT NOT NULL, ';
-			$sql .= 'SPATIAL INDEX spatial_idx (`spatial_point`), ';
-			$sql .= 'INDEX distance (`distance`), ';
-			$sql .= 'INDEX time_idx (`timestamp`), ';
+			// If 'record', add spatial point and indexes.
+			if ( 'record' === $mesg_name ) {
+				$sql .= '`paused` TINYINT(1) DEFAULT NULL, ';
+				$sql .= '`stopped` TINYINT(1) DEFAULT NULL, ';
+				$sql .= '`spatial_point` POINT NOT NULL, ';
+				$sql .= 'SPATIAL INDEX spatial_idx (`spatial_point`), ';
+				$sql .= 'INDEX distance (`distance`), ';
+				$sql .= 'INDEX time_idx (`timestamp`), ';
 
-			$columns[] = array(
+				$columns[] = array(
 				'field_name' => 'paused',
 				'type'       => 'TINYINT(1) DEFAULT NULL',
-			);
-			$columns[] = array(
+				);
+				$columns[] = array(
 				'field_name' => 'stopped',
 				'type'       => 'TINYINT(1) DEFAULT NULL',
-			);
-			$columns[] = array(
+				);
+				$columns[] = array(
 				'field_name' => 'spatial_point',
 				'type'       => 'POINT NOT NULL',
-			);
-		}
+				);
+			}
 
-		$sql = rtrim( $sql, ', ' ) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;';
+			$sql = rtrim( $sql, ', ' ) . ') ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;';
 
-		try {
-			$this->db->exec( $sql );
-			// $this->logger->debug( 'Table created successfully: ' . $table_name . ' with columns ' . implode( ', ', $column_names ) . ' + more for record messages' );
-		} catch (\PDOException $e) {
-			$this->logger->error( 'Error creating table, ' . $table_name . ': ' . $e->getMessage() );
-			throw $e;
-		}
+			try {
+				$this->db->exec( $sql );
+				// $this->logger->debug( 'Table created successfully: ' . $table_name . ' with columns ' . implode( ', ', $column_names ) . ' + more for record messages' );
+			} catch (\PDOException $e) {
+				$this->logger->error( 'Error creating table, ' . $table_name . ': ' . $e->getMessage() );
+				throw $e;
+			}
 
-		$table_info = array(
+			$table_info = array(
 			'location' => $table_name,
 			'columns'  => $columns,
-		);
-
-		return $table_info;
-	}
-
-	/**
-	 * Check for mandatory fields.
-	 *
-	 * @param array $field_names The field names to check against.
-	 * @return bool True if all mandatory field are present, false otherwise.
-	 */
-	private function checkForMandatoryFields( $field_names ) {
-		static $mandatory_fields = array( 'position_lat', 'position_long', 'timestamp', 'distance' );
-
-		foreach ( $mandatory_fields as $field ) {
-			if ( ! in_array( $field, $field_names, true ) ) {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * Check that all elements in a message are present as columns in the
-	 * related table.
-	 *
-	 * @param array $mesgs The messages to be checked.
-	 * @param int   $local_mesg_type The local message type.
-	 */
-	private function check_for_columns_in_table( $mesgs, $local_mesg_type ) {
-		foreach ( $mesgs as $mesg_name => $mesg ) {
-			$table_columns = array_column( $this->tables_created[ $mesg_name ]['columns'], 'field_name' );
-			$mesg_elements = array_keys( $mesg );
-
-			$missing_columns = array_filter(
-				$mesg_elements,
-				function ( $element ) use ( $table_columns ) {
-					return !in_array( $element, $table_columns, true );
-				}
 			);
 
-			if ( ! empty( $missing_columns ) ) {
-				// $this->logger->debug( 'Missing columns in ' . $mesg_name . ' table, local_mesg_type = ' . $local_mesg_type . ': ' . implode( ', ', $missing_columns ) );
-				// $this->logger->debug( '  Table columns:    ' . implode( ', ', $table_columns ) );
-				// $this->logger->debug( '  Message elements: ' . implode( ', ', $mesg_elements ) );
-				$this->add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns );
-			}
-		}
-	}
-
-	/**
-	 * Add columns to an existing table.
-	 *
-	 * @param string $mesg_name       The name of the table.
-	 * @param int    $local_mesg_type The local message type.
-	 * @param array  $table_columns   The current columns in the table.
-	 */
-	private function add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns ) {
-		$table_name = $this->tables_created[ $mesg_name ]['location'];
-		if ( ! $table_name ) {
-			$this->logger->error( 'Table name not found for ' . $mesg_name );
-			$this->logger->error( 'Table names: ' . print_r( $this->tables_created, true ) );
-			throw new \Exception( 'Table name not found for ' . $mesg_name );
-		}
-
-		$new_columns = array();
-
-		foreach ( $this->defn_mesgs[ $local_mesg_type ]['field_defns'] as $field_defn ) {
-			// $this->logger->debug( $mesg_name . ' field_defn: ' . print_r( $field_defn, true ) );
-
-			$column_def = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ?? null;
-			$units      = isset( $this->options['units'] ) ? strtolower( $this->options['units'] ) : 'metric';
-
-			if ( isset( $column_def['field_name'] ) && ! in_array( $column_def['field_name'], $table_columns, true )) {
-				$this->logger->debug( 'Adding column: ' . $column_def['field_name'] . ' to ' . $mesg_name . ' table' );
-				$new_columns[] = array(
-					'field_name' => $this->cleanTableName( $column_def['field_name'] ),
-					'type'       => $column_def[ $units ],
-				);
-			}
-		}
-
-		// TODO: need to handle $this->defn_mesgs[ $local_mesg_type ]['dev_field_defns'].
-		foreach ( $this->defn_mesgs[ $local_mesg_type ]['dev_field_definitions'] as $dev_field_defn ) {
-			// $this->logger->debug( $mesg_name . ' dev_field_defn: ' . print_r( $dev_field_defn, true ) );
-
-			$column_def = $this->dev_field_descriptions[ $dev_field_defn['developer_data_index'] ][ $dev_field_defn['field_definition_number'] ] ?? null;
-
-			// $this->logger->debug( 'Dev field column_def: ' . print_r( $column_def, true ) );
-
-			if ( isset( $column_def['field_name'] ) && ! in_array( $column_def['field_name'], $table_columns, true )) {
-				// $this->logger->debug( 'Adding column: ' . $column_def['field_name'] . ' to ' . $mesg_name . ' table' );
-				// $this->logger->debug( ' column_def: ' . print_r( $column_def, true ) );
-
-				$base_type = $column_def['fit_base_type_id'] ?? null;
-				$type      = $this->enum_data['base_type'][ $base_type ] ?? null;
-
-				// add size to string and byte types
-				if ( in_array( $base_type, array( 7, 13 ), true ) ) {
-					$size = $dev_field_defn['size'] ?? null;
-					if ( $size ) {
-						$type .= '(' . $size . ')';
-					}
-				}
-
-				$new_column = array(
-					'field_name' => $this->cleanTableName( $column_def['field_name'] ),
-					'type'       => $type,
-				);
-
-				$new_columns[] = $new_column;
-
-				$this->logger->debug( 'New column: ' . $new_column['field_name'] . ', type: ' . $new_column['type'] );
-			}
-		}
-		// $this->logger->debug( 'New columns: ' . print_r( $new_columns, true ) );
-
-		if ( empty( $new_columns ) ) {
-			$this->logger->debug( 'No new columns to add to table ' . $table_name );
-			return;
-		}
-
-		$sql = 'ALTER TABLE ' . $table_name;
-		foreach ( $new_columns as $column ) {
-			$sql .= ' ADD COLUMN `' . $column['field_name'] . '` ' . $column['type'] . ' DEFAULT NULL,';
-			$this->tables_created[ $mesg_name ]['columns'][] = array(
-				'field_name' => $column['field_name'],
-				'type'       => $column['type'],
-			);
-		}
-		$sql = rtrim( $sql, ', ' ) . ';';
-		// $this->logger->debug( 'SQL to add columns: ' . $sql );
-
-		try {
-			$this->db->exec( $sql );
-			$this->logger->debug( 'Columns added to table: ' . $table_name );
-		} catch ( \PDOException $e ) {
-			$this->logger->error( 'Error adding columns to table, ' . $table_name . ': ' . $e->getMessage() );
-			throw $e;
-		}
-	}
-
-	/**
-	 * Formats memory usage in a human-readable format.
-	 *
-	 * @param int $bytes Memory usage in bytes.
-	 * @return string Formatted memory usage with appropriate unit.
-	 */
-	private function formatMemoryUsage( $bytes ) {
-		if ($bytes < 1024) {
-			return $bytes . ' B';
-		} elseif ($bytes < 1048576) {
-			return round( $bytes / 1024, 2 ) . ' KB';
-		} elseif ($bytes < 1073741824) {
-			return round( $bytes / 1048576, 2 ) . ' MB';
-		} else {
-			return round( $bytes / 1073741824, 2 ) . ' GB';
-		}
-	}
-
-
-	/**
-	 * If the user has requested for the data to be fixed, identify the missing keys for that data.
-	 */
-	private function fixData( $options, $queue = null ) {
-		$lock_expire = $this->get_lock_expiration( $queue );
-
-		// By default the constant FIT_UNIX_TS_DIFF will be added to timestamps, which have field type of date_time (or local_date_time).
-		// Timestamp fields (field number == 253) converted after being unpacked in $this->readDataRecords().
-		if ( ! $this->garmin_timestamps ) {
-			$date_times = array(
-				array(
-					'message_name' => 'activity',
-					'field_name'   => 'local_timestamp',
-				),
-				array(
-					'message_name' => 'course_point',
-					'field_name'   => 'timestamp',
-				),
-				array(
-					'message_name' => 'file_id',
-					'field_name'   => 'time_created',
-				),
-				array(
-					'message_name' => 'goal',
-					'field_name'   => 'end_date',
-				),
-				array(
-					'message_name' => 'goal',
-					'field_name'   => 'start_date',
-				),
-				array(
-					'message_name' => 'lap',
-					'field_name'   => 'start_time',
-				),
-				array(
-					'message_name' => 'length',
-					'field_name'   => 'start_time',
-				),
-				array(
-					'message_name' => 'monitoring',
-					'field_name'   => 'local_timestamp',
-				),
-				array(
-					'message_name' => 'monitoring_info',
-					'field_name'   => 'local_timestamp',
-				),
-				array(
-					'message_name' => 'obdii_data',
-					'field_name'   => 'start_timestamp',
-				),
-				array(
-					'message_name' => 'schedule',
-					'field_name'   => 'scheduled_time',
-				),
-				array(
-					'message_name' => 'schedule',
-					'field_name'   => 'time_created',
-				),
-				array(
-					'message_name' => 'segment_lap',
-					'field_name'   => 'start_time',
-				),
-				array(
-					'message_name' => 'session',
-					'field_name'   => 'start_time',
-				),
-				array(
-					'message_name' => 'timestamp_correlation',
-					'field_name'   => 'local_timestamp',
-				),
-				array(
-					'message_name' => 'timestamp_correlation',
-					'field_name'   => 'system_timestamp',
-				),
-				array(
-					'message_name' => 'training_file',
-					'field_name'   => 'time_created',
-				),
-				array(
-					'message_name' => 'video_clip',
-					'field_name'   => 'end_timestamp',
-				),
-				array(
-					'message_name' => 'video_clip',
-					'field_name'   => 'start_timestamp',
-				),
-			);
-
-			foreach ( $date_times as $date_time ) {
-				if ( isset( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
-					if ( is_array( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
-						foreach ( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] as &$element ) {
-							$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-							// $this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to timestamp: ' . $element );
-
-							$element += FIT_UNIX_TS_DIFF;
-						}
-					} else {
-						$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-						// $this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to: ' . $date_time['message_name'] . '->' . $date_time['field_name'] . ': ' . $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] );
-
-						$this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] += FIT_UNIX_TS_DIFF;
-					}
-				}
-			}
-		}
-
-		// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adjusting timestamps at ' . gmdate( 'H:i:s' ) );
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-
-		// Find messages that have been unpacked as unsigned integers that should be signed integers.
-		// http://php.net/manual/en/function.pack.php - signed integers endianness is always machine dependent.
-		// 131    s    signed short (always 16 bit, machine byte order)
-		// 133    l    signed long (always 32 bit, machine byte order)
-		// 142    q    signed long long (always 64 bit, machine byte order)
-		foreach ( $this->defn_mesgs_all as $mesg ) {
-			if ( isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ] ) ) {
-				$mesg_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['mesg_name'];
-
-				foreach ( $mesg['field_defns'] as $field ) {
-					// Convert uint16 to sint16
-					if ( $field['base_type'] === 131 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
-						$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
-						if ( isset( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
-							if ( is_array( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
-								foreach ( $this->data_mesgs[ $mesg_name ][ $field_name ] as &$v ) {
-									$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-									if ( PHP_INT_SIZE === 8 && $v > 0x7FFF ) {
-										$v -= 0x10000;
-									}
-									if ( $v > 0x7FFF ) {
-										$v = -1 * ( $v - 0x7FFF );
-									}
-								}
-							} elseif ( $this->data_mesgs[ $mesg_name ][ $field_name ] > 0x7FFF ) {
-								if ( PHP_INT_SIZE === 8 ) {
-									$this->data_mesgs[ $mesg_name ][ $field_name ] -= 0x10000;
-								}
-								$this->data_mesgs[ $mesg_name ][ $field_name ] = -1 * ( $this->data_mesgs[ $mesg_name ][ $field_name ] - 0x7FFF );
-							}
-						}
-					} // Convert uint32 to sint32
-					elseif ( $field['base_type'] === 133 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
-						$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
-						if ( isset( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
-							if ( is_array( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
-								foreach ( $this->data_mesgs[ $mesg_name ][ $field_name ] as &$v ) {
-									$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-									if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFF ) {
-										$v -= 0x100000000;
-									}
-									if ( $v > 0x7FFFFFFF ) {
-										$v = -1 * ( $v - 0x7FFFFFFF );
-									}
-								}
-							} elseif ( $this->data_mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFF ) {
-								if ( PHP_INT_SIZE === 8 ) {
-									$this->data_mesgs[ $mesg_name ][ $field_name ] -= 0x100000000;
-
-								}
-								if ( $this->data_mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFF ) {
-									$this->data_mesgs[ $mesg_name ][ $field_name ] = -1 * ( $this->data_mesgs[ $mesg_name ][ $field_name ] - 0x7FFFFFFF );
-								}
-							}
-						}
-					} // Convert uint64 to sint64
-					elseif ( $field['base_type'] === 142 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
-						$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
-						if ( isset( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
-							if ( is_array( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
-								foreach ( $this->data_mesgs[ $mesg_name ][ $field_name ] as &$v ) {
-									$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-									if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFFFFFFFFFF ) {
-										$v -= 0x10000000000000000;
-									}
-									if ( $v > 0x7FFFFFFFFFFFFFFF ) {
-										$v = -1 * ( $v - 0x7FFFFFFFFFFFFFFF );
-									}
-								}
-							} elseif ( $this->data_mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFFFFFFFFFF ) {
-								if ( PHP_INT_SIZE === 8 ) {
-									$this->data_mesgs[ $mesg_name ][ $field_name ] -= 0x10000000000000000;
-								}
-								$this->data_mesgs[ $mesg_name ][ $field_name ] = -1 * ( $this->data_mesgs[ $mesg_name ][ $field_name ] - 0x7FFFFFFFFFFFFFFF );
-							}
-						}
-					}
-				}
-			}
-		}
-
-		// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished unsigned int check at ' . gmdate( 'H:i:s' ) );
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-
-		// Remove duplicate timestamps and store original before interpolating
-		if ( isset( $this->data_mesgs['record']['timestamp'] ) && is_array( $this->data_mesgs['record']['timestamp'] ) ) {
-			$this->data_mesgs['record']['timestamp']          = array_unique( $this->data_mesgs['record']['timestamp'] );
-			$this->data_mesgs['record']['timestamp_original'] = $this->data_mesgs['record']['timestamp'];
-		}
-
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-
-		// Return if no option set
-		if ( empty( $options['fix_data'] ) && empty( $options['data_every_second'] ) ) {
-			return;
-		}
-
-		if ( ! isset( $this->data_mesgs['record'] ) ) {
-			return;
-		}
-
-		// If $options['data_every_second'], then create timestamp array for every second from min to max
-		if ( ! empty( $options['data_every_second'] ) && ! ( is_string( $options['data_every_second'] ) && strtolower( $options['data_every_second'] ) === 'false' ) ) {
-			// If user has not specified the data to be fixed, assume all
-			if ( empty( $options['fix_data'] ) ) {
-				$options['fix_data'] = array( 'all' );
-			}
-
-			$min_ts = min( $this->data_mesgs['record']['timestamp'] );
-			$max_ts = max( $this->data_mesgs['record']['timestamp'] );
-			unset( $this->data_mesgs['record']['timestamp'] );
-			for ( $i = $min_ts; $i <= $max_ts; ++$i ) {
-				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-
-				$this->data_mesgs['record']['timestamp'][] = $i;
-			}
-		}
-
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-
-		// Check if valid option(s) provided
-		array_walk(
-			$options['fix_data'],
-			function ( &$value ) {
-				$value = strtolower( $value );
-			}
-		);  // Make all lower-case.
-		if ( count( array_intersect( array( 'all', 'cadence', 'distance', 'heart_rate', 'lat_lon', 'speed', 'power', 'altitude', 'enhanced_speed', 'enhanced_altitude' ), $options['fix_data'] ) ) === 0 ) {
-			throw new \Exception( 'phpFITFileAnalysis->fixData(): option not valid!' );
-		}
-
-		$bCadence = $bDistance = $bHeartRate = $bLatitudeLongitude = $bSpeed = $bPower = $bAltitude = $bEnhancedSpeed = $bEnhancedAltitude = false;
-		if ( in_array( 'all', $options['fix_data'] ) ) {
-			$bCadence           = isset( $this->data_mesgs['record']['cadence'] );
-			$bDistance          = isset( $this->data_mesgs['record']['distance'] );
-			$bHeartRate         = isset( $this->data_mesgs['record']['heart_rate'] );
-			$bLatitudeLongitude = isset( $this->data_mesgs['record']['position_lat'] ) && isset( $this->data_mesgs['record']['position_long'] );
-			$bSpeed             = isset( $this->data_mesgs['record']['speed'] );
-			$bPower             = isset( $this->data_mesgs['record']['power'] );
-			$bAltitude          = isset( $this->data_mesgs['record']['altitude'] );
-			$bEnhancedSpeed     = isset( $this->data_mesgs['record']['enhanced_speed'] );
-			$bEnhancedAltitude  = isset( $this->data_mesgs['record']['enhanced_altitude'] );
-		} elseif ( isset( $this->data_mesgs['record']['timestamp'] ) ) {
-				$count_timestamp = count( $this->data_mesgs['record']['timestamp'] );  // No point try to insert missing values if we know there aren't any.
-			if ( isset( $this->data_mesgs['record']['cadence'] ) && is_array( $this->data_mesgs['record']['cadence'] ) ) {
-				$bCadence = ( count( $this->data_mesgs['record']['cadence'] ) === $count_timestamp ) ? false : in_array( 'cadence', $options['fix_data'] );
-			}
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-			if ( isset( $this->data_mesgs['record']['distance'] ) && is_array( $this->data_mesgs['record']['distance'] ) ) {
-				$bDistance = ( count( $this->data_mesgs['record']['distance'] ) === $count_timestamp ) ? false : in_array( 'distance', $options['fix_data'] );
-			}
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-			if ( isset( $this->data_mesgs['record']['heart_rate'] ) && is_array( $this->data_mesgs['record']['heart_rate'] ) ) {
-				$bHeartRate = ( count( $this->data_mesgs['record']['heart_rate'] ) === $count_timestamp ) ? false : in_array( 'heart_rate', $options['fix_data'] );
-			}
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-			if ( isset( $this->data_mesgs['record']['position_lat'] ) && isset( $this->data_mesgs['record']['position_long'] ) && is_array( $this->data_mesgs['record']['position_lat'] ) ) {
-				$bLatitudeLongitude = ( count( $this->data_mesgs['record']['position_lat'] ) === $count_timestamp
-					&& count( $this->data_mesgs['record']['position_long'] ) === $count_timestamp ) ? false : in_array( 'lat_lon', $options['fix_data'] );
-			}
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-			if ( isset( $this->data_mesgs['record']['speed'] ) && is_array( $this->data_mesgs['record']['speed'] ) ) {
-				$bSpeed = ( count( $this->data_mesgs['record']['speed'] ) === $count_timestamp ) ? false : in_array( 'speed', $options['fix_data'] );
-			}
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-			if ( isset( $this->data_mesgs['record']['power'] ) && is_array( $this->data_mesgs['record']['power'] ) ) {
-				$bPower = ( count( $this->data_mesgs['record']['power'] ) === $count_timestamp ) ? false : in_array( 'power', $options['fix_data'] );
-			}
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-			if ( isset( $this->data_mesgs['record']['altitude'] ) && is_array( $this->data_mesgs['record']['altitude'] ) ) {
-				$bAltitude = ( count( $this->data_mesgs['record']['altitude'] ) === $count_timestamp ) ? false : in_array( 'altitude', $options['fix_data'] );
-			}
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-			if ( isset( $this->data_mesgs['record']['enhanced_speed'] ) && is_array( $this->data_mesgs['record']['enhanced_speed'] ) ) {
-				$bEnhancedSpeed = ( count( $this->data_mesgs['record']['enhanced_speed'] ) === $count_timestamp ) ? false : in_array( 'enhanced_speed', $options['fix_data'] );
-			}
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-			if ( isset( $this->data_mesgs['record']['enhanced_altitude'] ) && is_array( $this->data_mesgs['record']['enhanced_altitude'] ) ) {
-				$bEnhancedAltitude = ( count( $this->data_mesgs['record']['enhanced_altitude'] ) === $count_timestamp ) ? false : in_array( 'enhanced_altitude', $options['fix_data'] );
-			}
-		}
-
-		// $this->logger->debug( 'phpFITFileAnalysis->fixData(): set up fields to check at ' . gmdate( 'H:i:s' ) );
-
-		$missing_distance_keys          = array();
-		$missing_hr_keys                = array();
-		$missing_lat_keys               = array();
-		$missing_lon_keys               = array();
-		$missing_speed_keys             = array();
-		$missing_power_keys             = array();
-		$missing_altitude_keys          = array();
-		$missing_enhanced_speed_keys    = array();
-		$missing_enhanced_altitude_keys = array();
-
-		foreach ( $this->data_mesgs['record']['timestamp'] as $timestamp ) {
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-			if ( $bCadence ) {  // Assumes all missing cadence values are zeros
-				if ( ! isset( $this->data_mesgs['record']['cadence'][ $timestamp ] ) ) {
-					$this->data_mesgs['record']['cadence'][ $timestamp ] = 0;
-				}
-			}
-			if ( $bDistance ) {
-				if ( ! isset( $this->data_mesgs['record']['distance'][ $timestamp ] ) ) {
-					$missing_distance_keys[] = $timestamp;
-				}
-			}
-			if ( $bHeartRate ) {
-				if ( ! isset( $this->data_mesgs['record']['heart_rate'][ $timestamp ] ) ) {
-					$missing_hr_keys[] = $timestamp;
-				}
-			}
-			if ( $bLatitudeLongitude ) {
-				if ( ! isset( $this->data_mesgs['record']['position_lat'][ $timestamp ] ) ) {
-					$missing_lat_keys[] = $timestamp;
-				}
-				if ( ! isset( $this->data_mesgs['record']['position_long'][ $timestamp ] ) ) {
-					$missing_lon_keys[] = $timestamp;
-				}
-			}
-			if ( $bSpeed ) {
-				if ( ! isset( $this->data_mesgs['record']['speed'][ $timestamp ] ) ) {
-					$missing_speed_keys[] = $timestamp;
-				}
-			}
-			if ( $bPower ) {
-				if ( ! isset( $this->data_mesgs['record']['power'][ $timestamp ] ) ) {
-					$missing_power_keys[] = $timestamp;
-				}
-			}
-			if ( $bAltitude ) {
-				if ( ! isset( $this->data_mesgs['record']['altitude'][ $timestamp ] ) ) {
-					$missing_altitude_keys[] = $timestamp;
-				}
-			}
-			if ( $bEnhancedSpeed ) {
-				if ( ! isset( $this->data_mesgs['record']['enhanced_speed'][ $timestamp ] ) ) {
-					$missing_enhanced_speed_keys[] = $timestamp;
-				}
-			}
-			if ( $bEnhancedAltitude ) {
-				if ( ! isset( $this->data_mesgs['record']['enhanced_altitude'][ $timestamp ] ) ) {
-					$missing_enhanced_altitude_keys[] = $timestamp;
-				}
-			}
-		}
-
-		// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished checking for missing data at ' . gmdate( 'H:i:s' ) );
-
-		$paused_timestamps = $this->isPaused();
-
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-
-		$this->filterPauseGapThreshold( $paused_timestamps );
-
-		if ( $bCadence ) {
-			ksort( $this->data_mesgs['record']['cadence'] );  // no interpolation; zeros added earlier
-			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing cadence data at ' . gmdate( 'H:i:s' ) );
-		}
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-		if ( $bDistance ) {
-			$lock_expire = $this->interpolateMissingData( $missing_distance_keys, $this->data_mesgs['record']['distance'], false, $paused_timestamps, $queue, $lock_expire );
-			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing distance data at ' . gmdate( 'H:i:s' ) );
-		}
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-		if ( $bHeartRate ) {
-			$lock_expire = $this->interpolateMissingData( $missing_hr_keys, $this->data_mesgs['record']['heart_rate'], true, $paused_timestamps, $queue, $lock_expire );
-			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing HR data at ' . gmdate( 'H:i:s' ) );
-		}
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-		if ( $bLatitudeLongitude ) {
-			$lock_expire = $this->interpolateMissingData( $missing_lat_keys, $this->data_mesgs['record']['position_lat'], false, $paused_timestamps, $queue, $lock_expire );
-			$lock_expire = $this->interpolateMissingData( $missing_lon_keys, $this->data_mesgs['record']['position_long'], false, $paused_timestamps, $queue, $lock_expire );
-			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing lat/long data at ' . gmdate( 'H:i:s' ) );
-		}
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-		if ( $bSpeed ) {
-			$lock_expire = $this->interpolateMissingData( $missing_speed_keys, $this->data_mesgs['record']['speed'], false, $paused_timestamps, $queue, $lock_expire );
-			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing speed data at ' . gmdate( 'H:i:s' ) );
-		}
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-		if ( $bPower ) {
-			$lock_expire = $this->interpolateMissingData( $missing_power_keys, $this->data_mesgs['record']['power'], true, $paused_timestamps, $queue, $lock_expire );
-			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing power data at ' . gmdate( 'H:i:s' ) );
-		}
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-		if ( $bAltitude ) {
-			$lock_expire = $this->interpolateMissingData( $missing_altitude_keys, $this->data_mesgs['record']['altitude'], false, $paused_timestamps, $queue, $lock_expire );
-			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing altitude data at ' . gmdate( 'H:i:s' ) );
-		}
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-		if ( $bEnhancedSpeed ) {
-			$lock_expire = $this->interpolateMissingData( $missing_enhanced_speed_keys, $this->data_mesgs['record']['enhanced_speed'], false, $paused_timestamps, $queue, $lock_expire );
-			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced speed data at ' . gmdate( 'H:i:s' ) );
-		}
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-		if ( $bEnhancedAltitude ) {
-			$lock_expire = $this->interpolateMissingData( $missing_enhanced_altitude_keys, $this->data_mesgs['record']['enhanced_altitude'], false, $paused_timestamps, $queue, $lock_expire );
-			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced altitude data at ' . gmdate( 'H:i:s' ) );
-		}
-		$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-	}
-
-	/**
-	 * Does mandatory fixes.
-	 * Does not yet identify the missing keys for that data.
-	 */
-	private function fixDataSingle( $mesgs ) {
-		// By default the constant FIT_UNIX_TS_DIFF will be added to timestamps, which have field type of date_time (or local_date_time).
-		// Timestamp fields (field number == 253) converted after being unpacked in $this->readDataRecords().
-		if ( ! $this->garmin_timestamps ) {
-			$date_times = array(
-				array(
-					'message_name' => 'activity',
-					'field_name'   => 'local_timestamp',
-				),
-				array(
-					'message_name' => 'course_point',
-					'field_name'   => 'timestamp',
-				),
-				array(
-					'message_name' => 'file_id',
-					'field_name'   => 'time_created',
-				),
-				array(
-					'message_name' => 'goal',
-					'field_name'   => 'end_date',
-				),
-				array(
-					'message_name' => 'goal',
-					'field_name'   => 'start_date',
-				),
-				array(
-					'message_name' => 'lap',
-					'field_name'   => 'start_time',
-				),
-				array(
-					'message_name' => 'length',
-					'field_name'   => 'start_time',
-				),
-				array(
-					'message_name' => 'monitoring',
-					'field_name'   => 'local_timestamp',
-				),
-				array(
-					'message_name' => 'monitoring_info',
-					'field_name'   => 'local_timestamp',
-				),
-				array(
-					'message_name' => 'obdii_data',
-					'field_name'   => 'start_timestamp',
-				),
-				array(
-					'message_name' => 'schedule',
-					'field_name'   => 'scheduled_time',
-				),
-				array(
-					'message_name' => 'schedule',
-					'field_name'   => 'time_created',
-				),
-				array(
-					'message_name' => 'segment_lap',
-					'field_name'   => 'start_time',
-				),
-				array(
-					'message_name' => 'session',
-					'field_name'   => 'start_time',
-				),
-				array(
-					'message_name' => 'timestamp_correlation',
-					'field_name'   => 'local_timestamp',
-				),
-				array(
-					'message_name' => 'timestamp_correlation',
-					'field_name'   => 'system_timestamp',
-				),
-				array(
-					'message_name' => 'training_file',
-					'field_name'   => 'time_created',
-				),
-				array(
-					'message_name' => 'video_clip',
-					'field_name'   => 'end_timestamp',
-				),
-				array(
-					'message_name' => 'video_clip',
-					'field_name'   => 'start_timestamp',
-				),
-			);
-
-			foreach ( $date_times as $date_time ) {
-				if ( isset( $mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
-					if ( is_array( $mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
-						foreach ( $mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] as &$element ) {
-							$element += FIT_UNIX_TS_DIFF;
-						}
-					} else {
-						$mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] += FIT_UNIX_TS_DIFF;
-					}
-				}
-			}
-		}
-
-		// Find messages that have been unpacked as unsigned integers that should be signed integers.
-		// http://php.net/manual/en/function.pack.php - signed integers endianness is always machine dependent.
-		// 131    s    signed short (always 16 bit, machine byte order)
-		// 133    l    signed long (always 32 bit, machine byte order)
-		// 142    q    signed long long (always 64 bit, machine byte order)
-		// Changed from using $this->defn_mesgs_all to $this->defn_mesgs.
-		// TODO - this could be far more efficient by looking up the field info directly from the $mesgs array.
-		foreach ( $this->defn_mesgs as $mesg ) {
-			if ( isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ] ) ) {
-				$mesg_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['mesg_name'];
-
-				foreach ( $mesg['field_defns'] as $field ) {
-					// Convert uint16 to sint16
-					if ( $field['base_type'] === 131 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
-						$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
-						if ( isset( $mesgs[ $mesg_name ][ $field_name ] ) ) {
-							if ( is_array( $mesgs[ $mesg_name ][ $field_name ] ) ) {
-								foreach ( $mesgs[ $mesg_name ][ $field_name ] as &$v ) {
-									if ( PHP_INT_SIZE === 8 && $v > 0x7FFF ) {
-										$v -= 0x10000;
-									}
-									if ( $v > 0x7FFF ) {
-										$v = -1 * ( $v - 0x7FFF );
-									}
-								}
-							} elseif ( $mesgs[ $mesg_name ][ $field_name ] > 0x7FFF ) {
-								if ( PHP_INT_SIZE === 8 ) {
-									$mesgs[ $mesg_name ][ $field_name ] -= 0x10000;
-								}
-								$mesgs[ $mesg_name ][ $field_name ] = -1 * ( $mesgs[ $mesg_name ][ $field_name ] - 0x7FFF );
-							}
-						}
-					} // Convert uint32 to sint32
-					elseif ( $field['base_type'] === 133 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
-						$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
-						if ( isset( $mesgs[ $mesg_name ][ $field_name ] ) ) {
-							if ( is_array( $mesgs[ $mesg_name ][ $field_name ] ) ) {
-								foreach ( $mesgs[ $mesg_name ][ $field_name ] as &$v ) {
-									if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFF ) {
-										$v -= 0x100000000;
-									}
-									if ( $v > 0x7FFFFFFF ) {
-										$v = -1 * ( $v - 0x7FFFFFFF );
-									}
-								}
-							} elseif ( $mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFF ) {
-								if ( PHP_INT_SIZE === 8 ) {
-									$mesgs[ $mesg_name ][ $field_name ] -= 0x100000000;
-
-								}
-								if ( $mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFF ) {
-									$mesgs[ $mesg_name ][ $field_name ] = -1 * ( $mesgs[ $mesg_name ][ $field_name ] - 0x7FFFFFFF );
-								}
-							}
-						}
-					} // Convert uint64 to sint64
-					elseif ( $field['base_type'] === 142 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
-						$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
-						if ( isset( $mesgs[ $mesg_name ][ $field_name ] ) ) {
-							if ( is_array( $mesgs[ $mesg_name ][ $field_name ] ) ) {
-								foreach ( $mesgs[ $mesg_name ][ $field_name ] as &$v ) {
-									if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFFFFFFFFFF ) {
-										$v -= 0x10000000000000000;
-									}
-									if ( $v > 0x7FFFFFFFFFFFFFFF ) {
-										$v = -1 * ( $v - 0x7FFFFFFFFFFFFFFF );
-									}
-								}
-							} elseif ( $mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFFFFFFFFFF ) {
-								if ( PHP_INT_SIZE === 8 ) {
-									$mesgs[ $mesg_name ][ $field_name ] -= 0x10000000000000000;
-								}
-								$mesgs[ $mesg_name ][ $field_name ] = -1 * ( $mesgs[ $mesg_name ][ $field_name ] - 0x7FFFFFFFFFFFFFFF );
-							}
-						}
-					}
-				}
-			}
-		}
-
-		return $mesgs;
-	}
-
-	private function filterPauseGapThreshold( &$paused_timestamps ) {
-		$gap_threshold_seconds = 60;
-		$i                     = 0;
-		$checked_timestamps    = array();
-
-		foreach ( $paused_timestamps as $timestamp => $is_paused ) {
-			if ( in_array( $timestamp, $checked_timestamps, true ) ) {
-				++$i;
-				continue;
-			}
-
-			if ( ! $is_paused ) {
-				$checked_timestamps[] = $timestamp;
-				++$i;
-
-				continue;
-			}
-
-			// look ahead to when was unpaused at
-			$unpaused_at = array_search( false, array_slice( $paused_timestamps, $i, null, true ) );
-
-			if ( $unpaused_at - $timestamp <= $gap_threshold_seconds ) {
-				for ( $x = $timestamp; $x < $unpaused_at; ++$x ) {
-					$paused_timestamps[ $x ] = false;
-					$checked_timestamps[]    = $x;
-				}
-			} else {
-				$checked_timestamps = array_merge( $checked_timestamps, range( $timestamp, $unpaused_at ) );
-			}
-
-			++$i;
-		}
-	}
-
-	/**
-	 * For the missing keys in the data, interpolate using values either side and insert as necessary.
-	 *
-	 * @return int|null The lock expiration time.
-	 */
-	private function interpolateMissingData( &$missing_keys, &$array, $is_int, $paused_timestamps, $queue = null, $lock_expire = null ) {
-		$lock_expire = $this->get_lock_expiration( $queue );
-
-		if ( ! is_array( $array ) ) {
-			return;  // Can't interpolate if not an array
-		}
-
-		$num_points = 2;
-
-		$min_key = min( array_keys( $array ) );
-		$max_key = max( array_keys( $array ) );
-		$count   = count( $missing_keys );
-
-		for ( $i = 0; $i < $count; ++$i ) {
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-
-			$missing_timestamp = $missing_keys[ $i ];
-
-			if ( $missing_timestamp !== 0 ) {
-				$is_paused_timestamp = isset( $paused_timestamps[ $missing_timestamp ] ) && $paused_timestamps[ $missing_timestamp ] === true;
-
-				// Interpolating outside recorded range is impossible - use edge values instead
-				if ( $missing_timestamp > $max_key ) {
-					$array[ $missing_timestamp ] = $is_paused_timestamp ? null : $array[ $max_key ];
-					continue;
-				} elseif ( $missing_timestamp < $min_key ) {
-					$array[ $missing_timestamp ] = $is_paused_timestamp ? null : $array[ $min_key ];
-					continue;
-				}
-
-				$prev_value = $next_value = reset( $array );
-
-				while ( $missing_timestamp > key( $array ) ) {
-					$prev_value = current( $array );
-					$next_value = next( $array );
-				}
-				for ( $j = $i + 1; $j < $count; ++$j ) {
-					if ( $missing_keys[ $j ] < key( $array ) ) {
-						++$num_points;
-					} else {
-						break;
-					}
-				}
-
-				$gap = ( $next_value - $prev_value ) / $num_points;
-
-				for ( $k = 0; $k <= $num_points - 2; ++$k ) {
-					$gap_value = null;
-
-					if ( ! $is_paused_timestamp ) {
-						if ( $is_int ) {
-							$gap_value = (int) round( $prev_value + ( $gap * ( $k + 1 ) ) );
-						} else {
-							$gap_value = $prev_value + ( $gap * ( $k + 1 ) );
-						}
-					}
-
-					$array[ $missing_keys[ $i + $k ] ] = $gap_value;
-				}
-				for ( $k = 0; $k <= $num_points - 2; ++$k ) {
-					$missing_keys[ $i + $k ] = 0;
-				}
-
-				$num_points = 2;
-			}
-		}
-
-		ksort( $array );  // sort using keys
-
-		return $lock_expire;
-	}
-
-	/**
-	 * Change arrays that contain only one element into non-arrays so you can use $variable rather than $variable[0] to access.
-	 */
-	private function oneElementArrays() {
-		foreach ( $this->data_mesgs as $mesg_key => $mesg ) {
-			if ( $mesg_key === 'developer_data' ) {
-				continue;
-			}
-			foreach ( $mesg as $field_key => $field ) {
-				if ( count( $field ) === 1 ) {
-					$first_key                                   = key( $field );
-					$this->data_mesgs[ $mesg_key ][ $field_key ] = $field[ $first_key ];
-				}
-			}
-		}
-	}
-
-	/**
-	 * Change arrays that contain only one element into non-arrays so you can use $variable rather than $variable[0] to access.
-	 */
-	private function oneElementArraysSingle( $mesgs ) {
-		// Expect only one $mesg at a time.  Record messages are already clean.
-		foreach ( $mesgs as $mesg_key => $mesg ) {
-			if ( 'developer_data' === $mesg_key ) {
-				continue;
-			}
-			foreach ( $mesg as $field_key => $field ) {
-				if ( is_array( $field ) && count( $field ) === 1 ) {
-					$first_key                        = key( $field );
-					$mesgs[ $mesg_key ][ $field_key ] = $field[ $first_key ];
-				}
-			}
-		}
-		return $mesgs;
-	}
-
-	/**
-	 * The FIT protocol makes use of enumerated data types.
-	 * Where these values have been identified in the FIT SDK, they have been included in $this->enum_data
-	 * This function returns the enumerated value for a given message type.
-	 */
-	public function enumData( $type, $value ) {
-		if ( is_array( $value ) ) {
-			$tmp = array();
-			foreach ( $value as $element ) {
-				if ( isset( $this->enum_data[ $type ][ $element ] ) ) {
-					$tmp[] = $this->enum_data[ $type ][ $element ];
-				} else {
-					$tmp[] = 'unknown';
-				}
-			}
-			return $tmp;
-		} else {
-			return isset( $this->enum_data[ $type ][ $value ] ) ? $this->enum_data[ $type ][ $value ] : 'unknown';
-		}
-	}
-
-	/**
-	 * Short-hand access to commonly used enumerated data.
-	 */
-	public function manufacturer() {
-		$tmp = $this->enumData( 'manufacturer', $this->data_mesgs['device_info']['manufacturer'] );
-		return is_array( $tmp ) ? $tmp[0] : $tmp;
-	}
-	public function product() {
-		$tmp = $this->enumData( 'product', $this->data_mesgs['device_info']['product'] );
-		return is_array( $tmp ) ? $tmp[0] : $tmp;
-	}
-	public function sport( int $index = null ) {
-		$tmp = $this->enumData( 'sport', $this->data_mesgs['session']['sport'] ?? ( $this->data_mesgs['sport']['sport'] ?? 0 ) );
-
-		if ( is_array( $tmp ) ) {
-			if ( $index !== null ) {
-				if ( isset( $tmp[ $index ] ) ) {
-					return $tmp[ $index ];
-				}
-			}
-
-			return $tmp[0];
-		}
-
-		return $tmp;
-	}
-
-	/**
-	 * Transform the values read from the FIT file into the units requested by the user.
-	 */
-	private function setUnits( $options ) {
-		if ( ! empty( $options['units'] ) ) {
-			// Handle $options['units'] not being passed as array and/or not in lowercase.
-			$units = strtolower( ( is_array( $options['units'] ) ) ? $options['units'][0] : $options['units'] );
-		} else {
-			$units = 'metric';
-		}
-
-		// Handle $options['pace'] being pass as array and/or boolean vs string and/or lowercase.
-		$bPace = false;
-		if ( isset( $options['pace'] ) ) {
-			$pace = is_array( $options['pace'] ) ? $options['pace'][0] : $options['pace'];
-			if ( is_bool( $pace ) ) {
-				$bPace = $pace;
-			} elseif ( is_string( $pace ) ) {
-				$pace = strtolower( $pace );
-				if ( $pace === 'true' || $pace === 'false' ) {
-					$bPace = $pace;
-				} else {
-					throw new \Exception( 'phpFITFileAnalysis->setUnits(): pace option not valid!' );
-				}
-			} else {
-				throw new \Exception( 'phpFITFileAnalysis->setUnits(): pace option not valid!' );
-			}
-		}
-
-		// Set units for all messages
-		$messages    = array( 'session', 'lap', 'record', 'segment_lap' );
-		$c_fields    = array(
-			'avg_temperature',
-			'max_temperature',
-			'temperature',
-		);
-		$m_fields    = array(
-			'distance',
-			'total_distance',
-		);
-		$m_ft_fields = array(
-			'altitude',
-			'avg_altitude',
-			'enhanced_avg_altitude',
-			'enhanced_max_altitude',
-			'enhanced_min_altitude',
-			'max_altitude',
-			'min_altitude',
-			'total_ascent',
-			'total_descent',
-		);
-		$ms_fields   = array(
-			'avg_neg_vertical_speed',
-			'avg_pos_vertical_speed',
-			'avg_speed',
-			'enhanced_avg_speed',
-			'enhanced_max_speed',
-			'enhanced_speed',
-			'max_neg_vertical_speed',
-			'max_pos_vertical_speed',
-			'max_speed',
-			'speed',
-			'vertical_speed',
-		);
-		$semi_fields = array(
-			'end_position_lat',
-			'end_position_long',
-			'nec_lat',
-			'nec_long',
-			'position_lat',
-			'position_long',
-			'start_position_lat',
-			'start_position_long',
-			'swc_lat',
-			'swc_long',
-		);
-
-		foreach ( $messages as $message ) {
-			switch ( $units ) {
-				case 'statute':
-					// convert from celsius to fahrenheit
-					foreach ( $c_fields as $field ) {
-						if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
-								foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( ( ( $value * 9 ) / 5 ) + 32, 2 );
-								}
-							} else {
-								$this->data_mesgs[ $message ][ $field ] = round( ( ( $this->data_mesgs[ $message ][ $field ] * 9 ) / 5 ) + 32, 2 );
-							}
-						}
-					}
-
-					// convert from meters to miles
-					foreach ( $m_fields as $field ) {
-						if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
-								foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * 0.000621371192, 5 );  // JKK: increased from 2 to 5 decimals.
-								}
-							} else {
-								$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 0.000621371192, 5 );  // JKK: increased from 2 to 4 decimals.
-							}
-						}
-					}
-
-					// convert from meters to feet
-					foreach ( $m_ft_fields as $field ) {
-						if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
-								foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * 3.2808399, 1 );
-								}
-							} else {
-								$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 3.2808399, 1 );
-							}
-						}
-					}
-
-					// convert  meters per second to miles per hour
-					foreach ( $ms_fields as $field ) {
-						if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
-								foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
-									if ( $bPace ) {
-										$value = round( 60 / 2.23693629 / $value, 3 );
-									} else {
-										$value = round( $value * 2.23693629, 3 );
-									}
-								}
-							} elseif ( $bPace ) {
-									$this->data_mesgs[ $message ][ $field ] = round( 60 / 2.23693629 / $this->data_mesgs[ $message ][ $field ], 3 );
-							} else {
-								$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 2.23693629, 3 );
-							}
-						}
-					}
-
-					// convert from semicircles to degress
-					foreach ( $semi_fields as $field ) {
-						if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
-								foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * ( 180.0 / pow( 2, 31 ) ), 5 );
-								}
-							} else {
-								$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * ( 180.0 / pow( 2, 31 ) ), 5 );
-							}
-						}
-					}
-
-					break;
-
-				case 'raw':
-					// Do nothing - leave values as read from file.
-					break;
-				case 'metric':
-					// convert from meters to kilometers
-					foreach ( $m_fields as $field ) {
-						if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
-								foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * 0.001, 4 );  // JKK: increased from 2 to 4 decimals.
-								}
-							} else {
-								$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 0.001, 4 );  // JKK: increased from 2 to 4 decimals.
-							}
-						}
-					}
-
-					// convert  meters per second to kilometers per hour
-					foreach ( $ms_fields as $field ) {
-						if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
-								foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
-									if ( $bPace ) {
-										$value = ( $value != 0 ) ? round( 60 / 3.6 / $value, 3 ) : 0;
-									} else {
-										$value = round( $value * 3.6, 3 );
-									}
-								}
-							} else {
-								if ( $this->data_mesgs[ $message ][ $field ] === 0 ) {  // Prevent divide by zero error
-									continue;
-								}
-								if ( $bPace ) {
-									$this->data_mesgs[ $message ][ $field ] = round( 60 / 3.6 / $this->data_mesgs[ $message ][ $field ], 3 );
-								} else {
-									$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 3.6, 3 );
-								}
-							}
-						}
-					}
-
-					// convert from semicircles to degress
-					foreach ( $semi_fields as $field ) {
-						if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
-								foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * ( 180.0 / pow( 2, 31 ) ), 5 );
-								}
-							} else {
-								$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * ( 180.0 / pow( 2, 31 ) ), 5 );
-							}
-						}
-					}
-
-					break;
-				default:
-					throw new \Exception( 'phpFITFileAnalysis->setUnits(): units option not valid!' );
-					break;
-			}
-		}
-	}
-
-	/**
-	 * Transform the values read from the FIT file into the units requested by the user.
-	 */
-	private function setUnitsSingle( $mesgs ) {
-		if ( ! empty( $this->options['units'] ) ) {
-			// Handle $this->options['units'] not being passed as array and/or not in lowercase.
-			$units = strtolower( ( is_array( $this->options['units'] ) ) ? $this->options['units'][0] : $this->options['units'] );
-		} else {
-			$units = 'metric';
-		}
-
-		// Handle $this->options['pace'] being pass as array and/or boolean vs string and/or lowercase.
-		$bPace = false;
-		if ( isset( $this->options['pace'] ) ) {
-			$pace = is_array( $this->options['pace'] ) ? $this->options['pace'][0] : $this->options['pace'];
-			if ( is_bool( $pace ) ) {
-				$bPace = $pace;
-			} elseif ( is_string( $pace ) ) {
-				$pace = strtolower( $pace );
-				if ( $pace === 'true' || $pace === 'false' ) {
-					$bPace = $pace;
-				} else {
-					throw new \Exception( 'phpFITFileAnalysis->setUnits(): pace option not valid!' );
-				}
-			} else {
-				throw new \Exception( 'phpFITFileAnalysis->setUnits(): pace option not valid!' );
-			}
-		}
-
-		// Set units for all messages
-		$messages    = array( 'session', 'lap', 'record', 'segment_lap' );
-		$c_fields    = array(
-			'avg_temperature',
-			'max_temperature',
-			'temperature',
-		);
-		$m_fields    = array(
-			'distance',
-			'total_distance',
-		);
-		$m_ft_fields = array(
-			'altitude',
-			'avg_altitude',
-			'enhanced_avg_altitude',
-			'enhanced_max_altitude',
-			'enhanced_min_altitude',
-			'max_altitude',
-			'min_altitude',
-			'total_ascent',
-			'total_descent',
-		);
-		$ms_fields   = array(
-			'avg_neg_vertical_speed',
-			'avg_pos_vertical_speed',
-			'avg_speed',
-			'enhanced_avg_speed',
-			'enhanced_max_speed',
-			'enhanced_speed',
-			'max_neg_vertical_speed',
-			'max_pos_vertical_speed',
-			'max_speed',
-			'speed',
-			'vertical_speed',
-		);
-		$semi_fields = array(
-			'end_position_lat',
-			'end_position_long',
-			'nec_lat',
-			'nec_long',
-			'position_lat',
-			'position_long',
-			'start_position_lat',
-			'start_position_long',
-			'swc_lat',
-			'swc_long',
-		);
-
-		foreach ( $messages as $message ) {
-			switch ( $units ) {
-				case 'statute':
-					// convert from celsius to fahrenheit
-					foreach ( $c_fields as $field ) {
-						if ( isset( $mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $mesgs[ $message ][ $field ] ) ) {
-								foreach ( $mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( ( ( $value * 9 ) / 5 ) + 32, 2 );
-								}
-							} else {
-								$mesgs[ $message ][ $field ] = round( ( ( $mesgs[ $message ][ $field ] * 9 ) / 5 ) + 32, 2 );
-							}
-						}
-					}
-
-					// convert from meters to miles
-					foreach ( $m_fields as $field ) {
-						if ( isset( $mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $mesgs[ $message ][ $field ] ) ) {
-								foreach ( $mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * 0.000621371192, 5 );  // JKK: increased from 2 to 5 decimals.
-								}
-							} else {
-								$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 0.000621371192, 5 );  // JKK: increased from 2 to 4 decimals.
-							}
-						}
-					}
-
-					// convert from meters to feet
-					foreach ( $m_ft_fields as $field ) {
-						if ( isset( $mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $mesgs[ $message ][ $field ] ) ) {
-								foreach ( $mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * 3.2808399, 1 );
-								}
-							} else {
-								$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 3.2808399, 1 );
-							}
-						}
-					}
-
-					// convert  meters per second to miles per hour
-					foreach ( $ms_fields as $field ) {
-						if ( isset( $mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $mesgs[ $message ][ $field ] ) ) {
-								foreach ( $mesgs[ $message ][ $field ] as &$value ) {
-									if ( $bPace ) {
-										$value = round( 60 / 2.23693629 / $value, 3 );
-									} else {
-										$value = round( $value * 2.23693629, 3 );
-									}
-								}
-							} elseif ( $bPace ) {
-									$mesgs[ $message ][ $field ] = round( 60 / 2.23693629 / $mesgs[ $message ][ $field ], 3 );
-							} else {
-								$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 2.23693629, 3 );
-							}
-						}
-					}
-
-					// convert from semicircles to degress
-					foreach ( $semi_fields as $field ) {
-						if ( isset( $mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $mesgs[ $message ][ $field ] ) ) {
-								foreach ( $mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * ( 180.0 / pow( 2, 31 ) ), 5 );
-								}
-							} else {
-								$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * ( 180.0 / pow( 2, 31 ) ), 5 );
-							}
-						}
-					}
-
-					break;
-
-				case 'raw':
-					// Do nothing - leave values as read from file.
-					break;
-				case 'metric':
-					// convert from meters to kilometers
-					foreach ( $m_fields as $field ) {
-						if ( isset( $mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $mesgs[ $message ][ $field ] ) ) {
-								foreach ( $mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * 0.001, 4 );  // JKK: increased from 2 to 4 decimals.
-								}
-							} else {
-								$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 0.001, 4 );  // JKK: increased from 2 to 4 decimals.
-							}
-						}
-					}
-
-					// convert  meters per second to kilometers per hour
-					foreach ( $ms_fields as $field ) {
-						if ( isset( $mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $mesgs[ $message ][ $field ] ) ) {
-								foreach ( $mesgs[ $message ][ $field ] as &$value ) {
-									if ( $bPace ) {
-										$value = ( $value != 0 ) ? round( 60 / 3.6 / $value, 3 ) : 0;
-									} else {
-										$value = round( $value * 3.6, 3 );
-									}
-								}
-							} else {
-								if ( $mesgs[ $message ][ $field ] === 0 ) {  // Prevent divide by zero error
-									continue;
-								}
-								if ( $bPace ) {
-									$mesgs[ $message ][ $field ] = round( 60 / 3.6 / $mesgs[ $message ][ $field ], 3 );
-								} else {
-									$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 3.6, 3 );
-								}
-							}
-						}
-					}
-
-					// convert from semicircles to degress
-					foreach ( $semi_fields as $field ) {
-						if ( isset( $mesgs[ $message ][ $field ] ) ) {
-							if ( is_array( $mesgs[ $message ][ $field ] ) ) {
-								foreach ( $mesgs[ $message ][ $field ] as &$value ) {
-									$value = round( $value * ( 180.0 / pow( 2, 31 ) ), 5 );
-								}
-							} else {
-								$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * ( 180.0 / pow( 2, 31 ) ), 5 );
-							}
-						}
-					}
-
-					break;
-				default:
-					throw new \Exception( 'phpFITFileAnalysis->setUnits(): units option not valid!' );
-					break;
-			}
-		}
-
-		return $mesgs;
-	}
-
-	/**
-	 * Calculate stop points and include them in the record table.
-	 *
-	 * @param callable $record_callback Callback function which should return 0 or 1 for stop field.
-	 * @param object   $queue           Queue object
-	 */
-	public function calculateStopPoints( callable $record_callback, $queue = null ) {
-		if ( ! is_callable( $record_callback ) ) {
-			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
-		}
-
-		if ( isset( $this->options['buffer_input_to_db'] ) && $this->options['buffer_input_to_db'] && $this->checkFileBufferOptions( $this->options['database'] ) ) {
-			if ( ! $this->connect_to_db() ) {
-				$this->logger->error( 'phpFITFileAnalysis->calculateStopPoints(): unable to connect to database!' );
-				throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints: unable to connect to database' );
-			} else {
-				$this->logger->debug( 'phpFITFileAnalysis->calculateStopPoints(): connected to database: ' . $this->db_name );
-			}
-		}
-
-		$lock_expire = $this->get_lock_expiration( $queue );
-
-		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
-		// For each row in the table, call $record_callback and if it returns 1, set the stopped field for that table row to 1.
-		$batch_size      = 1000; // Define the batch size for processing.
-		$offset          = 0; // Start from the first record.
-		$total_processed = 0;
-		$last_distance   = 0;
-		$dist_delta      = 0;
-
-		$this->create_temp_update_table();
-		$this->logger->debug( 'calculateStopPoints: created temp update table' );
-
-		while (true) {
-			try {
-				$lock_expire = $this->maybe_set_lock_expiration( $queue );
-
-				// Fetch a batch of records sorted by timestamp ASC.
-				$query = 'SELECT id, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
-				$stmt  = $this->db->prepare( $query );
-				$stmt->bindValue( ':batch_size', $batch_size, \PDO::PARAM_INT );
-				$stmt->bindValue( ':offset', $offset, \PDO::PARAM_INT );
-				$stmt->execute();
-
-				$records = $stmt->fetchAll( \PDO::FETCH_ASSOC );
-
-				// Break the loop if no more records are found.
-				if (empty( $records )) {
-					break;
-				}
-
-				// Track IDs that need to be updated.
-				$ids_to_update_stops = array();
-				$placeholders        = array();
-				$distance_updates    = array();
-
-				// Iterate through the records and apply the callback.
-				foreach ($records as $record) {
-					// Look for non-increasing distance values and adjust them.
-					$record['distance'] += $dist_delta;
-					if ($record['distance'] < $last_distance) {
-						$dist_delta         += $last_distance - $record['distance'];
-						$record['distance'] += $dist_delta;
-					}
-					$last_distance = $record['distance'];
-
-					// Add any changed points to the updates arrays.
-					if ( $dist_delta > 0 ) {
-						$placeholders[]     = '(?,?)';
-						$distance_updates[] = $record['id'];
-						$distance_updates[] = $record['distance'];
-					}
-
-					// Identify stops.
-					$stopped = call_user_func( $record_callback, $record );
-					if ( 1 === $stopped) {
-						$ids_to_update_stops[] = $record['id'];
-					}
-				}
-
-				if ( ! empty( $distance_updates ) ) {
-					$sql  = 'INSERT INTO pffa_temp_update_table (id, new_dist) VALUES ' . implode( ',', $placeholders );
-					$stmt = $this->db->prepare( $sql );
-					$stmt->execute( $distance_updates );
-					$stmt->closeCursor();
-
-					$sql  = 'UPDATE ' . $this->tables_created['record']['location'] . ' r JOIN pffa_temp_update_table t ON r.id = t.id SET r.distance = t.new_dist';
-					$stmt = $this->db->prepare( $sql );
-					$stmt->execute();
-					$stmt->closeCursor();
-
-					$this->truncate_temp_update_table();
-				}
-
-				// Update the stopped field for all matching records in one query.
-				if (! empty( $ids_to_update_stops ) ) {
-					$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update_stops ) ) . ')';
-					$this->db->exec( $update_query );
-				}
-
-				$total_processed += count( $records );
-
-				if ($total_processed % 10000 === 0) {
-					$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
-				}
-
-				// Increment the offset for the next batch.
-				$offset += $batch_size;
-			} catch ( \PDOException $e ) {
-				// Check if the error is related to a lost connection.
-				if (strpos( $e->getMessage(), 'server has gone away' ) !== false || strpos( $e->getMessage(), 'no connection to the server' ) !== false) {
-					$this->logger->error( 'Database connection lost. Attempting to reconnect...' );
-					try {
-						$this->connect_to_db(); // Reconnect to the database.
-						$this->logger->info( 'Reconnected to the database successfully.' );
-					} catch (\PDOException $reconnectException) {
-						$this->logger->error( 'Failed to reconnect to the database: ' . $reconnectException->getMessage() );
-						throw $reconnectException; // Exit the loop if reconnection fails.
-					}
-				} else {
-					// Rethrow other exceptions.
-					throw $e;
-				}
-			}
-		}
-
-		$this->drop_temp_update_table();
-
-		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
-	}
-
-	/**
-	 * Create a temporary update table for the record data.
-	 */
-	private function create_temp_update_table() {
-		// Create a temporary table to store the updated records.
-		$query = 'CREATE TEMPORARY TABLE IF NOT EXISTS pffa_temp_update_table (id BIGINT UNSIGNED PRIMARY KEY, new_dist DECIMAL(10,5))';
-		$this->db->exec( $query );
-	}
-
-	/**
-	 * Truncate the temporary update table.
-	 */
-	private function truncate_temp_update_table() {
-		// Truncate the temporary table to remove old data.
-		$query = 'TRUNCATE TABLE pffa_temp_update_table';
-		$this->db->exec( $query );
-	}
-
-	/**
-	 * Drop the temporary update table.
-	 */
-	private function drop_temp_update_table() {
-		// Drop the temporary table.
-		$query = 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_update_table';
-		$this->db->exec( $query );
-	}
-
-	/**
-	 * Calculate HR zones using HRmax formula: zone = HRmax * percentage.
-	 */
-	public function hrZonesMax( $hr_maximum, $percentages_array = array( 0.60, 0.75, 0.85, 0.95 ) ) {
-		if ( array_walk(
-			$percentages_array,
-			function ( &$value, $key, $hr_maximum ) {
-				$value = round( $value * $hr_maximum );
-			},
-			$hr_maximum
-		) ) {
-			return $percentages_array;
-		} else {
-			throw new \Exception( 'phpFITFileAnalysis->hrZonesMax(): cannot calculate zones, please check inputs!' );
-		}
-	}
-
-	/**
-	 * Calculate HR zones using HRreserve formula: zone = HRresting + ((HRmax - HRresting) * percentage).
-	 */
-	public function hrZonesReserve( $hr_resting, $hr_maximum, $percentages_array = array( 0.60, 0.65, 0.75, 0.82, 0.89, 0.94 ) ) {
-		if ( array_walk(
-			$percentages_array,
-			function ( &$value, $key, $params ) {
-				$value = round( $params[0] + ( $value * $params[1] ) );
-			},
-			array( $hr_resting, $hr_maximum - $hr_resting )
-		) ) {
-			return $percentages_array;
-		} else {
-			throw new \Exception( 'phpFITFileAnalysis->hrZonesReserve(): cannot calculate zones, please check inputs!' );
-		}
-	}
-
-	/**
-	 * Calculate power zones using Functional Threshold Power value: zone = FTP * percentage.
-	 */
-	public function powerZones( $functional_threshold_power, $percentages_array = array( 0.55, 0.75, 0.90, 1.05, 1.20, 1.50 ) ) {
-		if ( array_walk(
-			$percentages_array,
-			function ( &$value, $key, $functional_threshold_power ) {
-				$value = round( $value * $functional_threshold_power ) + 1;
-			},
-			$functional_threshold_power
-		) ) {
-			return $percentages_array;
-		} else {
-			throw new \Exception( 'phpFITFileAnalysis->powerZones(): cannot calculate zones, please check inputs!' );
-		}
-	}
-
-	/**
-	 * Partition the data (e.g. cadence, heart_rate, power, speed) using thresholds provided as an array.
-	 */
-	public function partitionData( $record_field = '', $thresholds = null, $percentages = true, $labels_for_keys = true ) {
-		if ( ! isset( $this->data_mesgs['record'][ $record_field ] ) ) {
-			throw new \Exception( 'phpFITFileAnalysis->partitionData(): ' . $record_field . ' data not present in FIT file!' );
-		}
-		if ( ! is_array( $thresholds ) ) {
-			throw new \Exception( 'phpFITFileAnalysis->partitionData(): thresholds must be an array e.g. [10,20,30,40,50]!' );
-		}
-
-		foreach ( $thresholds as $threshold ) {
-			if ( ! is_numeric( $threshold ) || $threshold < 0 ) {
-				throw new \Exception( 'phpFITFileAnalysis->partitionData(): ' . $threshold . ' not valid in thresholds!' );
-			}
-			if ( isset( $last_threshold ) && $last_threshold >= $threshold ) {
-				throw new \Exception( 'phpFITFileAnalysis->partitionData(): error near ..., ' . $last_threshold . ', ' . $threshold . ', ... - each element in thresholds array must be greater than previous element!' );
-			}
-			$last_threshold = $threshold;
-		}
-
-		$result = array_fill( 0, count( $thresholds ) + 1, 0 );
-
-		foreach ( $this->data_mesgs['record'][ $record_field ] as $value ) {
-			$key   = 0;
-			$count = count( $thresholds );
-			for ( $key; $key < $count; ++$key ) {
-				if ( $value < $thresholds[ $key ] ) {
-					break;
-				}
-			}
-			++$result[ $key ];
-		}
-
-		array_unshift( $thresholds, 0 );
-		$keys = array();
-
-		if ( $labels_for_keys === true ) {
-			$count = count( $thresholds );
-			for ( $i = 0; $i < $count; ++$i ) {
-				$keys[] = $thresholds[ $i ] . ( isset( $thresholds[ $i + 1 ] ) ? '-' . ( $thresholds[ $i + 1 ] - 1 ) : '+' );
-			}
-			$result = array_combine( $keys, $result );
-		}
-
-		if ( $percentages === true ) {
-			$total = array_sum( $result );
-			array_walk(
-				$result,
-				function ( &$value, $key, $total ) {
-					$value = round( $value / $total * 100, 1 );
-				},
-				$total
-			);
-		}
-
-		return $result;
-	}
-
-	/**
-	 * Split data into buckets/bins using a Counting Sort algorithm (http://en.wikipedia.org/wiki/Counting_sort) to generate data for a histogram plot.
-	 */
-	public function histogram( $bucket_width = 25, $record_field = '' ) {
-		if ( ! isset( $this->data_mesgs['record'][ $record_field ] ) ) {
-			throw new \Exception( 'phpFITFileAnalysis->histogram(): ' . $record_field . ' data not present in FIT file!' );
-		}
-		if ( ! is_numeric( $bucket_width ) || $bucket_width <= 0 ) {
-			throw new \Exception( 'phpFITFileAnalysis->histogram(): bucket width is not valid!' );
-		}
-
-		foreach ( $this->data_mesgs['record'][ $record_field ] as $value ) {
-			$key = round( $value / $bucket_width ) * $bucket_width;
-			isset( $result[ $key ] ) ? $result[ $key ]++ : $result[ $key ] = 1;
-		}
-
-		for ( $i = 0; $i < max( array_keys( $result ) ) / $bucket_width; ++$i ) {
-			if ( ! isset( $result[ $i * $bucket_width ] ) ) {
-				$result[ $i * $bucket_width ] = 0;
-			}
-		}
-
-		ksort( $result );
-		return $result;
-	}
-
-	/**
-	 * Helper functions / shortcuts.
-	 */
-	public function hrPartionedHRmaximum( $hr_maximum ) {
-		return $this->partitionData( 'heart_rate', $this->hrZonesMax( $hr_maximum ) );
-	}
-	public function hrPartionedHRreserve( $hr_resting, $hr_maximum ) {
-		return $this->partitionData( 'heart_rate', $this->hrZonesReserve( $hr_resting, $hr_maximum ) );
-	}
-	public function powerPartioned( $functional_threshold_power ) {
-		return $this->partitionData( 'power', $this->powerZones( $functional_threshold_power ) );
-	}
-	public function powerHistogram( $bucket_width = 25 ) {
-		return $this->histogram( $bucket_width, 'power' );
-	}
-
-	/**
-	 * Simple moving average algorithm
-	 */
-	private function sma( $array, $time_period ) {
-		$data  = array_values( $array );
-		$count = count( $array );
-
-		for ( $i = 0; $i < $count - $time_period; ++$i ) {
-			$pieces = array_slice( $data, $i, $time_period );
-
-			// if any of the values are 'null' we want to ignore this chunk since null values indicate pauses at that time
-			if ( in_array( null, $pieces, true ) ) {
-				continue;
-			}
-
-			yield array_sum( $pieces ) / $time_period;
-		}
-	}
-
-	/**
-	 * Calculate TRIMP (TRaining IMPulse) and an Intensity Factor using HR data. Useful if power data not available.
-	 * hr_FT is heart rate at Functional Threshold, or Lactate Threshold Heart Rate (LTHR)
-	 */
-	public function hrMetrics( $hr_resting, $hr_maximum, $hr_FT, $gender ) {
-		$hr_metrics = array(  // array to hold HR analysis data
-			'TRIMPexp' => 0.0,
-			'hrIF'     => 0.0,
-		);
-		if ( in_array( $gender, array( 'F', 'f', 'Female', 'female' ) ) ) {
-			$gender_coeff = 1.67;
-		} else {
-			$gender_coeff = 1.92;
-		}
-		foreach ( $this->data_mesgs['record']['heart_rate'] as $hr ) {
-			// TRIMPexp formula from http://fellrnr.com/wiki/TRIMP
-			// TRIMPexp = sum(D x HRr x 0.64ey)
-			$temp_heart_rate         = ( $hr - $hr_resting ) / ( $hr_maximum - $hr_resting );
-			$hr_metrics['TRIMPexp'] += ( ( 1 / 60 ) * $temp_heart_rate * 0.64 * ( exp( $gender_coeff * $temp_heart_rate ) ) );
-		}
-		$hr_metrics['TRIMPexp'] = round( $hr_metrics['TRIMPexp'] );
-		$hr_metrics['hrIF']     = round( ( array_sum( $this->data_mesgs['record']['heart_rate'] ) / ( count( $this->data_mesgs['record']['heart_rate'] ) ) ) / $hr_FT, 2 );
-
-		return $hr_metrics;
-	}
-
-	/**
-	 * Returns 'Average Power', 'Kilojoules', 'Normalised Power', 'Variability Index', 'Intensity Factor', and 'Training Stress Score' in an array.
-	 *
-	 * Normalised Power (and metrics dependent on it) require the PHP trader extension to be loaded
-	 * http://php.net/manual/en/book.trader.php
-	 */
-	public function powerMetrics( $functional_threshold_power ) {
-		if ( ! isset( $this->data_mesgs['record']['power'] ) ) {
-			throw new \Exception( 'phpFITFileAnalysis->powerMetrics(): power data not present in FIT file!' );
-		}
-
-		$non_null_power_records = array_filter(
-			$this->data_mesgs['record']['power'],
-			function ( $powerRecord ) {
-				return $powerRecord !== null;
-			}
-		);
-
-		$power_metrics['Average Power'] = array_sum( $non_null_power_records ) / count( $non_null_power_records );
-		$power_metrics['Kilojoules']    = ( $power_metrics['Average Power'] * count( $this->data_mesgs['record']['power'] ) ) / 1000;
-
-		// NP1 capture all values for rolling 30s averages
-		$NP_values = ( $this->php_trader_ext_loaded ) ? trader_sma( $this->data_mesgs['record']['power'], 30 ) : $this->sma( $this->data_mesgs['record']['power'], 30 );
-
-		$NormalisedPower = 0.0;
-		$total_NP_values = 0;
-		foreach ( $NP_values as $value ) {  // NP2 Raise all the values obtained in step NP1 to the fourth power
-			$NormalisedPower += pow( $value, 4 );
-			++$total_NP_values;
-		}
-		$NormalisedPower                  /= $total_NP_values;  // NP3 Find the average of the values in NP2
-		$power_metrics['Normalised Power'] = pow( $NormalisedPower, 1 / 4 );  // NP4 taking the fourth root of the value obtained in step NP3
-
-		$power_metrics['Variability Index']     = $power_metrics['Normalised Power'] / $power_metrics['Average Power'];
-		$power_metrics['Intensity Factor']      = $power_metrics['Normalised Power'] / $functional_threshold_power;
-		$power_metrics['Training Stress Score'] = ( count( $this->data_mesgs['record']['power'] ) * $power_metrics['Normalised Power'] * $power_metrics['Intensity Factor'] ) / ( $functional_threshold_power * 36 );
-
-		// Round the values to make them something sensible.
-		$power_metrics['Average Power']         = (int) round( $power_metrics['Average Power'] );
-		$power_metrics['Kilojoules']            = (int) round( $power_metrics['Kilojoules'] );
-		$power_metrics['Normalised Power']      = (int) round( $power_metrics['Normalised Power'] );
-		$power_metrics['Variability Index']     = round( $power_metrics['Variability Index'], 2 );
-		$power_metrics['Intensity Factor']      = round( $power_metrics['Intensity Factor'], 2 );
-		$power_metrics['Training Stress Score'] = (int) round( $power_metrics['Training Stress Score'] );
-
-		return $power_metrics;
-	}
-
-	/**
-	 * Returns Critical Power (Best Efforts) values for supplied time period(s).
-	 */
-	public function criticalPower( $time_periods ) {
-		if ( ! isset( $this->data_mesgs['record']['power'] ) ) {
-			throw new \Exception( 'phpFITFileAnalysis->criticalPower(): power data not present in FIT file!' );
-		}
-
-		if ( is_array( $time_periods ) ) {
-			$count = count( $this->data_mesgs['record']['power'] );
-			foreach ( $time_periods as $time_period ) {
-				if ( ! is_numeric( $time_period ) ) {
-					throw new \Exception( 'phpFITFileAnalysis->criticalPower(): time periods must only contain numeric data!' );
-				}
-				if ( $time_period < 0 ) {
-					throw new \Exception( 'phpFITFileAnalysis->criticalPower(): time periods cannot be negative!' );
-				}
-				if ( $time_period > $count ) {
-					break;
-				}
-
-				$averages = ( $this->php_trader_ext_loaded ) ? trader_sma( $this->data_mesgs['record']['power'], $time_period ) : $this->sma( $this->data_mesgs['record']['power'], $time_period );
-				if ( $averages !== false ) {
-					$criticalPower_values[ $time_period ] = max( $averages );
-				}
-			}
-
-			return $criticalPower_values;
-		} elseif ( is_numeric( $time_periods ) && $time_periods > 0 ) {
-			if ( $time_periods > count( $this->data_mesgs['record']['power'] ) ) {
-				$criticalPower_values[ $time_periods ] = 0;
-			} else {
-				$averages = ( $this->php_trader_ext_loaded ) ? trader_sma( $this->data_mesgs['record']['power'], $time_periods ) : $this->sma( $this->data_mesgs['record']['power'], $time_periods );
-				if ( $averages !== false ) {
-					$criticalPower_values[ $time_periods ] = max( $averages );
-				}
-			}
-
-			return $criticalPower_values;
-		} else {
-			throw new \Exception( 'phpFITFileAnalysis->criticalPower(): time periods not valid!' );
-		}
-	}
-
-	/**
-	 * Returns array of booleans using timestamp as key.
-	 * true == timer paused (e.g. autopause)
-	 */
-	public function isPaused() {
-		if ( ! isset( $this->data_mesgs['event']['event'] ) || ! is_array( $this->data_mesgs['event']['event'] ) ) {
-			return array();
+			return $table_info;
 		}
 
 		/**
-		 * Event enumerated values of interest
-		 * 0 = timer
+		 * Check for mandatory fields.
+		 *
+		 * @param array $field_names The field names to check against.
+		 * @return bool True if all mandatory field are present, false otherwise.
 		 */
-		$tek = array_keys( $this->data_mesgs['event']['event'], 0 );  // timer event keys
+		private function checkForMandatoryFields( $field_names ) {
+			static $mandatory_fields = array( 'position_lat', 'position_long', 'timestamp', 'distance' );
 
-		$timer_start = array();
-		$timer_stop  = array();
-		foreach ( $tek as $v ) {
-			if ( $this->data_mesgs['event']['event_type'][ $v ] === 0 ) {
-				$timer_start[ $v ] = $this->data_mesgs['event']['timestamp'][ $v ];
-			} elseif ( $this->data_mesgs['event']['event_type'][ $v ] === 4 ) {
-				$timer_stop[ $v ] = $this->data_mesgs['event']['timestamp'][ $v ];
+			foreach ( $mandatory_fields as $field ) {
+				if ( ! in_array( $field, $field_names, true ) ) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		/**
+		 * Check that all elements in a message are present as columns in the
+		 * related table.
+		 *
+		 * @param array $mesgs The messages to be checked.
+		 * @param int   $local_mesg_type The local message type.
+		 */
+		private function check_for_columns_in_table( $mesgs, $local_mesg_type ) {
+			foreach ( $mesgs as $mesg_name => $mesg ) {
+				$table_columns = array_column( $this->tables_created[ $mesg_name ]['columns'], 'field_name' );
+				$mesg_elements = array_keys( $mesg );
+
+				$missing_columns = array_filter(
+					$mesg_elements,
+					function ( $element ) use ( $table_columns ) {
+						return !in_array( $element, $table_columns, true );
+					}
+				);
+
+				if ( ! empty( $missing_columns ) ) {
+					// $this->logger->debug( 'Missing columns in ' . $mesg_name . ' table, local_mesg_type = ' . $local_mesg_type . ': ' . implode( ', ', $missing_columns ) );
+					// $this->logger->debug( '  Table columns:    ' . implode( ', ', $table_columns ) );
+					// $this->logger->debug( '  Message elements: ' . implode( ', ', $mesg_elements ) );
+					$this->add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns );
+				}
 			}
 		}
 
-		$first_ts = min( $this->data_mesgs['record']['timestamp'] );  // first timestamp
-		$last_ts  = max( $this->data_mesgs['record']['timestamp'] );  // last timestamp
-
-		reset( $timer_start );
-		$cur_start = next( $timer_start );
-		$cur_stop  = reset( $timer_stop );
-
-		$is_paused = array();
-		$bPaused   = false;
-
-		for ( $i = $first_ts; $i < $last_ts; ++$i ) {
-			if ( $i == $cur_stop ) {
-				$bPaused  = true;
-				$cur_stop = next( $timer_stop );
-			} elseif ( $i == $cur_start ) {
-				$bPaused   = false;
-				$cur_start = next( $timer_start );
+		/**
+		 * Add columns to an existing table.
+		 *
+		 * @param string $mesg_name       The name of the table.
+		 * @param int    $local_mesg_type The local message type.
+		 * @param array  $table_columns   The current columns in the table.
+		 */
+		private function add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns ) {
+			$table_name = $this->tables_created[ $mesg_name ]['location'];
+			if ( ! $table_name ) {
+				$this->logger->error( 'Table name not found for ' . $mesg_name );
+				$this->logger->error( 'Table names: ' . print_r( $this->tables_created, true ) );
+				throw new \Exception( 'Table name not found for ' . $mesg_name );
 			}
-			$is_paused[ $i ] = $bPaused;
+
+			$new_columns = array();
+
+			foreach ( $this->defn_mesgs[ $local_mesg_type ]['field_defns'] as $field_defn ) {
+				// $this->logger->debug( $mesg_name . ' field_defn: ' . print_r( $field_defn, true ) );
+
+				$column_def = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ?? null;
+				$units      = isset( $this->options['units'] ) ? strtolower( $this->options['units'] ) : 'metric';
+
+				if ( isset( $column_def['field_name'] ) && ! in_array( $column_def['field_name'], $table_columns, true )) {
+					$this->logger->debug( 'Adding column: ' . $column_def['field_name'] . ' to ' . $mesg_name . ' table' );
+					$new_columns[] = array(
+					'field_name' => $this->cleanTableName( $column_def['field_name'] ),
+					'type'       => $column_def[ $units ],
+					);
+				}
+			}
+
+			// TODO: need to handle $this->defn_mesgs[ $local_mesg_type ]['dev_field_defns'].
+			foreach ( $this->defn_mesgs[ $local_mesg_type ]['dev_field_definitions'] as $dev_field_defn ) {
+				// $this->logger->debug( $mesg_name . ' dev_field_defn: ' . print_r( $dev_field_defn, true ) );
+
+				$column_def = $this->dev_field_descriptions[ $dev_field_defn['developer_data_index'] ][ $dev_field_defn['field_definition_number'] ] ?? null;
+
+				// $this->logger->debug( 'Dev field column_def: ' . print_r( $column_def, true ) );
+
+				if ( isset( $column_def['field_name'] ) && ! in_array( $column_def['field_name'], $table_columns, true )) {
+					// $this->logger->debug( 'Adding column: ' . $column_def['field_name'] . ' to ' . $mesg_name . ' table' );
+					// $this->logger->debug( ' column_def: ' . print_r( $column_def, true ) );
+
+					$base_type = $column_def['fit_base_type_id'] ?? null;
+					$type      = $this->enum_data['base_type'][ $base_type ] ?? null;
+
+					// add size to string and byte types
+					if ( in_array( $base_type, array( 7, 13 ), true ) ) {
+						$size = $dev_field_defn['size'] ?? null;
+						if ( $size ) {
+							$type .= '(' . $size . ')';
+						}
+					}
+
+					$new_column = array(
+					'field_name' => $this->cleanTableName( $column_def['field_name'] ),
+					'type'       => $type,
+					);
+
+					$new_columns[] = $new_column;
+
+					$this->logger->debug( 'New column: ' . $new_column['field_name'] . ', type: ' . $new_column['type'] );
+				}
+			}
+			// $this->logger->debug( 'New columns: ' . print_r( $new_columns, true ) );
+
+			if ( empty( $new_columns ) ) {
+				$this->logger->debug( 'No new columns to add to table ' . $table_name );
+				return;
+			}
+
+			$sql = 'ALTER TABLE ' . $table_name;
+			foreach ( $new_columns as $column ) {
+				$sql .= ' ADD COLUMN `' . $column['field_name'] . '` ' . $column['type'] . ' DEFAULT NULL,';
+				$this->tables_created[ $mesg_name ]['columns'][] = array(
+				'field_name' => $column['field_name'],
+				'type'       => $column['type'],
+				);
+			}
+			$sql = rtrim( $sql, ', ' ) . ';';
+			// $this->logger->debug( 'SQL to add columns: ' . $sql );
+
+			try {
+				$this->db->exec( $sql );
+				$this->logger->debug( 'Columns added to table: ' . $table_name );
+			} catch ( \PDOException $e ) {
+				$this->logger->error( 'Error adding columns to table, ' . $table_name . ': ' . $e->getMessage() );
+				throw $e;
+			}
 		}
-		$is_paused[ $last_ts ] = isset( $this->data_mesgs['record']['speed'] ) && is_array( $this->data_mesgs['record']['speed'] ) && end( $this->data_mesgs['record']['speed'] ) === 0;
 
-		return $is_paused;
-	}
-
-	/**
-	 * Returns an array that can be used to plot Circumferential Pedal Velocity (x-axis) vs Average Effective Pedal Force (y-axis).
-	 * NB Crank length is in metres.
-	 */
-	public function quadrantAnalysis( $crank_length, $ftp, $selected_cadence = 90, $use_timestamps = false ) {
-		if ( $crank_length === null || $ftp === null ) {
-			return array();
+		/**
+		 * Formats memory usage in a human-readable format.
+		 *
+		 * @param int $bytes Memory usage in bytes.
+		 * @return string Formatted memory usage with appropriate unit.
+		 */
+		private function formatMemoryUsage( $bytes ) {
+			if ($bytes < 1024) {
+				return $bytes . ' B';
+			} elseif ($bytes < 1048576) {
+				return round( $bytes / 1024, 2 ) . ' KB';
+			} elseif ($bytes < 1073741824) {
+				return round( $bytes / 1048576, 2 ) . ' MB';
+			} else {
+				return round( $bytes / 1073741824, 2 ) . ' GB';
+			}
 		}
-		if ( empty( $this->data_mesgs['record']['power'] ) || empty( $this->data_mesgs['record']['cadence'] ) ) {
-			return array();
+
+		/**
+		 * If the user has requested for the data to be fixed, identify the missing keys for that data.
+		 */
+		private function fixData( $options, $queue = null ) {
+			$lock_expire = $this->get_lock_expiration( $queue );
+
+			// By default the constant FIT_UNIX_TS_DIFF will be added to timestamps, which have field type of date_time (or local_date_time).
+			// Timestamp fields (field number == 253) converted after being unpacked in $this->readDataRecords().
+			if ( ! $this->garmin_timestamps ) {
+				$date_times = array(
+				array(
+					'message_name' => 'activity',
+					'field_name'   => 'local_timestamp',
+				),
+				array(
+					'message_name' => 'course_point',
+					'field_name'   => 'timestamp',
+				),
+				array(
+					'message_name' => 'file_id',
+					'field_name'   => 'time_created',
+				),
+				array(
+					'message_name' => 'goal',
+					'field_name'   => 'end_date',
+				),
+				array(
+					'message_name' => 'goal',
+					'field_name'   => 'start_date',
+				),
+				array(
+					'message_name' => 'lap',
+					'field_name'   => 'start_time',
+				),
+				array(
+					'message_name' => 'length',
+					'field_name'   => 'start_time',
+				),
+				array(
+					'message_name' => 'monitoring',
+					'field_name'   => 'local_timestamp',
+				),
+				array(
+					'message_name' => 'monitoring_info',
+					'field_name'   => 'local_timestamp',
+				),
+				array(
+					'message_name' => 'obdii_data',
+					'field_name'   => 'start_timestamp',
+				),
+				array(
+					'message_name' => 'schedule',
+					'field_name'   => 'scheduled_time',
+				),
+				array(
+					'message_name' => 'schedule',
+					'field_name'   => 'time_created',
+				),
+				array(
+					'message_name' => 'segment_lap',
+					'field_name'   => 'start_time',
+				),
+				array(
+					'message_name' => 'session',
+					'field_name'   => 'start_time',
+				),
+				array(
+					'message_name' => 'timestamp_correlation',
+					'field_name'   => 'local_timestamp',
+				),
+				array(
+					'message_name' => 'timestamp_correlation',
+					'field_name'   => 'system_timestamp',
+				),
+				array(
+					'message_name' => 'training_file',
+					'field_name'   => 'time_created',
+				),
+				array(
+					'message_name' => 'video_clip',
+					'field_name'   => 'end_timestamp',
+				),
+				array(
+					'message_name' => 'video_clip',
+					'field_name'   => 'start_timestamp',
+				),
+				);
+
+				foreach ( $date_times as $date_time ) {
+					if ( isset( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
+						if ( is_array( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
+							foreach ( $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] as &$element ) {
+								$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+								// $this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to timestamp: ' . $element );
+
+								$element += FIT_UNIX_TS_DIFF;
+							}
+						} else {
+							$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+							// $this->logger->debug( 'Adding ' . FIT_UNIX_TS_DIFF . ' to: ' . $date_time['message_name'] . '->' . $date_time['field_name'] . ': ' . $this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] );
+
+							$this->data_mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] += FIT_UNIX_TS_DIFF;
+						}
+					}
+				}
+			}
+
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adjusting timestamps at ' . gmdate( 'H:i:s' ) );
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+			// Find messages that have been unpacked as unsigned integers that should be signed integers.
+			// http://php.net/manual/en/function.pack.php - signed integers endianness is always machine dependent.
+			// 131    s    signed short (always 16 bit, machine byte order)
+			// 133    l    signed long (always 32 bit, machine byte order)
+			// 142    q    signed long long (always 64 bit, machine byte order)
+			foreach ( $this->defn_mesgs_all as $mesg ) {
+				if ( isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ] ) ) {
+					$mesg_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['mesg_name'];
+
+					foreach ( $mesg['field_defns'] as $field ) {
+						// Convert uint16 to sint16
+						if ( $field['base_type'] === 131 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
+							$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
+							if ( isset( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
+								if ( is_array( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
+									foreach ( $this->data_mesgs[ $mesg_name ][ $field_name ] as &$v ) {
+										$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+										if ( PHP_INT_SIZE === 8 && $v > 0x7FFF ) {
+											$v -= 0x10000;
+										}
+										if ( $v > 0x7FFF ) {
+											$v = -1 * ( $v - 0x7FFF );
+										}
+									}
+								} elseif ( $this->data_mesgs[ $mesg_name ][ $field_name ] > 0x7FFF ) {
+									if ( PHP_INT_SIZE === 8 ) {
+										$this->data_mesgs[ $mesg_name ][ $field_name ] -= 0x10000;
+									}
+									$this->data_mesgs[ $mesg_name ][ $field_name ] = -1 * ( $this->data_mesgs[ $mesg_name ][ $field_name ] - 0x7FFF );
+								}
+							}
+						} // Convert uint32 to sint32
+						elseif ( $field['base_type'] === 133 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
+							$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
+							if ( isset( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
+								if ( is_array( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
+									foreach ( $this->data_mesgs[ $mesg_name ][ $field_name ] as &$v ) {
+										$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+										if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFF ) {
+											$v -= 0x100000000;
+										}
+										if ( $v > 0x7FFFFFFF ) {
+											$v = -1 * ( $v - 0x7FFFFFFF );
+										}
+									}
+								} elseif ( $this->data_mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFF ) {
+									if ( PHP_INT_SIZE === 8 ) {
+										$this->data_mesgs[ $mesg_name ][ $field_name ] -= 0x100000000;
+
+									}
+									if ( $this->data_mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFF ) {
+										$this->data_mesgs[ $mesg_name ][ $field_name ] = -1 * ( $this->data_mesgs[ $mesg_name ][ $field_name ] - 0x7FFFFFFF );
+									}
+								}
+							}
+						} // Convert uint64 to sint64
+						elseif ( $field['base_type'] === 142 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
+							$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
+							if ( isset( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
+								if ( is_array( $this->data_mesgs[ $mesg_name ][ $field_name ] ) ) {
+									foreach ( $this->data_mesgs[ $mesg_name ][ $field_name ] as &$v ) {
+										$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+										if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFFFFFFFFFF ) {
+											$v -= 0x10000000000000000;
+										}
+										if ( $v > 0x7FFFFFFFFFFFFFFF ) {
+											$v = -1 * ( $v - 0x7FFFFFFFFFFFFFFF );
+										}
+									}
+								} elseif ( $this->data_mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFFFFFFFFFF ) {
+									if ( PHP_INT_SIZE === 8 ) {
+										$this->data_mesgs[ $mesg_name ][ $field_name ] -= 0x10000000000000000;
+									}
+									$this->data_mesgs[ $mesg_name ][ $field_name ] = -1 * ( $this->data_mesgs[ $mesg_name ][ $field_name ] - 0x7FFFFFFFFFFFFFFF );
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished unsigned int check at ' . gmdate( 'H:i:s' ) );
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+			// Remove duplicate timestamps and store original before interpolating
+			if ( isset( $this->data_mesgs['record']['timestamp'] ) && is_array( $this->data_mesgs['record']['timestamp'] ) ) {
+				$this->data_mesgs['record']['timestamp']          = array_unique( $this->data_mesgs['record']['timestamp'] );
+				$this->data_mesgs['record']['timestamp_original'] = $this->data_mesgs['record']['timestamp'];
+			}
+
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+			// Return if no option set
+			if ( empty( $options['fix_data'] ) && empty( $options['data_every_second'] ) ) {
+				return;
+			}
+
+			if ( ! isset( $this->data_mesgs['record'] ) ) {
+				return;
+			}
+
+			// If $options['data_every_second'], then create timestamp array for every second from min to max
+			if ( ! empty( $options['data_every_second'] ) && ! ( is_string( $options['data_every_second'] ) && strtolower( $options['data_every_second'] ) === 'false' ) ) {
+				// If user has not specified the data to be fixed, assume all
+				if ( empty( $options['fix_data'] ) ) {
+					$options['fix_data'] = array( 'all' );
+				}
+
+				$min_ts = min( $this->data_mesgs['record']['timestamp'] );
+				$max_ts = max( $this->data_mesgs['record']['timestamp'] );
+				unset( $this->data_mesgs['record']['timestamp'] );
+				for ( $i = $min_ts; $i <= $max_ts; ++$i ) {
+					$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+					$this->data_mesgs['record']['timestamp'][] = $i;
+				}
+			}
+
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+			// Check if valid option(s) provided
+			array_walk(
+				$options['fix_data'],
+				function ( &$value ) {
+					$value = strtolower( $value );
+				}
+			);  // Make all lower-case.
+			if ( count( array_intersect( array( 'all', 'cadence', 'distance', 'heart_rate', 'lat_lon', 'speed', 'power', 'altitude', 'enhanced_speed', 'enhanced_altitude' ), $options['fix_data'] ) ) === 0 ) {
+				throw new \Exception( 'phpFITFileAnalysis->fixData(): option not valid!' );
+			}
+
+			$bCadence = $bDistance = $bHeartRate = $bLatitudeLongitude = $bSpeed = $bPower = $bAltitude = $bEnhancedSpeed = $bEnhancedAltitude = false;
+			if ( in_array( 'all', $options['fix_data'] ) ) {
+				$bCadence           = isset( $this->data_mesgs['record']['cadence'] );
+				$bDistance          = isset( $this->data_mesgs['record']['distance'] );
+				$bHeartRate         = isset( $this->data_mesgs['record']['heart_rate'] );
+				$bLatitudeLongitude = isset( $this->data_mesgs['record']['position_lat'] ) && isset( $this->data_mesgs['record']['position_long'] );
+				$bSpeed             = isset( $this->data_mesgs['record']['speed'] );
+				$bPower             = isset( $this->data_mesgs['record']['power'] );
+				$bAltitude          = isset( $this->data_mesgs['record']['altitude'] );
+				$bEnhancedSpeed     = isset( $this->data_mesgs['record']['enhanced_speed'] );
+				$bEnhancedAltitude  = isset( $this->data_mesgs['record']['enhanced_altitude'] );
+			} elseif ( isset( $this->data_mesgs['record']['timestamp'] ) ) {
+				$count_timestamp = count( $this->data_mesgs['record']['timestamp'] );  // No point try to insert missing values if we know there aren't any.
+				if ( isset( $this->data_mesgs['record']['cadence'] ) && is_array( $this->data_mesgs['record']['cadence'] ) ) {
+					$bCadence = ( count( $this->data_mesgs['record']['cadence'] ) === $count_timestamp ) ? false : in_array( 'cadence', $options['fix_data'] );
+				}
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				if ( isset( $this->data_mesgs['record']['distance'] ) && is_array( $this->data_mesgs['record']['distance'] ) ) {
+					$bDistance = ( count( $this->data_mesgs['record']['distance'] ) === $count_timestamp ) ? false : in_array( 'distance', $options['fix_data'] );
+				}
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				if ( isset( $this->data_mesgs['record']['heart_rate'] ) && is_array( $this->data_mesgs['record']['heart_rate'] ) ) {
+					$bHeartRate = ( count( $this->data_mesgs['record']['heart_rate'] ) === $count_timestamp ) ? false : in_array( 'heart_rate', $options['fix_data'] );
+				}
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				if ( isset( $this->data_mesgs['record']['position_lat'] ) && isset( $this->data_mesgs['record']['position_long'] ) && is_array( $this->data_mesgs['record']['position_lat'] ) ) {
+					$bLatitudeLongitude = ( count( $this->data_mesgs['record']['position_lat'] ) === $count_timestamp
+					&& count( $this->data_mesgs['record']['position_long'] ) === $count_timestamp ) ? false : in_array( 'lat_lon', $options['fix_data'] );
+				}
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				if ( isset( $this->data_mesgs['record']['speed'] ) && is_array( $this->data_mesgs['record']['speed'] ) ) {
+					$bSpeed = ( count( $this->data_mesgs['record']['speed'] ) === $count_timestamp ) ? false : in_array( 'speed', $options['fix_data'] );
+				}
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				if ( isset( $this->data_mesgs['record']['power'] ) && is_array( $this->data_mesgs['record']['power'] ) ) {
+					$bPower = ( count( $this->data_mesgs['record']['power'] ) === $count_timestamp ) ? false : in_array( 'power', $options['fix_data'] );
+				}
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				if ( isset( $this->data_mesgs['record']['altitude'] ) && is_array( $this->data_mesgs['record']['altitude'] ) ) {
+					$bAltitude = ( count( $this->data_mesgs['record']['altitude'] ) === $count_timestamp ) ? false : in_array( 'altitude', $options['fix_data'] );
+				}
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				if ( isset( $this->data_mesgs['record']['enhanced_speed'] ) && is_array( $this->data_mesgs['record']['enhanced_speed'] ) ) {
+					$bEnhancedSpeed = ( count( $this->data_mesgs['record']['enhanced_speed'] ) === $count_timestamp ) ? false : in_array( 'enhanced_speed', $options['fix_data'] );
+				}
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				if ( isset( $this->data_mesgs['record']['enhanced_altitude'] ) && is_array( $this->data_mesgs['record']['enhanced_altitude'] ) ) {
+					$bEnhancedAltitude = ( count( $this->data_mesgs['record']['enhanced_altitude'] ) === $count_timestamp ) ? false : in_array( 'enhanced_altitude', $options['fix_data'] );
+				}
+			}
+
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): set up fields to check at ' . gmdate( 'H:i:s' ) );
+
+			$missing_distance_keys          = array();
+			$missing_hr_keys                = array();
+			$missing_lat_keys               = array();
+			$missing_lon_keys               = array();
+			$missing_speed_keys             = array();
+			$missing_power_keys             = array();
+			$missing_altitude_keys          = array();
+			$missing_enhanced_speed_keys    = array();
+			$missing_enhanced_altitude_keys = array();
+
+			foreach ( $this->data_mesgs['record']['timestamp'] as $timestamp ) {
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+				if ( $bCadence ) {  // Assumes all missing cadence values are zeros
+					if ( ! isset( $this->data_mesgs['record']['cadence'][ $timestamp ] ) ) {
+						$this->data_mesgs['record']['cadence'][ $timestamp ] = 0;
+					}
+				}
+				if ( $bDistance ) {
+					if ( ! isset( $this->data_mesgs['record']['distance'][ $timestamp ] ) ) {
+						$missing_distance_keys[] = $timestamp;
+					}
+				}
+				if ( $bHeartRate ) {
+					if ( ! isset( $this->data_mesgs['record']['heart_rate'][ $timestamp ] ) ) {
+						$missing_hr_keys[] = $timestamp;
+					}
+				}
+				if ( $bLatitudeLongitude ) {
+					if ( ! isset( $this->data_mesgs['record']['position_lat'][ $timestamp ] ) ) {
+						$missing_lat_keys[] = $timestamp;
+					}
+					if ( ! isset( $this->data_mesgs['record']['position_long'][ $timestamp ] ) ) {
+						$missing_lon_keys[] = $timestamp;
+					}
+				}
+				if ( $bSpeed ) {
+					if ( ! isset( $this->data_mesgs['record']['speed'][ $timestamp ] ) ) {
+						$missing_speed_keys[] = $timestamp;
+					}
+				}
+				if ( $bPower ) {
+					if ( ! isset( $this->data_mesgs['record']['power'][ $timestamp ] ) ) {
+						$missing_power_keys[] = $timestamp;
+					}
+				}
+				if ( $bAltitude ) {
+					if ( ! isset( $this->data_mesgs['record']['altitude'][ $timestamp ] ) ) {
+						$missing_altitude_keys[] = $timestamp;
+					}
+				}
+				if ( $bEnhancedSpeed ) {
+					if ( ! isset( $this->data_mesgs['record']['enhanced_speed'][ $timestamp ] ) ) {
+						$missing_enhanced_speed_keys[] = $timestamp;
+					}
+				}
+				if ( $bEnhancedAltitude ) {
+					if ( ! isset( $this->data_mesgs['record']['enhanced_altitude'][ $timestamp ] ) ) {
+						$missing_enhanced_altitude_keys[] = $timestamp;
+					}
+				}
+			}
+
+			// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished checking for missing data at ' . gmdate( 'H:i:s' ) );
+
+			$paused_timestamps = $this->isPaused();
+
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+			$this->filterPauseGapThreshold( $paused_timestamps );
+
+			if ( $bCadence ) {
+				ksort( $this->data_mesgs['record']['cadence'] );  // no interpolation; zeros added earlier
+				// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing cadence data at ' . gmdate( 'H:i:s' ) );
+			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			if ( $bDistance ) {
+				$lock_expire = $this->interpolateMissingData( $missing_distance_keys, $this->data_mesgs['record']['distance'], false, $paused_timestamps, $queue, $lock_expire );
+				// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing distance data at ' . gmdate( 'H:i:s' ) );
+			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			if ( $bHeartRate ) {
+				$lock_expire = $this->interpolateMissingData( $missing_hr_keys, $this->data_mesgs['record']['heart_rate'], true, $paused_timestamps, $queue, $lock_expire );
+				// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing HR data at ' . gmdate( 'H:i:s' ) );
+			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			if ( $bLatitudeLongitude ) {
+				$lock_expire = $this->interpolateMissingData( $missing_lat_keys, $this->data_mesgs['record']['position_lat'], false, $paused_timestamps, $queue, $lock_expire );
+				$lock_expire = $this->interpolateMissingData( $missing_lon_keys, $this->data_mesgs['record']['position_long'], false, $paused_timestamps, $queue, $lock_expire );
+				// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing lat/long data at ' . gmdate( 'H:i:s' ) );
+			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			if ( $bSpeed ) {
+				$lock_expire = $this->interpolateMissingData( $missing_speed_keys, $this->data_mesgs['record']['speed'], false, $paused_timestamps, $queue, $lock_expire );
+				// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing speed data at ' . gmdate( 'H:i:s' ) );
+			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			if ( $bPower ) {
+				$lock_expire = $this->interpolateMissingData( $missing_power_keys, $this->data_mesgs['record']['power'], true, $paused_timestamps, $queue, $lock_expire );
+				// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing power data at ' . gmdate( 'H:i:s' ) );
+			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			if ( $bAltitude ) {
+				$lock_expire = $this->interpolateMissingData( $missing_altitude_keys, $this->data_mesgs['record']['altitude'], false, $paused_timestamps, $queue, $lock_expire );
+				// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing altitude data at ' . gmdate( 'H:i:s' ) );
+			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			if ( $bEnhancedSpeed ) {
+				$lock_expire = $this->interpolateMissingData( $missing_enhanced_speed_keys, $this->data_mesgs['record']['enhanced_speed'], false, $paused_timestamps, $queue, $lock_expire );
+				// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced speed data at ' . gmdate( 'H:i:s' ) );
+			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			if ( $bEnhancedAltitude ) {
+				$lock_expire = $this->interpolateMissingData( $missing_enhanced_altitude_keys, $this->data_mesgs['record']['enhanced_altitude'], false, $paused_timestamps, $queue, $lock_expire );
+				// $this->logger->debug( 'phpFITFileAnalysis->fixData(): finished adding missing enhanced altitude data at ' . gmdate( 'H:i:s' ) );
+			}
+			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 		}
 
-		$quadrant_plot                     = array();
-		$quadrant_plot['selected_cadence'] = $selected_cadence;
-		$quadrant_plot['aepf_threshold']   = round( ( $ftp * 60 ) / ( $selected_cadence * 2 * pi() * $crank_length ), 3 );
-		$quadrant_plot['cpv_threshold']    = round( ( $selected_cadence * $crank_length * 2 * pi() ) / 60, 3 );
+		/**
+		 * Does mandatory fixes.
+		 * Does not yet identify the missing keys for that data.
+		 */
+		private function fixDataSingle( $mesgs ) {
+			// By default the constant FIT_UNIX_TS_DIFF will be added to timestamps, which have field type of date_time (or local_date_time).
+			// Timestamp fields (field number == 253) converted after being unpacked in $this->readDataRecords().
+			if ( ! $this->garmin_timestamps ) {
+				$date_times = array(
+				array(
+					'message_name' => 'activity',
+					'field_name'   => 'local_timestamp',
+				),
+				array(
+					'message_name' => 'course_point',
+					'field_name'   => 'timestamp',
+				),
+				array(
+					'message_name' => 'file_id',
+					'field_name'   => 'time_created',
+				),
+				array(
+					'message_name' => 'goal',
+					'field_name'   => 'end_date',
+				),
+				array(
+					'message_name' => 'goal',
+					'field_name'   => 'start_date',
+				),
+				array(
+					'message_name' => 'lap',
+					'field_name'   => 'start_time',
+				),
+				array(
+					'message_name' => 'length',
+					'field_name'   => 'start_time',
+				),
+				array(
+					'message_name' => 'monitoring',
+					'field_name'   => 'local_timestamp',
+				),
+				array(
+					'message_name' => 'monitoring_info',
+					'field_name'   => 'local_timestamp',
+				),
+				array(
+					'message_name' => 'obdii_data',
+					'field_name'   => 'start_timestamp',
+				),
+				array(
+					'message_name' => 'schedule',
+					'field_name'   => 'scheduled_time',
+				),
+				array(
+					'message_name' => 'schedule',
+					'field_name'   => 'time_created',
+				),
+				array(
+					'message_name' => 'segment_lap',
+					'field_name'   => 'start_time',
+				),
+				array(
+					'message_name' => 'session',
+					'field_name'   => 'start_time',
+				),
+				array(
+					'message_name' => 'timestamp_correlation',
+					'field_name'   => 'local_timestamp',
+				),
+				array(
+					'message_name' => 'timestamp_correlation',
+					'field_name'   => 'system_timestamp',
+				),
+				array(
+					'message_name' => 'training_file',
+					'field_name'   => 'time_created',
+				),
+				array(
+					'message_name' => 'video_clip',
+					'field_name'   => 'end_timestamp',
+				),
+				array(
+					'message_name' => 'video_clip',
+					'field_name'   => 'start_timestamp',
+				),
+				);
 
-		// Used to calculate percentage of points in each quadrant
-		$quad_percent = array(
+				foreach ( $date_times as $date_time ) {
+					if ( isset( $mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
+						if ( is_array( $mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] ) ) {
+							foreach ( $mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] as &$element ) {
+								$element += FIT_UNIX_TS_DIFF;
+							}
+						} else {
+							$mesgs[ $date_time['message_name'] ][ $date_time['field_name'] ] += FIT_UNIX_TS_DIFF;
+						}
+					}
+				}
+			}
+
+			// Find messages that have been unpacked as unsigned integers that should be signed integers.
+			// http://php.net/manual/en/function.pack.php - signed integers endianness is always machine dependent.
+			// 131    s    signed short (always 16 bit, machine byte order)
+			// 133    l    signed long (always 32 bit, machine byte order)
+			// 142    q    signed long long (always 64 bit, machine byte order)
+			// Changed from using $this->defn_mesgs_all to $this->defn_mesgs.
+			// TODO - this could be far more efficient by looking up the field info directly from the $mesgs array.
+			foreach ( $this->defn_mesgs as $mesg ) {
+				if ( isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ] ) ) {
+					$mesg_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['mesg_name'];
+
+					foreach ( $mesg['field_defns'] as $field ) {
+						// Convert uint16 to sint16
+						if ( $field['base_type'] === 131 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
+							$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
+							if ( isset( $mesgs[ $mesg_name ][ $field_name ] ) ) {
+								if ( is_array( $mesgs[ $mesg_name ][ $field_name ] ) ) {
+									foreach ( $mesgs[ $mesg_name ][ $field_name ] as &$v ) {
+										if ( PHP_INT_SIZE === 8 && $v > 0x7FFF ) {
+											$v -= 0x10000;
+										}
+										if ( $v > 0x7FFF ) {
+											$v = -1 * ( $v - 0x7FFF );
+										}
+									}
+								} elseif ( $mesgs[ $mesg_name ][ $field_name ] > 0x7FFF ) {
+									if ( PHP_INT_SIZE === 8 ) {
+										$mesgs[ $mesg_name ][ $field_name ] -= 0x10000;
+									}
+									$mesgs[ $mesg_name ][ $field_name ] = -1 * ( $mesgs[ $mesg_name ][ $field_name ] - 0x7FFF );
+								}
+							}
+						} // Convert uint32 to sint32
+						elseif ( $field['base_type'] === 133 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
+							$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
+							if ( isset( $mesgs[ $mesg_name ][ $field_name ] ) ) {
+								if ( is_array( $mesgs[ $mesg_name ][ $field_name ] ) ) {
+									foreach ( $mesgs[ $mesg_name ][ $field_name ] as &$v ) {
+										if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFF ) {
+											$v -= 0x100000000;
+										}
+										if ( $v > 0x7FFFFFFF ) {
+											$v = -1 * ( $v - 0x7FFFFFFF );
+										}
+									}
+								} elseif ( $mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFF ) {
+									if ( PHP_INT_SIZE === 8 ) {
+										$mesgs[ $mesg_name ][ $field_name ] -= 0x100000000;
+
+									}
+									if ( $mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFF ) {
+										$mesgs[ $mesg_name ][ $field_name ] = -1 * ( $mesgs[ $mesg_name ][ $field_name ] - 0x7FFFFFFF );
+									}
+								}
+							}
+						} // Convert uint64 to sint64
+						elseif ( $field['base_type'] === 142 && isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'] ) ) {
+							$field_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['field_defns'][ $field['field_definition_number'] ]['field_name'];
+							if ( isset( $mesgs[ $mesg_name ][ $field_name ] ) ) {
+								if ( is_array( $mesgs[ $mesg_name ][ $field_name ] ) ) {
+									foreach ( $mesgs[ $mesg_name ][ $field_name ] as &$v ) {
+										if ( PHP_INT_SIZE === 8 && $v > 0x7FFFFFFFFFFFFFFF ) {
+											$v -= 0x10000000000000000;
+										}
+										if ( $v > 0x7FFFFFFFFFFFFFFF ) {
+											$v = -1 * ( $v - 0x7FFFFFFFFFFFFFFF );
+										}
+									}
+								} elseif ( $mesgs[ $mesg_name ][ $field_name ] > 0x7FFFFFFFFFFFFFFF ) {
+									if ( PHP_INT_SIZE === 8 ) {
+										$mesgs[ $mesg_name ][ $field_name ] -= 0x10000000000000000;
+									}
+									$mesgs[ $mesg_name ][ $field_name ] = -1 * ( $mesgs[ $mesg_name ][ $field_name ] - 0x7FFFFFFFFFFFFFFF );
+								}
+							}
+						}
+					}
+				}
+			}
+
+			return $mesgs;
+		}
+
+		private function filterPauseGapThreshold( &$paused_timestamps ) {
+			$gap_threshold_seconds = 60;
+			$i                     = 0;
+			$checked_timestamps    = array();
+
+			foreach ( $paused_timestamps as $timestamp => $is_paused ) {
+				if ( in_array( $timestamp, $checked_timestamps, true ) ) {
+					++$i;
+					continue;
+				}
+
+				if ( ! $is_paused ) {
+					$checked_timestamps[] = $timestamp;
+					++$i;
+
+					continue;
+				}
+
+				// look ahead to when was unpaused at
+				$unpaused_at = array_search( false, array_slice( $paused_timestamps, $i, null, true ) );
+
+				if ( $unpaused_at - $timestamp <= $gap_threshold_seconds ) {
+					for ( $x = $timestamp; $x < $unpaused_at; ++$x ) {
+						$paused_timestamps[ $x ] = false;
+						$checked_timestamps[]    = $x;
+					}
+				} else {
+					$checked_timestamps = array_merge( $checked_timestamps, range( $timestamp, $unpaused_at ) );
+				}
+
+				++$i;
+			}
+		}
+
+		/**
+		 * For the missing keys in the data, interpolate using values either side and insert as necessary.
+		 *
+		 * @return int|null The lock expiration time.
+		 */
+		private function interpolateMissingData( &$missing_keys, &$array, $is_int, $paused_timestamps, $queue = null, $lock_expire = null ) {
+			$lock_expire = $this->get_lock_expiration( $queue );
+
+			if ( ! is_array( $array ) ) {
+				return;  // Can't interpolate if not an array
+			}
+
+			$num_points = 2;
+
+			$min_key = min( array_keys( $array ) );
+			$max_key = max( array_keys( $array ) );
+			$count   = count( $missing_keys );
+
+			for ( $i = 0; $i < $count; ++$i ) {
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+				$missing_timestamp = $missing_keys[ $i ];
+
+				if ( $missing_timestamp !== 0 ) {
+					$is_paused_timestamp = isset( $paused_timestamps[ $missing_timestamp ] ) && $paused_timestamps[ $missing_timestamp ] === true;
+
+					// Interpolating outside recorded range is impossible - use edge values instead
+					if ( $missing_timestamp > $max_key ) {
+						$array[ $missing_timestamp ] = $is_paused_timestamp ? null : $array[ $max_key ];
+						continue;
+					} elseif ( $missing_timestamp < $min_key ) {
+						$array[ $missing_timestamp ] = $is_paused_timestamp ? null : $array[ $min_key ];
+						continue;
+					}
+
+					$prev_value = $next_value = reset( $array );
+
+					while ( $missing_timestamp > key( $array ) ) {
+						$prev_value = current( $array );
+						$next_value = next( $array );
+					}
+					for ( $j = $i + 1; $j < $count; ++$j ) {
+						if ( $missing_keys[ $j ] < key( $array ) ) {
+							++$num_points;
+						} else {
+							break;
+						}
+					}
+
+					$gap = ( $next_value - $prev_value ) / $num_points;
+
+					for ( $k = 0; $k <= $num_points - 2; ++$k ) {
+						$gap_value = null;
+
+						if ( ! $is_paused_timestamp ) {
+							if ( $is_int ) {
+								$gap_value = (int) round( $prev_value + ( $gap * ( $k + 1 ) ) );
+							} else {
+								$gap_value = $prev_value + ( $gap * ( $k + 1 ) );
+							}
+						}
+
+						$array[ $missing_keys[ $i + $k ] ] = $gap_value;
+					}
+					for ( $k = 0; $k <= $num_points - 2; ++$k ) {
+						$missing_keys[ $i + $k ] = 0;
+					}
+
+					$num_points = 2;
+				}
+			}
+
+			ksort( $array );  // sort using keys
+
+			return $lock_expire;
+		}
+
+		/**
+		 * Change arrays that contain only one element into non-arrays so you can use $variable rather than $variable[0] to access.
+		 */
+		private function oneElementArrays() {
+			foreach ( $this->data_mesgs as $mesg_key => $mesg ) {
+				if ( $mesg_key === 'developer_data' ) {
+					continue;
+				}
+				foreach ( $mesg as $field_key => $field ) {
+					if ( count( $field ) === 1 ) {
+						$first_key                                   = key( $field );
+						$this->data_mesgs[ $mesg_key ][ $field_key ] = $field[ $first_key ];
+					}
+				}
+			}
+		}
+
+		/**
+		 * Change arrays that contain only one element into non-arrays so you can use $variable rather than $variable[0] to access.
+		 */
+		private function oneElementArraysSingle( $mesgs ) {
+			// Expect only one $mesg at a time.  Record messages are already clean.
+			foreach ( $mesgs as $mesg_key => $mesg ) {
+				if ( 'developer_data' === $mesg_key ) {
+					continue;
+				}
+				foreach ( $mesg as $field_key => $field ) {
+					if ( is_array( $field ) && count( $field ) === 1 ) {
+						$first_key                        = key( $field );
+						$mesgs[ $mesg_key ][ $field_key ] = $field[ $first_key ];
+					}
+				}
+			}
+			return $mesgs;
+		}
+
+		/**
+		 * The FIT protocol makes use of enumerated data types.
+		 * Where these values have been identified in the FIT SDK, they have been included in $this->enum_data
+		 * This function returns the enumerated value for a given message type.
+		 */
+		public function enumData( $type, $value ) {
+			if ( is_array( $value ) ) {
+				$tmp = array();
+				foreach ( $value as $element ) {
+					if ( isset( $this->enum_data[ $type ][ $element ] ) ) {
+						$tmp[] = $this->enum_data[ $type ][ $element ];
+					} else {
+						$tmp[] = 'unknown';
+					}
+				}
+				return $tmp;
+			} else {
+				return isset( $this->enum_data[ $type ][ $value ] ) ? $this->enum_data[ $type ][ $value ] : 'unknown';
+			}
+		}
+
+		/**
+		 * Short-hand access to commonly used enumerated data.
+		 */
+		public function manufacturer() {
+			$tmp = $this->enumData( 'manufacturer', $this->data_mesgs['device_info']['manufacturer'] );
+			return is_array( $tmp ) ? $tmp[0] : $tmp;
+		}
+		public function product() {
+			$tmp = $this->enumData( 'product', $this->data_mesgs['device_info']['product'] );
+			return is_array( $tmp ) ? $tmp[0] : $tmp;
+		}
+		public function sport( int $index = null ) {
+			$tmp = $this->enumData( 'sport', $this->data_mesgs['session']['sport'] ?? ( $this->data_mesgs['sport']['sport'] ?? 0 ) );
+
+			if ( is_array( $tmp ) ) {
+				if ( $index !== null ) {
+					if ( isset( $tmp[ $index ] ) ) {
+						return $tmp[ $index ];
+					}
+				}
+
+				return $tmp[0];
+			}
+
+			return $tmp;
+		}
+
+		/**
+		 * Transform the values read from the FIT file into the units requested by the user.
+		 */
+		private function setUnits( $options ) {
+			if ( ! empty( $options['units'] ) ) {
+				// Handle $options['units'] not being passed as array and/or not in lowercase.
+				$units = strtolower( ( is_array( $options['units'] ) ) ? $options['units'][0] : $options['units'] );
+			} else {
+				$units = 'metric';
+			}
+
+			// Handle $options['pace'] being pass as array and/or boolean vs string and/or lowercase.
+			$bPace = false;
+			if ( isset( $options['pace'] ) ) {
+				$pace = is_array( $options['pace'] ) ? $options['pace'][0] : $options['pace'];
+				if ( is_bool( $pace ) ) {
+					$bPace = $pace;
+				} elseif ( is_string( $pace ) ) {
+					$pace = strtolower( $pace );
+					if ( $pace === 'true' || $pace === 'false' ) {
+						$bPace = $pace;
+					} else {
+						throw new \Exception( 'phpFITFileAnalysis->setUnits(): pace option not valid!' );
+					}
+				} else {
+					throw new \Exception( 'phpFITFileAnalysis->setUnits(): pace option not valid!' );
+				}
+			}
+
+			// Set units for all messages
+			$messages    = array( 'session', 'lap', 'record', 'segment_lap' );
+			$c_fields    = array(
+			'avg_temperature',
+			'max_temperature',
+			'temperature',
+			);
+			$m_fields    = array(
+			'distance',
+			'total_distance',
+			);
+			$m_ft_fields = array(
+			'altitude',
+			'avg_altitude',
+			'enhanced_avg_altitude',
+			'enhanced_max_altitude',
+			'enhanced_min_altitude',
+			'max_altitude',
+			'min_altitude',
+			'total_ascent',
+			'total_descent',
+			);
+			$ms_fields   = array(
+			'avg_neg_vertical_speed',
+			'avg_pos_vertical_speed',
+			'avg_speed',
+			'enhanced_avg_speed',
+			'enhanced_max_speed',
+			'enhanced_speed',
+			'max_neg_vertical_speed',
+			'max_pos_vertical_speed',
+			'max_speed',
+			'speed',
+			'vertical_speed',
+			);
+			$semi_fields = array(
+			'end_position_lat',
+			'end_position_long',
+			'nec_lat',
+			'nec_long',
+			'position_lat',
+			'position_long',
+			'start_position_lat',
+			'start_position_long',
+			'swc_lat',
+			'swc_long',
+			);
+
+			foreach ( $messages as $message ) {
+				switch ( $units ) {
+					case 'statute':
+						// convert from celsius to fahrenheit
+						foreach ( $c_fields as $field ) {
+							if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
+									foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( ( ( $value * 9 ) / 5 ) + 32, 2 );
+									}
+								} else {
+									$this->data_mesgs[ $message ][ $field ] = round( ( ( $this->data_mesgs[ $message ][ $field ] * 9 ) / 5 ) + 32, 2 );
+								}
+							}
+						}
+
+						// convert from meters to miles
+						foreach ( $m_fields as $field ) {
+							if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
+									foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * 0.000621371192, 5 );  // JKK: increased from 2 to 5 decimals.
+									}
+								} else {
+									$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 0.000621371192, 5 );  // JKK: increased from 2 to 4 decimals.
+								}
+							}
+						}
+
+						// convert from meters to feet
+						foreach ( $m_ft_fields as $field ) {
+							if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
+									foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * 3.2808399, 1 );
+									}
+								} else {
+									$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 3.2808399, 1 );
+								}
+							}
+						}
+
+						// convert  meters per second to miles per hour
+						foreach ( $ms_fields as $field ) {
+							if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
+									foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
+										if ( $bPace ) {
+											$value = round( 60 / 2.23693629 / $value, 3 );
+										} else {
+											$value = round( $value * 2.23693629, 3 );
+										}
+									}
+								} elseif ( $bPace ) {
+									$this->data_mesgs[ $message ][ $field ] = round( 60 / 2.23693629 / $this->data_mesgs[ $message ][ $field ], 3 );
+								} else {
+									$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 2.23693629, 3 );
+								}
+							}
+						}
+
+						// convert from semicircles to degress
+						foreach ( $semi_fields as $field ) {
+							if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
+									foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * ( 180.0 / pow( 2, 31 ) ), 5 );
+									}
+								} else {
+									$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * ( 180.0 / pow( 2, 31 ) ), 5 );
+								}
+							}
+						}
+
+						break;
+
+					case 'raw':
+						// Do nothing - leave values as read from file.
+						break;
+					case 'metric':
+						// convert from meters to kilometers
+						foreach ( $m_fields as $field ) {
+							if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
+									foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * 0.001, 4 );  // JKK: increased from 2 to 4 decimals.
+									}
+								} else {
+									$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 0.001, 4 );  // JKK: increased from 2 to 4 decimals.
+								}
+							}
+						}
+
+						// convert  meters per second to kilometers per hour
+						foreach ( $ms_fields as $field ) {
+							if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
+									foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
+										if ( $bPace ) {
+											$value = ( $value != 0 ) ? round( 60 / 3.6 / $value, 3 ) : 0;
+										} else {
+											$value = round( $value * 3.6, 3 );
+										}
+									}
+								} else {
+									if ( $this->data_mesgs[ $message ][ $field ] === 0 ) {  // Prevent divide by zero error
+										continue;
+									}
+									if ( $bPace ) {
+										$this->data_mesgs[ $message ][ $field ] = round( 60 / 3.6 / $this->data_mesgs[ $message ][ $field ], 3 );
+									} else {
+										$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * 3.6, 3 );
+									}
+								}
+							}
+						}
+
+						// convert from semicircles to degress
+						foreach ( $semi_fields as $field ) {
+							if ( isset( $this->data_mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $this->data_mesgs[ $message ][ $field ] ) ) {
+									foreach ( $this->data_mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * ( 180.0 / pow( 2, 31 ) ), 5 );
+									}
+								} else {
+									$this->data_mesgs[ $message ][ $field ] = round( $this->data_mesgs[ $message ][ $field ] * ( 180.0 / pow( 2, 31 ) ), 5 );
+								}
+							}
+						}
+
+						break;
+					default:
+						throw new \Exception( 'phpFITFileAnalysis->setUnits(): units option not valid!' );
+					break;
+				}
+			}
+		}
+
+		/**
+		 * Transform the values read from the FIT file into the units requested by the user.
+		 */
+		private function setUnitsSingle( $mesgs ) {
+			if ( ! empty( $this->options['units'] ) ) {
+				// Handle $this->options['units'] not being passed as array and/or not in lowercase.
+				$units = strtolower( ( is_array( $this->options['units'] ) ) ? $this->options['units'][0] : $this->options['units'] );
+			} else {
+				$units = 'metric';
+			}
+
+			// Handle $this->options['pace'] being pass as array and/or boolean vs string and/or lowercase.
+			$bPace = false;
+			if ( isset( $this->options['pace'] ) ) {
+				$pace = is_array( $this->options['pace'] ) ? $this->options['pace'][0] : $this->options['pace'];
+				if ( is_bool( $pace ) ) {
+					$bPace = $pace;
+				} elseif ( is_string( $pace ) ) {
+					$pace = strtolower( $pace );
+					if ( $pace === 'true' || $pace === 'false' ) {
+						$bPace = $pace;
+					} else {
+						throw new \Exception( 'phpFITFileAnalysis->setUnits(): pace option not valid!' );
+					}
+				} else {
+					throw new \Exception( 'phpFITFileAnalysis->setUnits(): pace option not valid!' );
+				}
+			}
+
+			// Set units for all messages
+			$messages    = array( 'session', 'lap', 'record', 'segment_lap' );
+			$c_fields    = array(
+			'avg_temperature',
+			'max_temperature',
+			'temperature',
+			);
+			$m_fields    = array(
+			'distance',
+			'total_distance',
+			);
+			$m_ft_fields = array(
+			'altitude',
+			'avg_altitude',
+			'enhanced_avg_altitude',
+			'enhanced_max_altitude',
+			'enhanced_min_altitude',
+			'max_altitude',
+			'min_altitude',
+			'total_ascent',
+			'total_descent',
+			);
+			$ms_fields   = array(
+			'avg_neg_vertical_speed',
+			'avg_pos_vertical_speed',
+			'avg_speed',
+			'enhanced_avg_speed',
+			'enhanced_max_speed',
+			'enhanced_speed',
+			'max_neg_vertical_speed',
+			'max_pos_vertical_speed',
+			'max_speed',
+			'speed',
+			'vertical_speed',
+			);
+			$semi_fields = array(
+			'end_position_lat',
+			'end_position_long',
+			'nec_lat',
+			'nec_long',
+			'position_lat',
+			'position_long',
+			'start_position_lat',
+			'start_position_long',
+			'swc_lat',
+			'swc_long',
+			);
+
+			foreach ( $messages as $message ) {
+				switch ( $units ) {
+					case 'statute':
+						// convert from celsius to fahrenheit
+						foreach ( $c_fields as $field ) {
+							if ( isset( $mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $mesgs[ $message ][ $field ] ) ) {
+									foreach ( $mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( ( ( $value * 9 ) / 5 ) + 32, 2 );
+									}
+								} else {
+									$mesgs[ $message ][ $field ] = round( ( ( $mesgs[ $message ][ $field ] * 9 ) / 5 ) + 32, 2 );
+								}
+							}
+						}
+
+						// convert from meters to miles
+						foreach ( $m_fields as $field ) {
+							if ( isset( $mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $mesgs[ $message ][ $field ] ) ) {
+									foreach ( $mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * 0.000621371192, 5 );  // JKK: increased from 2 to 5 decimals.
+									}
+								} else {
+									$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 0.000621371192, 5 );  // JKK: increased from 2 to 4 decimals.
+								}
+							}
+						}
+
+						// convert from meters to feet
+						foreach ( $m_ft_fields as $field ) {
+							if ( isset( $mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $mesgs[ $message ][ $field ] ) ) {
+									foreach ( $mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * 3.2808399, 1 );
+									}
+								} else {
+									$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 3.2808399, 1 );
+								}
+							}
+						}
+
+						// convert  meters per second to miles per hour
+						foreach ( $ms_fields as $field ) {
+							if ( isset( $mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $mesgs[ $message ][ $field ] ) ) {
+									foreach ( $mesgs[ $message ][ $field ] as &$value ) {
+										if ( $bPace ) {
+											$value = round( 60 / 2.23693629 / $value, 3 );
+										} else {
+											$value = round( $value * 2.23693629, 3 );
+										}
+									}
+								} elseif ( $bPace ) {
+									$mesgs[ $message ][ $field ] = round( 60 / 2.23693629 / $mesgs[ $message ][ $field ], 3 );
+								} else {
+									$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 2.23693629, 3 );
+								}
+							}
+						}
+
+						// convert from semicircles to degress
+						foreach ( $semi_fields as $field ) {
+							if ( isset( $mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $mesgs[ $message ][ $field ] ) ) {
+									foreach ( $mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * ( 180.0 / pow( 2, 31 ) ), 5 );
+									}
+								} else {
+									$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * ( 180.0 / pow( 2, 31 ) ), 5 );
+								}
+							}
+						}
+
+						break;
+
+					case 'raw':
+						// Do nothing - leave values as read from file.
+						break;
+					case 'metric':
+						// convert from meters to kilometers
+						foreach ( $m_fields as $field ) {
+							if ( isset( $mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $mesgs[ $message ][ $field ] ) ) {
+									foreach ( $mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * 0.001, 4 );  // JKK: increased from 2 to 4 decimals.
+									}
+								} else {
+									$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 0.001, 4 );  // JKK: increased from 2 to 4 decimals.
+								}
+							}
+						}
+
+						// convert  meters per second to kilometers per hour
+						foreach ( $ms_fields as $field ) {
+							if ( isset( $mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $mesgs[ $message ][ $field ] ) ) {
+									foreach ( $mesgs[ $message ][ $field ] as &$value ) {
+										if ( $bPace ) {
+											$value = ( $value != 0 ) ? round( 60 / 3.6 / $value, 3 ) : 0;
+										} else {
+											$value = round( $value * 3.6, 3 );
+										}
+									}
+								} else {
+									if ( $mesgs[ $message ][ $field ] === 0 ) {  // Prevent divide by zero error
+										continue;
+									}
+									if ( $bPace ) {
+										$mesgs[ $message ][ $field ] = round( 60 / 3.6 / $mesgs[ $message ][ $field ], 3 );
+									} else {
+										$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * 3.6, 3 );
+									}
+								}
+							}
+						}
+
+						// convert from semicircles to degress
+						foreach ( $semi_fields as $field ) {
+							if ( isset( $mesgs[ $message ][ $field ] ) ) {
+								if ( is_array( $mesgs[ $message ][ $field ] ) ) {
+									foreach ( $mesgs[ $message ][ $field ] as &$value ) {
+										$value = round( $value * ( 180.0 / pow( 2, 31 ) ), 5 );
+									}
+								} else {
+									$mesgs[ $message ][ $field ] = round( $mesgs[ $message ][ $field ] * ( 180.0 / pow( 2, 31 ) ), 5 );
+								}
+							}
+						}
+
+						break;
+					default:
+						throw new \Exception( 'phpFITFileAnalysis->setUnits(): units option not valid!' );
+					break;
+				}
+			}
+
+			return $mesgs;
+		}
+
+		/**
+		 * Calculate stop points and include them in the record table.
+		 *
+		 * @param callable $record_callback Callback function which should return 0 or 1 for stop field.
+		 * @param object   $queue           Queue object
+		 */
+		public function calculateStopPoints( callable $record_callback, $queue = null ) {
+			if ( ! is_callable( $record_callback ) ) {
+				throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
+			}
+
+			if ( isset( $this->options['buffer_input_to_db'] ) && $this->options['buffer_input_to_db'] && $this->checkFileBufferOptions( $this->options['database'] ) ) {
+				if ( ! $this->connect_to_db() ) {
+					$this->logger->error( 'phpFITFileAnalysis->calculateStopPoints(): unable to connect to database!' );
+					throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints: unable to connect to database' );
+				} else {
+					$this->logger->debug( 'phpFITFileAnalysis->calculateStopPoints(): connected to database: ' . $this->db_name );
+				}
+			}
+
+			$lock_expire = $this->get_lock_expiration( $queue );
+
+			// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
+			// For each row in the table, call $record_callback and if it returns 1, set the stopped field for that table row to 1.
+			$batch_size      = 1000; // Define the batch size for processing.
+			$offset          = 0; // Start from the first record.
+			$total_processed = 0;
+			$last_distance   = 0;
+			$dist_delta      = 0;
+
+			$this->create_temp_update_table();
+			$this->logger->debug( 'calculateStopPoints: created temp update table' );
+
+			while (true) {
+				try {
+					$lock_expire = $this->maybe_set_lock_expiration( $queue );
+
+					// Fetch a batch of records sorted by timestamp ASC.
+					$query = 'SELECT id, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
+					$stmt  = $this->db->prepare( $query );
+					$stmt->bindValue( ':batch_size', $batch_size, \PDO::PARAM_INT );
+					$stmt->bindValue( ':offset', $offset, \PDO::PARAM_INT );
+					$stmt->execute();
+
+					$records = $stmt->fetchAll( \PDO::FETCH_ASSOC );
+
+					// Break the loop if no more records are found.
+					if (empty( $records )) {
+						break;
+					}
+
+					// Track IDs that need to be updated.
+					$ids_to_update_stops = array();
+					$placeholders        = array();
+					$distance_updates    = array();
+
+					// Iterate through the records and apply the callback.
+					foreach ($records as $record) {
+						// Look for non-increasing distance values and adjust them.
+						$record['distance'] += $dist_delta;
+						if ($record['distance'] < $last_distance) {
+							$dist_delta         += $last_distance - $record['distance'];
+							$record['distance'] += $dist_delta;
+						}
+						$last_distance = $record['distance'];
+
+						// Add any changed points to the updates arrays.
+						if ( $dist_delta > 0 ) {
+							$placeholders[]     = '(?,?)';
+							$distance_updates[] = $record['id'];
+							$distance_updates[] = $record['distance'];
+						}
+
+						// Identify stops.
+						$stopped = call_user_func( $record_callback, $record );
+						if ( 1 === $stopped) {
+							$ids_to_update_stops[] = $record['id'];
+						}
+					}
+
+					if ( ! empty( $distance_updates ) ) {
+						$sql  = 'INSERT INTO pffa_temp_update_table (id, new_dist) VALUES ' . implode( ',', $placeholders );
+						$stmt = $this->db->prepare( $sql );
+						$stmt->execute( $distance_updates );
+						$stmt->closeCursor();
+
+						$sql  = 'UPDATE ' . $this->tables_created['record']['location'] . ' r JOIN pffa_temp_update_table t ON r.id = t.id SET r.distance = t.new_dist';
+						$stmt = $this->db->prepare( $sql );
+						$stmt->execute();
+						$stmt->closeCursor();
+
+						$this->truncate_temp_update_table();
+					}
+
+					// Update the stopped field for all matching records in one query.
+					if (! empty( $ids_to_update_stops ) ) {
+						$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update_stops ) ) . ')';
+						$this->db->exec( $update_query );
+					}
+
+					$total_processed += count( $records );
+
+					if ($total_processed % 10000 === 0) {
+						$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
+					}
+
+					// Increment the offset for the next batch.
+					$offset += $batch_size;
+				} catch ( \PDOException $e ) {
+					// Check if the error is related to a lost connection.
+					if (strpos( $e->getMessage(), 'server has gone away' ) !== false || strpos( $e->getMessage(), 'no connection to the server' ) !== false) {
+						$this->logger->error( 'Database connection lost. Attempting to reconnect...' );
+						try {
+							$this->connect_to_db(); // Reconnect to the database.
+							$this->logger->info( 'Reconnected to the database successfully.' );
+						} catch (\PDOException $reconnectException) {
+							$this->logger->error( 'Failed to reconnect to the database: ' . $reconnectException->getMessage() );
+							throw $reconnectException; // Exit the loop if reconnection fails.
+						}
+					} else {
+						// Rethrow other exceptions.
+						throw $e;
+					}
+				}
+			}
+
+			$this->drop_temp_update_table();
+
+			$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
+		}
+
+		/**
+		 * Create a temporary update table for the record data.
+		 */
+		private function create_temp_update_table() {
+			// Create a temporary table to store the updated records.
+			$query = 'CREATE TEMPORARY TABLE IF NOT EXISTS pffa_temp_update_table (id BIGINT UNSIGNED PRIMARY KEY, new_dist DECIMAL(10,5))';
+			$this->db->exec( $query );
+		}
+
+		/**
+		 * Truncate the temporary update table.
+		 */
+		private function truncate_temp_update_table() {
+			// Truncate the temporary table to remove old data.
+			$query = 'TRUNCATE TABLE pffa_temp_update_table';
+			$this->db->exec( $query );
+		}
+
+		/**
+		 * Drop the temporary update table.
+		 */
+		private function drop_temp_update_table() {
+			// Drop the temporary table.
+			$query = 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_update_table';
+			$this->db->exec( $query );
+		}
+
+		/**
+		 * Calculate HR zones using HRmax formula: zone = HRmax * percentage.
+		 */
+		public function hrZonesMax( $hr_maximum, $percentages_array = array( 0.60, 0.75, 0.85, 0.95 ) ) {
+			if ( array_walk(
+				$percentages_array,
+				function ( &$value, $key, $hr_maximum ) {
+					$value = round( $value * $hr_maximum );
+				},
+				$hr_maximum
+			) ) {
+				return $percentages_array;
+			} else {
+				throw new \Exception( 'phpFITFileAnalysis->hrZonesMax(): cannot calculate zones, please check inputs!' );
+			}
+		}
+
+		/**
+		 * Calculate HR zones using HRreserve formula: zone = HRresting + ((HRmax - HRresting) * percentage).
+		 */
+		public function hrZonesReserve( $hr_resting, $hr_maximum, $percentages_array = array( 0.60, 0.65, 0.75, 0.82, 0.89, 0.94 ) ) {
+			if ( array_walk(
+				$percentages_array,
+				function ( &$value, $key, $params ) {
+					$value = round( $params[0] + ( $value * $params[1] ) );
+				},
+				array( $hr_resting, $hr_maximum - $hr_resting )
+			) ) {
+				return $percentages_array;
+			} else {
+				throw new \Exception( 'phpFITFileAnalysis->hrZonesReserve(): cannot calculate zones, please check inputs!' );
+			}
+		}
+
+		/**
+		 * Calculate power zones using Functional Threshold Power value: zone = FTP * percentage.
+		 */
+		public function powerZones( $functional_threshold_power, $percentages_array = array( 0.55, 0.75, 0.90, 1.05, 1.20, 1.50 ) ) {
+			if ( array_walk(
+				$percentages_array,
+				function ( &$value, $key, $functional_threshold_power ) {
+					$value = round( $value * $functional_threshold_power ) + 1;
+				},
+				$functional_threshold_power
+			) ) {
+				return $percentages_array;
+			} else {
+				throw new \Exception( 'phpFITFileAnalysis->powerZones(): cannot calculate zones, please check inputs!' );
+			}
+		}
+
+		/**
+		 * Partition the data (e.g. cadence, heart_rate, power, speed) using thresholds provided as an array.
+		 */
+		public function partitionData( $record_field = '', $thresholds = null, $percentages = true, $labels_for_keys = true ) {
+			if ( ! isset( $this->data_mesgs['record'][ $record_field ] ) ) {
+				throw new \Exception( 'phpFITFileAnalysis->partitionData(): ' . $record_field . ' data not present in FIT file!' );
+			}
+			if ( ! is_array( $thresholds ) ) {
+				throw new \Exception( 'phpFITFileAnalysis->partitionData(): thresholds must be an array e.g. [10,20,30,40,50]!' );
+			}
+
+			foreach ( $thresholds as $threshold ) {
+				if ( ! is_numeric( $threshold ) || $threshold < 0 ) {
+					throw new \Exception( 'phpFITFileAnalysis->partitionData(): ' . $threshold . ' not valid in thresholds!' );
+				}
+				if ( isset( $last_threshold ) && $last_threshold >= $threshold ) {
+					throw new \Exception( 'phpFITFileAnalysis->partitionData(): error near ..., ' . $last_threshold . ', ' . $threshold . ', ... - each element in thresholds array must be greater than previous element!' );
+				}
+				$last_threshold = $threshold;
+			}
+
+			$result = array_fill( 0, count( $thresholds ) + 1, 0 );
+
+			foreach ( $this->data_mesgs['record'][ $record_field ] as $value ) {
+				$key   = 0;
+				$count = count( $thresholds );
+				for ( $key; $key < $count; ++$key ) {
+					if ( $value < $thresholds[ $key ] ) {
+						break;
+					}
+				}
+				++$result[ $key ];
+			}
+
+			array_unshift( $thresholds, 0 );
+			$keys = array();
+
+			if ( $labels_for_keys === true ) {
+				$count = count( $thresholds );
+				for ( $i = 0; $i < $count; ++$i ) {
+					$keys[] = $thresholds[ $i ] . ( isset( $thresholds[ $i + 1 ] ) ? '-' . ( $thresholds[ $i + 1 ] - 1 ) : '+' );
+				}
+				$result = array_combine( $keys, $result );
+			}
+
+			if ( $percentages === true ) {
+				$total = array_sum( $result );
+				array_walk(
+					$result,
+					function ( &$value, $key, $total ) {
+						$value = round( $value / $total * 100, 1 );
+					},
+					$total
+				);
+			}
+
+			return $result;
+		}
+
+		/**
+		 * Split data into buckets/bins using a Counting Sort algorithm (http://en.wikipedia.org/wiki/Counting_sort) to generate data for a histogram plot.
+		 */
+		public function histogram( $bucket_width = 25, $record_field = '' ) {
+			if ( ! isset( $this->data_mesgs['record'][ $record_field ] ) ) {
+				throw new \Exception( 'phpFITFileAnalysis->histogram(): ' . $record_field . ' data not present in FIT file!' );
+			}
+			if ( ! is_numeric( $bucket_width ) || $bucket_width <= 0 ) {
+				throw new \Exception( 'phpFITFileAnalysis->histogram(): bucket width is not valid!' );
+			}
+
+			foreach ( $this->data_mesgs['record'][ $record_field ] as $value ) {
+				$key = round( $value / $bucket_width ) * $bucket_width;
+				isset( $result[ $key ] ) ? $result[ $key ]++ : $result[ $key ] = 1;
+			}
+
+			for ( $i = 0; $i < max( array_keys( $result ) ) / $bucket_width; ++$i ) {
+				if ( ! isset( $result[ $i * $bucket_width ] ) ) {
+					$result[ $i * $bucket_width ] = 0;
+				}
+			}
+
+			ksort( $result );
+			return $result;
+		}
+
+		/**
+		 * Helper functions / shortcuts.
+		 */
+		public function hrPartionedHRmaximum( $hr_maximum ) {
+			return $this->partitionData( 'heart_rate', $this->hrZonesMax( $hr_maximum ) );
+		}
+		public function hrPartionedHRreserve( $hr_resting, $hr_maximum ) {
+			return $this->partitionData( 'heart_rate', $this->hrZonesReserve( $hr_resting, $hr_maximum ) );
+		}
+		public function powerPartioned( $functional_threshold_power ) {
+			return $this->partitionData( 'power', $this->powerZones( $functional_threshold_power ) );
+		}
+		public function powerHistogram( $bucket_width = 25 ) {
+			return $this->histogram( $bucket_width, 'power' );
+		}
+
+		/**
+		 * Simple moving average algorithm
+		 */
+		private function sma( $array, $time_period ) {
+			$data  = array_values( $array );
+			$count = count( $array );
+
+			for ( $i = 0; $i < $count - $time_period; ++$i ) {
+				$pieces = array_slice( $data, $i, $time_period );
+
+				// if any of the values are 'null' we want to ignore this chunk since null values indicate pauses at that time
+				if ( in_array( null, $pieces, true ) ) {
+					continue;
+				}
+
+				yield array_sum( $pieces ) / $time_period;
+			}
+		}
+
+		/**
+		 * Calculate TRIMP (TRaining IMPulse) and an Intensity Factor using HR data. Useful if power data not available.
+		 * hr_FT is heart rate at Functional Threshold, or Lactate Threshold Heart Rate (LTHR)
+		 */
+		public function hrMetrics( $hr_resting, $hr_maximum, $hr_FT, $gender ) {
+			$hr_metrics = array(  // array to hold HR analysis data
+			'TRIMPexp' => 0.0,
+			'hrIF'     => 0.0,
+			);
+			if ( in_array( $gender, array( 'F', 'f', 'Female', 'female' ) ) ) {
+				$gender_coeff = 1.67;
+			} else {
+				$gender_coeff = 1.92;
+			}
+			foreach ( $this->data_mesgs['record']['heart_rate'] as $hr ) {
+				// TRIMPexp formula from http://fellrnr.com/wiki/TRIMP
+				// TRIMPexp = sum(D x HRr x 0.64ey)
+				$temp_heart_rate         = ( $hr - $hr_resting ) / ( $hr_maximum - $hr_resting );
+				$hr_metrics['TRIMPexp'] += ( ( 1 / 60 ) * $temp_heart_rate * 0.64 * ( exp( $gender_coeff * $temp_heart_rate ) ) );
+			}
+			$hr_metrics['TRIMPexp'] = round( $hr_metrics['TRIMPexp'] );
+			$hr_metrics['hrIF']     = round( ( array_sum( $this->data_mesgs['record']['heart_rate'] ) / ( count( $this->data_mesgs['record']['heart_rate'] ) ) ) / $hr_FT, 2 );
+
+			return $hr_metrics;
+		}
+
+		/**
+		 * Returns 'Average Power', 'Kilojoules', 'Normalised Power', 'Variability Index', 'Intensity Factor', and 'Training Stress Score' in an array.
+		 *
+		 * Normalised Power (and metrics dependent on it) require the PHP trader extension to be loaded
+		 * http://php.net/manual/en/book.trader.php
+		 */
+		public function powerMetrics( $functional_threshold_power ) {
+			if ( ! isset( $this->data_mesgs['record']['power'] ) ) {
+				throw new \Exception( 'phpFITFileAnalysis->powerMetrics(): power data not present in FIT file!' );
+			}
+
+			$non_null_power_records = array_filter(
+				$this->data_mesgs['record']['power'],
+				function ( $powerRecord ) {
+					return $powerRecord !== null;
+				}
+			);
+
+			$power_metrics['Average Power'] = array_sum( $non_null_power_records ) / count( $non_null_power_records );
+			$power_metrics['Kilojoules']    = ( $power_metrics['Average Power'] * count( $this->data_mesgs['record']['power'] ) ) / 1000;
+
+			// NP1 capture all values for rolling 30s averages
+			$NP_values = ( $this->php_trader_ext_loaded ) ? trader_sma( $this->data_mesgs['record']['power'], 30 ) : $this->sma( $this->data_mesgs['record']['power'], 30 );
+
+			$NormalisedPower = 0.0;
+			$total_NP_values = 0;
+			foreach ( $NP_values as $value ) {  // NP2 Raise all the values obtained in step NP1 to the fourth power
+				$NormalisedPower += pow( $value, 4 );
+				++$total_NP_values;
+			}
+			$NormalisedPower                  /= $total_NP_values;  // NP3 Find the average of the values in NP2
+			$power_metrics['Normalised Power'] = pow( $NormalisedPower, 1 / 4 );  // NP4 taking the fourth root of the value obtained in step NP3
+
+			$power_metrics['Variability Index']     = $power_metrics['Normalised Power'] / $power_metrics['Average Power'];
+			$power_metrics['Intensity Factor']      = $power_metrics['Normalised Power'] / $functional_threshold_power;
+			$power_metrics['Training Stress Score'] = ( count( $this->data_mesgs['record']['power'] ) * $power_metrics['Normalised Power'] * $power_metrics['Intensity Factor'] ) / ( $functional_threshold_power * 36 );
+
+			// Round the values to make them something sensible.
+			$power_metrics['Average Power']         = (int) round( $power_metrics['Average Power'] );
+			$power_metrics['Kilojoules']            = (int) round( $power_metrics['Kilojoules'] );
+			$power_metrics['Normalised Power']      = (int) round( $power_metrics['Normalised Power'] );
+			$power_metrics['Variability Index']     = round( $power_metrics['Variability Index'], 2 );
+			$power_metrics['Intensity Factor']      = round( $power_metrics['Intensity Factor'], 2 );
+			$power_metrics['Training Stress Score'] = (int) round( $power_metrics['Training Stress Score'] );
+
+			return $power_metrics;
+		}
+
+		/**
+		 * Returns Critical Power (Best Efforts) values for supplied time period(s).
+		 */
+		public function criticalPower( $time_periods ) {
+			if ( ! isset( $this->data_mesgs['record']['power'] ) ) {
+				throw new \Exception( 'phpFITFileAnalysis->criticalPower(): power data not present in FIT file!' );
+			}
+
+			if ( is_array( $time_periods ) ) {
+				$count = count( $this->data_mesgs['record']['power'] );
+				foreach ( $time_periods as $time_period ) {
+					if ( ! is_numeric( $time_period ) ) {
+						throw new \Exception( 'phpFITFileAnalysis->criticalPower(): time periods must only contain numeric data!' );
+					}
+					if ( $time_period < 0 ) {
+						throw new \Exception( 'phpFITFileAnalysis->criticalPower(): time periods cannot be negative!' );
+					}
+					if ( $time_period > $count ) {
+						break;
+					}
+
+					$averages = ( $this->php_trader_ext_loaded ) ? trader_sma( $this->data_mesgs['record']['power'], $time_period ) : $this->sma( $this->data_mesgs['record']['power'], $time_period );
+					if ( $averages !== false ) {
+						$criticalPower_values[ $time_period ] = max( $averages );
+					}
+				}
+
+				return $criticalPower_values;
+			} elseif ( is_numeric( $time_periods ) && $time_periods > 0 ) {
+				if ( $time_periods > count( $this->data_mesgs['record']['power'] ) ) {
+					$criticalPower_values[ $time_periods ] = 0;
+				} else {
+					$averages = ( $this->php_trader_ext_loaded ) ? trader_sma( $this->data_mesgs['record']['power'], $time_periods ) : $this->sma( $this->data_mesgs['record']['power'], $time_periods );
+					if ( $averages !== false ) {
+						$criticalPower_values[ $time_periods ] = max( $averages );
+					}
+				}
+
+				return $criticalPower_values;
+			} else {
+				throw new \Exception( 'phpFITFileAnalysis->criticalPower(): time periods not valid!' );
+			}
+		}
+
+		/**
+		 * Returns array of booleans using timestamp as key.
+		 * true == timer paused (e.g. autopause)
+		 */
+		public function isPaused() {
+			if ( ! isset( $this->data_mesgs['event']['event'] ) || ! is_array( $this->data_mesgs['event']['event'] ) ) {
+				return array();
+			}
+
+			/**
+			 * Event enumerated values of interest
+			 * 0 = timer
+			 */
+			$tek = array_keys( $this->data_mesgs['event']['event'], 0 );  // timer event keys
+
+			$timer_start = array();
+			$timer_stop  = array();
+			foreach ( $tek as $v ) {
+				if ( $this->data_mesgs['event']['event_type'][ $v ] === 0 ) {
+					$timer_start[ $v ] = $this->data_mesgs['event']['timestamp'][ $v ];
+				} elseif ( $this->data_mesgs['event']['event_type'][ $v ] === 4 ) {
+					$timer_stop[ $v ] = $this->data_mesgs['event']['timestamp'][ $v ];
+				}
+			}
+
+			$first_ts = min( $this->data_mesgs['record']['timestamp'] );  // first timestamp
+			$last_ts  = max( $this->data_mesgs['record']['timestamp'] );  // last timestamp
+
+			reset( $timer_start );
+			$cur_start = next( $timer_start );
+			$cur_stop  = reset( $timer_stop );
+
+			$is_paused = array();
+			$bPaused   = false;
+
+			for ( $i = $first_ts; $i < $last_ts; ++$i ) {
+				if ( $i == $cur_stop ) {
+					$bPaused  = true;
+					$cur_stop = next( $timer_stop );
+				} elseif ( $i == $cur_start ) {
+					$bPaused   = false;
+					$cur_start = next( $timer_start );
+				}
+				$is_paused[ $i ] = $bPaused;
+			}
+			$is_paused[ $last_ts ] = isset( $this->data_mesgs['record']['speed'] ) && is_array( $this->data_mesgs['record']['speed'] ) && end( $this->data_mesgs['record']['speed'] ) === 0;
+
+			return $is_paused;
+		}
+
+		/**
+		 * Returns an array that can be used to plot Circumferential Pedal Velocity (x-axis) vs Average Effective Pedal Force (y-axis).
+		 * NB Crank length is in metres.
+		 */
+		public function quadrantAnalysis( $crank_length, $ftp, $selected_cadence = 90, $use_timestamps = false ) {
+			if ( $crank_length === null || $ftp === null ) {
+				return array();
+			}
+			if ( empty( $this->data_mesgs['record']['power'] ) || empty( $this->data_mesgs['record']['cadence'] ) ) {
+				return array();
+			}
+
+			$quadrant_plot                     = array();
+			$quadrant_plot['selected_cadence'] = $selected_cadence;
+			$quadrant_plot['aepf_threshold']   = round( ( $ftp * 60 ) / ( $selected_cadence * 2 * pi() * $crank_length ), 3 );
+			$quadrant_plot['cpv_threshold']    = round( ( $selected_cadence * $crank_length * 2 * pi() ) / 60, 3 );
+
+			// Used to calculate percentage of points in each quadrant
+			$quad_percent = array(
 			'hf_hv' => 0,
 			'hf_lv' => 0,
 			'lf_lv' => 0,
 			'lf_hv' => 0,
-		);
+			);
 
-		// Filter zeroes from cadence array (otherwise !div/0 error for AEPF)
-		$cadence = array_filter( $this->data_mesgs['record']['cadence'] );
-		$cpv     = $aepf = 0.0;
+			// Filter zeroes from cadence array (otherwise !div/0 error for AEPF)
+			$cadence = array_filter( $this->data_mesgs['record']['cadence'] );
+			$cpv     = $aepf = 0.0;
 
-		foreach ( $cadence as $k => $c ) {
-			$p = isset( $this->data_mesgs['record']['power'][ $k ] ) ? $this->data_mesgs['record']['power'][ $k ] : 0;
+			foreach ( $cadence as $k => $c ) {
+				$p = isset( $this->data_mesgs['record']['power'][ $k ] ) ? $this->data_mesgs['record']['power'][ $k ] : 0;
 
-			// Circumferential Pedal Velocity (CPV, m/s) = (Cadence × Crank Length × 2 × Pi) / 60
-			$cpv = round( ( $c * $crank_length * 2 * pi() ) / 60, 3 );
+				// Circumferential Pedal Velocity (CPV, m/s) = (Cadence × Crank Length × 2 × Pi) / 60
+				$cpv = round( ( $c * $crank_length * 2 * pi() ) / 60, 3 );
 
-			// Average Effective Pedal Force (AEPF, N) = (Power × 60) / (Cadence × 2 × Pi × Crank Length)
-			$aepf = round( ( $p * 60 ) / ( $c * 2 * pi() * $crank_length ), 3 );
+				// Average Effective Pedal Force (AEPF, N) = (Power × 60) / (Cadence × 2 × Pi × Crank Length)
+				$aepf = round( ( $p * 60 ) / ( $c * 2 * pi() * $crank_length ), 3 );
 
-			if ( $use_timestamps === true ) {
-				$quadrant_plot['plot'][ $k ] = array( $cpv, $aepf );
-			} else {
-				$quadrant_plot['plot'][] = array( $cpv, $aepf );
-			}
-
-			if ( $aepf > $quadrant_plot['aepf_threshold'] ) {  // high force
-				if ( $cpv > $quadrant_plot['cpv_threshold'] ) {  // high velocity
-					++$quad_percent['hf_hv'];
+				if ( $use_timestamps === true ) {
+					$quadrant_plot['plot'][ $k ] = array( $cpv, $aepf );
 				} else {
-					++$quad_percent['hf_lv'];
+					$quadrant_plot['plot'][] = array( $cpv, $aepf );
 				}
-			} elseif ( $cpv > $quadrant_plot['cpv_threshold'] ) {  // low force
-				// high velocity
+
+				if ( $aepf > $quadrant_plot['aepf_threshold'] ) {  // high force
+					if ( $cpv > $quadrant_plot['cpv_threshold'] ) {  // high velocity
+						++$quad_percent['hf_hv'];
+					} else {
+						++$quad_percent['hf_lv'];
+					}
+				} elseif ( $cpv > $quadrant_plot['cpv_threshold'] ) {  // low force
+					// high velocity
 					++$quad_percent['lf_hv'];
-			} else {
-				++$quad_percent['lf_lv'];
+				} else {
+					++$quad_percent['lf_lv'];
+				}
 			}
+
+			// Convert to percentages and add to array that will be returned by the function
+			$sum = array_sum( $quad_percent );
+			foreach ( $quad_percent as $k => $v ) {
+				$quad_percent[ $k ] = round( $v / $sum * 100, 2 );
+			}
+			$quadrant_plot['quad_percent'] = $quad_percent;
+
+			// Calculate CPV and AEPF for cadences between 20 and 150rpm at and near to FTP
+			for ( $c = 20; $c <= 150; $c += 5 ) {
+				$cpv                        = round( ( ( $c * $crank_length * 2 * pi() ) / 60 ), 3 );
+				$quadrant_plot['ftp-25w'][] = array( $cpv, round( ( ( $ftp - 25 ) * 60 ) / ( $c * 2 * pi() * $crank_length ), 3 ) );
+				$quadrant_plot['ftp'][]     = array( $cpv, round( ( $ftp * 60 ) / ( $c * 2 * pi() * $crank_length ), 3 ) );
+				$quadrant_plot['ftp+25w'][] = array( $cpv, round( ( ( $ftp + 25 ) * 60 ) / ( $c * 2 * pi() * $crank_length ), 3 ) );
+			}
+
+			return $quadrant_plot;
 		}
-
-		// Convert to percentages and add to array that will be returned by the function
-		$sum = array_sum( $quad_percent );
-		foreach ( $quad_percent as $k => $v ) {
-			$quad_percent[ $k ] = round( $v / $sum * 100, 2 );
-		}
-		$quadrant_plot['quad_percent'] = $quad_percent;
-
-		// Calculate CPV and AEPF for cadences between 20 and 150rpm at and near to FTP
-		for ( $c = 20; $c <= 150; $c += 5 ) {
-			$cpv                        = round( ( ( $c * $crank_length * 2 * pi() ) / 60 ), 3 );
-			$quadrant_plot['ftp-25w'][] = array( $cpv, round( ( ( $ftp - 25 ) * 60 ) / ( $c * 2 * pi() * $crank_length ), 3 ) );
-			$quadrant_plot['ftp'][]     = array( $cpv, round( ( $ftp * 60 ) / ( $c * 2 * pi() * $crank_length ), 3 ) );
-			$quadrant_plot['ftp+25w'][] = array( $cpv, round( ( ( $ftp + 25 ) * 60 ) / ( $c * 2 * pi() * $crank_length ), 3 ) );
-		}
-
-		return $quadrant_plot;
-	}
-
-	/**
-	 * Returns array of gear change information.
-	 */
-	public function gearChanges( $bIgnoreTimerPaused = true ) {
-		/**
-		 * Event enumerated values of interest
-		 * 42 = front_gear_change
-		 * 43 = rear_gear_change
-		 */
-		$fgcek = array_keys( $this->data_mesgs['event']['event'], 42 );  // front gear change event keys
-		$rgcek = array_keys( $this->data_mesgs['event']['event'], 43 );  // rear gear change event keys
 
 		/**
-		 * gear_change_data (uint32)
-		 * components:
-		 *     rear_gear_num  00000000 00000000 00000000 11111111
-		 *     rear_gear      00000000 00000000 11111111 00000000
-		 *     front_gear_num 00000000 11111111 00000000 00000000
-		 *     front_gear     11111111 00000000 00000000 00000000
-		 * scale: 1, 1, 1, 1
-		 * bits: 8, 8, 8, 8
+		 * Returns array of gear change information.
 		 */
+		public function gearChanges( $bIgnoreTimerPaused = true ) {
+			/**
+			 * Event enumerated values of interest
+			 * 42 = front_gear_change
+			 * 43 = rear_gear_change
+			 */
+			$fgcek = array_keys( $this->data_mesgs['event']['event'], 42 );  // front gear change event keys
+			$rgcek = array_keys( $this->data_mesgs['event']['event'], 43 );  // rear gear change event keys
 
-		$fgc         = array();  // front gear components
-		$front_gears = array();
-		foreach ( $fgcek as $k ) {
-			$fgc_tmp = array(
+			/**
+			 * gear_change_data (uint32)
+			 * components:
+			 *     rear_gear_num  00000000 00000000 00000000 11111111
+			 *     rear_gear      00000000 00000000 11111111 00000000
+			 *     front_gear_num 00000000 11111111 00000000 00000000
+			 *     front_gear     11111111 00000000 00000000 00000000
+			 * scale: 1, 1, 1, 1
+			 * bits: 8, 8, 8, 8
+			 */
+
+			$fgc         = array();  // front gear components
+			$front_gears = array();
+			foreach ( $fgcek as $k ) {
+				$fgc_tmp = array(
 				'timestamp'      => $this->data_mesgs['event']['timestamp'][ $k ],
 				// 'data'        => $this->data_mesgs['event']['data'][$k],
 				// 'event_type'  => $this->data_mesgs['event']['event_type'][$k],
@@ -8163,20 +8161,20 @@ class phpFITFileAnalysis {
 				'rear_gear'      => ( $this->data_mesgs['event']['data'][ $k ] >> 8 ) & 255,
 				'front_gear_num' => ( $this->data_mesgs['event']['data'][ $k ] >> 16 ) & 255,
 				'front_gear'     => ( $this->data_mesgs['event']['data'][ $k ] >> 24 ) & 255,
-			);
+				);
 
-			$fgc[] = $fgc_tmp;
+				$fgc[] = $fgc_tmp;
 
-			if ( ! array_key_exists( $fgc_tmp['front_gear_num'], $front_gears ) ) {
-				$front_gears[ $fgc_tmp['front_gear_num'] ] = $fgc_tmp['front_gear'];
+				if ( ! array_key_exists( $fgc_tmp['front_gear_num'], $front_gears ) ) {
+					$front_gears[ $fgc_tmp['front_gear_num'] ] = $fgc_tmp['front_gear'];
+				}
 			}
-		}
-		ksort( $front_gears );
+			ksort( $front_gears );
 
-		$rgc        = array();  // rear gear components
-		$rear_gears = array();
-		foreach ( $rgcek as $k ) {
-			$rgc_tmp = array(
+			$rgc        = array();  // rear gear components
+			$rear_gears = array();
+			foreach ( $rgcek as $k ) {
+				$rgc_tmp = array(
 				'timestamp'      => $this->data_mesgs['event']['timestamp'][ $k ],
 				// 'data'        => $this->data_mesgs['event']['data'][$k],
 				// 'event_type'  => $this->data_mesgs['event']['event_type'][$k],
@@ -8185,469 +8183,469 @@ class phpFITFileAnalysis {
 				'rear_gear'      => ( $this->data_mesgs['event']['data'][ $k ] >> 8 ) & 255,
 				'front_gear_num' => ( $this->data_mesgs['event']['data'][ $k ] >> 16 ) & 255,
 				'front_gear'     => ( $this->data_mesgs['event']['data'][ $k ] >> 24 ) & 255,
-			);
+				);
 
-			$rgc[] = $rgc_tmp;
+				$rgc[] = $rgc_tmp;
 
-			if ( ! array_key_exists( $rgc_tmp['rear_gear_num'], $rear_gears ) ) {
-				$rear_gears[ $rgc_tmp['rear_gear_num'] ] = $rgc_tmp['rear_gear'];
-			}
-		}
-		ksort( $rear_gears );
-
-		$timestamps = $this->data_mesgs['record']['timestamp'];
-		$first_ts   = min( $timestamps );  // first timestamp
-		$last_ts    = max( $timestamps );   // last timestamp
-
-		$fg = 0;  // front gear at start of ride
-		$rg = 0;  // rear gear at start of ride
-
-		if ( isset( $fgc[0]['timestamp'] ) ) {
-			if ( $first_ts == $fgc[0]['timestamp'] ) {
-				$fg = $fgc[0]['front_gear'];
-			} else {
-				$fg = $fgc[0]['front_gear_num'] == 1 ? $front_gears[2] : $front_gears[1];
-			}
-		}
-
-		if ( isset( $rgc[0]['timestamp'] ) ) {
-			if ( $first_ts == $rgc[0]['timestamp'] ) {
-				$rg = $rgc[0]['rear_gear'];
-			} else {
-				$rg = $rgc[0]['rear_gear_num'] == min( $rear_gears ) ? $rear_gears[ $rgc[0]['rear_gear_num'] + 1 ] : $rear_gears[ $rgc[0]['rear_gear_num'] - 1 ];
-			}
-		}
-
-		$fg_summary  = array();
-		$rg_summary  = array();
-		$combined    = array();
-		$gears_array = array();
-
-		if ( $bIgnoreTimerPaused === true ) {
-			$is_paused = $this->isPaused();
-		}
-
-		reset( $fgc );
-		reset( $rgc );
-		for ( $i = $first_ts; $i < $last_ts; ++$i ) {
-			if ( $bIgnoreTimerPaused === true && $is_paused[ $i ] === true ) {
-				continue;
-			}
-
-			$fgc_tmp = current( $fgc );
-			$rgc_tmp = current( $rgc );
-
-			if ( $i > $fgc_tmp['timestamp'] ) {
-				if ( next( $fgc ) !== false ) {
-					$fg = $fgc_tmp['front_gear'];
+				if ( ! array_key_exists( $rgc_tmp['rear_gear_num'], $rear_gears ) ) {
+					$rear_gears[ $rgc_tmp['rear_gear_num'] ] = $rgc_tmp['rear_gear'];
 				}
 			}
-			$fg_summary[ $fg ] = isset( $fg_summary[ $fg ] ) ? $fg_summary[ $fg ] + 1 : 1;
+			ksort( $rear_gears );
 
-			if ( $i > $rgc_tmp['timestamp'] ) {
-				if ( next( $rgc ) !== false ) {
-					$rg = $rgc_tmp['rear_gear'];
+			$timestamps = $this->data_mesgs['record']['timestamp'];
+			$first_ts   = min( $timestamps );  // first timestamp
+			$last_ts    = max( $timestamps );   // last timestamp
+
+			$fg = 0;  // front gear at start of ride
+			$rg = 0;  // rear gear at start of ride
+
+			if ( isset( $fgc[0]['timestamp'] ) ) {
+				if ( $first_ts == $fgc[0]['timestamp'] ) {
+					$fg = $fgc[0]['front_gear'];
+				} else {
+					$fg = $fgc[0]['front_gear_num'] == 1 ? $front_gears[2] : $front_gears[1];
 				}
 			}
-			$rg_summary[ $rg ] = isset( $rg_summary[ $rg ] ) ? $rg_summary[ $rg ] + 1 : 1;
 
-			$combined[ $fg ][ $rg ] = isset( $combined[ $fg ][ $rg ] ) ? $combined[ $fg ][ $rg ] + 1 : 1;
+			if ( isset( $rgc[0]['timestamp'] ) ) {
+				if ( $first_ts == $rgc[0]['timestamp'] ) {
+					$rg = $rgc[0]['rear_gear'];
+				} else {
+					$rg = $rgc[0]['rear_gear_num'] == min( $rear_gears ) ? $rear_gears[ $rgc[0]['rear_gear_num'] + 1 ] : $rear_gears[ $rgc[0]['rear_gear_num'] - 1 ];
+				}
+			}
 
-			$gears_array[ $i ] = array(
+			$fg_summary  = array();
+			$rg_summary  = array();
+			$combined    = array();
+			$gears_array = array();
+
+			if ( $bIgnoreTimerPaused === true ) {
+				$is_paused = $this->isPaused();
+			}
+
+			reset( $fgc );
+			reset( $rgc );
+			for ( $i = $first_ts; $i < $last_ts; ++$i ) {
+				if ( $bIgnoreTimerPaused === true && $is_paused[ $i ] === true ) {
+					continue;
+				}
+
+				$fgc_tmp = current( $fgc );
+				$rgc_tmp = current( $rgc );
+
+				if ( $i > $fgc_tmp['timestamp'] ) {
+					if ( next( $fgc ) !== false ) {
+						$fg = $fgc_tmp['front_gear'];
+					}
+				}
+				$fg_summary[ $fg ] = isset( $fg_summary[ $fg ] ) ? $fg_summary[ $fg ] + 1 : 1;
+
+				if ( $i > $rgc_tmp['timestamp'] ) {
+					if ( next( $rgc ) !== false ) {
+						$rg = $rgc_tmp['rear_gear'];
+					}
+				}
+				$rg_summary[ $rg ] = isset( $rg_summary[ $rg ] ) ? $rg_summary[ $rg ] + 1 : 1;
+
+				$combined[ $fg ][ $rg ] = isset( $combined[ $fg ][ $rg ] ) ? $combined[ $fg ][ $rg ] + 1 : 1;
+
+				$gears_array[ $i ] = array(
 				'front_gear' => $fg,
 				'rear_gear'  => $rg,
-			);
-		}
+				);
+			}
 
-		krsort( $fg_summary );
-		krsort( $rg_summary );
-		krsort( $combined );
+			krsort( $fg_summary );
+			krsort( $rg_summary );
+			krsort( $combined );
 
-		$output = array(
+			$output = array(
 			'front_gear_summary' => $fg_summary,
 			'rear_gear_summary'  => $rg_summary,
 			'combined_summary'   => $combined,
 			'gears_array'        => $gears_array,
-		);
+			);
 
-		return $output;
-	}
-
-	/**
-	 * Create a JSON object that contains available record message information and CPV/AEPF if requested/available.
-	 */
-	public function getJSON( $crank_length = null, $ftp = null, $data_required = array( 'all' ), $selected_cadence = 90 ) {
-		if ( ! is_array( $data_required ) ) {
-			$data_required = array( $data_required );
-		}
-		foreach ( $data_required as &$datum ) {
-			$datum = strtolower( $datum );
+			return $output;
 		}
 
-		$all               = in_array( 'all', $data_required );
-		$timestamp         = ( $all || in_array( 'timestamp', $data_required ) );
-		$paused            = ( $all || in_array( 'paused', $data_required ) );
-		$temperature       = ( $all || in_array( 'temperature', $data_required ) );
-		$lap               = ( $all || in_array( 'lap', $data_required ) );
-		$position_lat      = ( $all || in_array( 'position_lat', $data_required ) );
-		$position_long     = ( $all || in_array( 'position_long', $data_required ) );
-		$distance          = ( $all || in_array( 'distance', $data_required ) );
-		$altitude          = ( $all || in_array( 'altitude', $data_required ) );
-		$speed             = ( $all || in_array( 'speed', $data_required ) );
-		$heart_rate        = ( $all || in_array( 'heart_rate', $data_required ) );
-		$cadence           = ( $all || in_array( 'cadence', $data_required ) );
-		$power             = ( $all || in_array( 'power', $data_required ) );
-		$quadrant_analysis = ( $all || in_array( 'quadrant-analysis', $data_required ) );
+		/**
+		 * Create a JSON object that contains available record message information and CPV/AEPF if requested/available.
+		 */
+		public function getJSON( $crank_length = null, $ftp = null, $data_required = array( 'all' ), $selected_cadence = 90 ) {
+			if ( ! is_array( $data_required ) ) {
+				$data_required = array( $data_required );
+			}
+			foreach ( $data_required as &$datum ) {
+				$datum = strtolower( $datum );
+			}
 
-		$for_json             = array();
-		$for_json['fix_data'] = isset( $this->options['fix_data'] ) ? $this->options['fix_data'] : null;
-		$for_json['units']    = isset( $this->options['units'] ) ? $this->options['units'] : null;
-		$for_json['pace']     = isset( $this->options['pace'] ) ? $this->options['pace'] : null;
+			$all               = in_array( 'all', $data_required );
+			$timestamp         = ( $all || in_array( 'timestamp', $data_required ) );
+			$paused            = ( $all || in_array( 'paused', $data_required ) );
+			$temperature       = ( $all || in_array( 'temperature', $data_required ) );
+			$lap               = ( $all || in_array( 'lap', $data_required ) );
+			$position_lat      = ( $all || in_array( 'position_lat', $data_required ) );
+			$position_long     = ( $all || in_array( 'position_long', $data_required ) );
+			$distance          = ( $all || in_array( 'distance', $data_required ) );
+			$altitude          = ( $all || in_array( 'altitude', $data_required ) );
+			$speed             = ( $all || in_array( 'speed', $data_required ) );
+			$heart_rate        = ( $all || in_array( 'heart_rate', $data_required ) );
+			$cadence           = ( $all || in_array( 'cadence', $data_required ) );
+			$power             = ( $all || in_array( 'power', $data_required ) );
+			$quadrant_analysis = ( $all || in_array( 'quadrant-analysis', $data_required ) );
 
-		$lap_count = 1;
-		$data      = array();
-		if ( $quadrant_analysis ) {
-			$quadrant_plot = $this->quadrantAnalysis( $crank_length, $ftp, $selected_cadence, true );
-			if ( ! empty( $quadrant_plot ) ) {
-				$for_json['aepf_threshold'] = $quadrant_plot['aepf_threshold'];
-				$for_json['cpv_threshold']  = $quadrant_plot['cpv_threshold'];
+			$for_json             = array();
+			$for_json['fix_data'] = isset( $this->options['fix_data'] ) ? $this->options['fix_data'] : null;
+			$for_json['units']    = isset( $this->options['units'] ) ? $this->options['units'] : null;
+			$for_json['pace']     = isset( $this->options['pace'] ) ? $this->options['pace'] : null;
+
+			$lap_count = 1;
+			$data      = array();
+			if ( $quadrant_analysis ) {
+				$quadrant_plot = $this->quadrantAnalysis( $crank_length, $ftp, $selected_cadence, true );
+				if ( ! empty( $quadrant_plot ) ) {
+					$for_json['aepf_threshold'] = $quadrant_plot['aepf_threshold'];
+					$for_json['cpv_threshold']  = $quadrant_plot['cpv_threshold'];
+				}
+			}
+			if ( $paused ) {
+				$is_paused = $this->isPaused();
+			}
+
+			foreach ( $this->data_mesgs['record']['timestamp'] as $ts ) {
+				if ( $lap && is_array( $this->data_mesgs['lap']['timestamp'] ) && $ts >= $this->data_mesgs['lap']['timestamp'][ $lap_count - 1 ] ) {
+					++$lap_count;
+				}
+				$tmp = array();
+				if ( $timestamp ) {
+					$tmp['timestamp'] = $ts;
+				}
+				if ( $lap ) {
+					$tmp['lap'] = $lap_count;
+				}
+
+				foreach ( $this->data_mesgs['record'] as $key => $value ) {
+					if ( $key !== 'timestamp' ) {
+						if ( $$key ) {
+							$tmp[ $key ] = isset( $value[ $ts ] ) ? $value[ $ts ] : null;
+						}
+					}
+				}
+
+				if ( $quadrant_analysis ) {
+					if ( ! empty( $quadrant_plot ) ) {
+						$tmp['cpv']  = isset( $quadrant_plot['plot'][ $ts ] ) ? $quadrant_plot['plot'][ $ts ][0] : null;
+						$tmp['aepf'] = isset( $quadrant_plot['plot'][ $ts ] ) ? $quadrant_plot['plot'][ $ts ][1] : null;
+					}
+				}
+
+				if ( $paused ) {
+					$tmp['paused'] = $is_paused[ $ts ];
+				}
+
+				$data[] = $tmp;
+				unset( $tmp );
+			}
+
+			$for_json['data'] = $data;
+
+			return json_encode( $for_json );
+		}
+
+		/**
+		 * Create a JSON object that contains available lap message information.
+		 */
+		public function getJSONLap() {
+			$for_json             = array();
+			$for_json['fix_data'] = isset( $this->options['fix_data'] ) ? $this->options['fix_data'] : null;
+			$for_json['units']    = isset( $this->options['units'] ) ? $this->options['units'] : null;
+			$for_json['pace']     = isset( $this->options['pace'] ) ? $this->options['pace'] : null;
+			$for_json['num_laps'] = count( $this->data_mesgs['lap']['timestamp'] );
+			$data                 = array();
+
+			for ( $i = 0; $i < $for_json['num_laps']; $i++ ) {
+				$data[ $i ]['lap'] = $i;
+				foreach ( $this->data_mesgs['lap'] as $key => $value ) {
+					$data[ $i ][ $key ] = $value[ $i ];
+				}
+			}
+
+			$for_json['data'] = $data;
+
+			return json_encode( $for_json );
+		}
+
+		/**
+		 * Outputs tables of information being listened for and found within the processed FIT file.
+		 */
+		public function showDebugInfo() {
+			asort( $this->defn_mesgs_all );  // Sort the definition messages
+
+			echo '<h3>Types</h3>';
+			echo '<table class=\'table table-condensed table-striped\'>';  // Bootstrap classes
+			echo '<thead>';
+			echo '<th>key</th>';
+			echo '<th>PHP unpack() format</th>';
+			echo '<th>Bytes</th>';
+			echo '</thead>';
+			echo '<tbody>';
+			foreach ( $this->types as $key => $val ) {
+				echo '<tr><td>' . $key . '</td><td>' . $val['format'] . '</td><td>' . $val['bytes'] . '</td></tr>';
+			}
+			echo '</tbody>';
+			echo '</table>';
+
+			echo '<br><hr><br>';
+
+			echo '<h3>Messages and Fields being listened for</h3>';
+			foreach ( $this->data_mesg_info as $key => $val ) {
+				echo '<h4>' . $val['mesg_name'] . ' (' . $key . ')</h4>';
+				echo '<table class=\'table table-condensed table-striped\'>';
+				echo '<thead><th>ID</th><th>Name</th><th>Scale</th><th>Offset</th><th>Units</th></thead><tbody>';
+				foreach ( $val['field_defns'] as $key2 => $val2 ) {
+					echo '<tr><td>' . $key2 . '</td><td>' . $val2['field_name'] . '</td><td>' . $val2['scale'] . '</td><td>' . $val2['offset'] . '</td><td>' . $val2['units'] . '</td></tr>';
+				}
+				echo '</tbody></table><br><br>';
+			}
+
+			echo '<br><hr><br>';
+
+			echo '<h3>FIT Definition Messages contained within the file</h3>';
+			echo '<table class=\'table table-condensed table-striped\'>';
+			echo '<thead>';
+			echo '<th>global_mesg_num</th>';
+			echo '<th>num_fields</th>';
+			echo '<th>field defns</th>';
+			echo '<th>total_size</th>';
+			echo '</thead>';
+			echo '<tbody>';
+			foreach ( $this->defn_mesgs_all as $key => $val ) {
+				echo '<tr><td>' . $val['global_mesg_num'] . ( isset( $this->data_mesg_info[ $val['global_mesg_num'] ] ) ? ' (' . $this->data_mesg_info[ $val['global_mesg_num'] ]['mesg_name'] . ')' : ' (unknown)' ) . '</td><td>' . $val['num_fields'] . '</td><td>';
+				foreach ( $val['field_defns'] as $defn ) {
+					echo 'defn: ' . $defn['field_definition_number'] . '; size: ' . $defn['size'] . '; type: ' . $defn['base_type'];
+					echo ' (' . ( isset( $this->data_mesg_info[ $val['global_mesg_num'] ]['field_defns'][ $defn['field_definition_number'] ] ) ? $this->data_mesg_info[ $val['global_mesg_num'] ]['field_defns'][ $defn['field_definition_number'] ]['field_name'] : 'unknown' ) . ')<br>';
+				}
+				echo '</td><td>' . $val['total_size'] . '</td></tr>';
+			}
+			echo '</tbody>';
+			echo '</table>';
+
+			echo '<br><hr><br>';
+
+			echo '<h3>Messages found in file</h3>';
+			foreach ( $this->data_mesgs as $mesg_key => $mesg ) {
+				echo '<table class=\'table table-condensed table-striped\'>';
+				echo '<thead><th>' . $mesg_key . '</th><th>count()</th></thead><tbody>';
+				foreach ( $mesg as $field_key => $field ) {
+					if ( is_array( $field ) ) {
+						echo '<tr><td>' . $field_key . '</td><td>' . count( $field ) . '</td></tr>';
+					} else {
+						echo '<tr><td>' . $field_key . '</td><td>' . $field . '</td></tr>';
+					}
+				}
+				echo '</tbody></table><br><br>';
 			}
 		}
-		if ( $paused ) {
-			$is_paused = $this->isPaused();
-		}
 
-		foreach ( $this->data_mesgs['record']['timestamp'] as $ts ) {
-			if ( $lap && is_array( $this->data_mesgs['lap']['timestamp'] ) && $ts >= $this->data_mesgs['lap']['timestamp'][ $lap_count - 1 ] ) {
-				++$lap_count;
-			}
-			$tmp = array();
-			if ( $timestamp ) {
-				$tmp['timestamp'] = $ts;
-			}
-			if ( $lap ) {
-				$tmp['lap'] = $lap_count;
+		/*
+		* Process HR messages
+		*
+		* Based heavily on logic in commit:
+		* https://github.com/GoldenCheetah/GoldenCheetah/commit/957ae470999b9a57b5b8ec57e75512d4baede1ec
+		* Particularly the decodeHr() method
+		*
+		* @param object $queue  Queue object
+		*/
+		private function processHrMessages( $queue = null ) {
+			// Check that we have received HR messages
+			if ( empty( $this->data_mesgs['hr'] ) ) {
+				return;
 			}
 
-			foreach ( $this->data_mesgs['record'] as $key => $value ) {
-				if ( $key !== 'timestamp' ) {
-					if ( $$key ) {
-						$tmp[ $key ] = isset( $value[ $ts ] ) ? $value[ $ts ] : null;
+			$lock_expire = $this->get_lock_expiration( $queue );
+
+			$hr         = array();
+			$timestamps = array();
+
+			// Load all filtered_bpm values into the $hr array
+			foreach ( $this->data_mesgs['hr']['filtered_bpm'] as $hr_val ) {
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+				if ( is_array( $hr_val ) ) {
+					foreach ( $hr_val as $sub_hr_val ) {
+						$hr[] = $sub_hr_val;
+					}
+				} else {
+					$hr[] = $hr_val;
+				}
+			}
+
+			// Manually scale timestamps (i.e. divide by 1024)
+			$last_event_timestamp = $this->data_mesgs['hr']['event_timestamp'];
+			if ( is_array( $last_event_timestamp ) ) {
+				$last_event_timestamp = $last_event_timestamp[0];
+			}
+			$start_timestamp = $this->data_mesgs['hr']['timestamp'] - $last_event_timestamp / 1024.0;
+			$timestamps[]    = $last_event_timestamp / 1024.0;
+
+			// Determine timestamps (similar to compressed timestamps)
+			foreach ( $this->data_mesgs['hr']['event_timestamp_12'] as $event_timestamp_12_val ) {
+
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+				$j = 0;
+				for ( $i = 0; $i < 11; $i++ ) {
+					$last_event_timestamp12 = $last_event_timestamp & 0xFFF;
+					$next_event_timestamp12 = null;
+
+					if ( $j % 2 === 0 ) {
+						$next_event_timestamp12 = $event_timestamp_12_val[ $i ] + ( ( $event_timestamp_12_val[ $i + 1 ] & 0xF ) << 8 );
+						$last_event_timestamp   = ( $last_event_timestamp & 0xFFFFF000 ) + $next_event_timestamp12;
+					} else {
+						$next_event_timestamp12 = 16 * $event_timestamp_12_val[ $i + 1 ] + ( ( $event_timestamp_12_val[ $i ] & 0xF0 ) >> 4 );
+						$last_event_timestamp   = ( $last_event_timestamp & 0xFFFFF000 ) + $next_event_timestamp12;
+						++$i;
+					}
+					if ( $next_event_timestamp12 < $last_event_timestamp12 ) {
+						$last_event_timestamp += 0x1000;
+					}
+
+					$timestamps[] = $last_event_timestamp / 1024.0;
+					++$j;
+				}
+			}
+
+			// Map HR values to timestamps
+			$filtered_bpm_arr = array();
+			$secs             = 0;
+			$min_record_ts    = min( $this->data_mesgs['record']['timestamp'] );
+			$max_record_ts    = max( $this->data_mesgs['record']['timestamp'] );
+			foreach ( $timestamps as $idx => $timestamp ) {
+
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+
+				$ts_secs = round( $timestamp + $start_timestamp );
+
+				// Skip timestamps outside of the range we're interested in
+				if ( $ts_secs >= $min_record_ts && $ts_secs <= $max_record_ts ) {
+					if ( isset( $filtered_bpm_arr[ $ts_secs ] ) ) {
+						$filtered_bpm_arr[ $ts_secs ][0] += $hr[ $idx ];
+						++$filtered_bpm_arr[ $ts_secs ][1];
+					} else {
+						$filtered_bpm_arr[ $ts_secs ] = array( $hr[ $idx ], 1 );
 					}
 				}
 			}
 
-			if ( $quadrant_analysis ) {
-				if ( ! empty( $quadrant_plot ) ) {
-					$tmp['cpv']  = isset( $quadrant_plot['plot'][ $ts ] ) ? $quadrant_plot['plot'][ $ts ][0] : null;
-					$tmp['aepf'] = isset( $quadrant_plot['plot'][ $ts ] ) ? $quadrant_plot['plot'][ $ts ][1] : null;
-				}
-			}
+			// Populate the heart_rate fields for record messages
+			foreach ( $filtered_bpm_arr as $idx => $arr ) {
+				$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
 
-			if ( $paused ) {
-				$tmp['paused'] = $is_paused[ $ts ];
-			}
-
-			$data[] = $tmp;
-			unset( $tmp );
-		}
-
-		$for_json['data'] = $data;
-
-		return json_encode( $for_json );
-	}
-
-	/**
-	 * Create a JSON object that contains available lap message information.
-	 */
-	public function getJSONLap() {
-		$for_json             = array();
-		$for_json['fix_data'] = isset( $this->options['fix_data'] ) ? $this->options['fix_data'] : null;
-		$for_json['units']    = isset( $this->options['units'] ) ? $this->options['units'] : null;
-		$for_json['pace']     = isset( $this->options['pace'] ) ? $this->options['pace'] : null;
-		$for_json['num_laps'] = count( $this->data_mesgs['lap']['timestamp'] );
-		$data                 = array();
-
-		for ( $i = 0; $i < $for_json['num_laps']; $i++ ) {
-			$data[ $i ]['lap'] = $i;
-			foreach ( $this->data_mesgs['lap'] as $key => $value ) {
-				$data[ $i ][ $key ] = $value[ $i ];
+				$this->data_mesgs['record']['heart_rate'][ $idx ] = (int) round( $arr[0] / $arr[1] );
+				// $this->logger->debug( 'Set heart Rate: ' . $this->data_mesgs['record']['heart_rate'][ $idx ] );
 			}
 		}
 
-		$for_json['data'] = $data;
-
-		return json_encode( $for_json );
-	}
-
-	/**
-	 * Outputs tables of information being listened for and found within the processed FIT file.
-	 */
-	public function showDebugInfo() {
-		asort( $this->defn_mesgs_all );  // Sort the definition messages
-
-		echo '<h3>Types</h3>';
-		echo '<table class=\'table table-condensed table-striped\'>';  // Bootstrap classes
-		echo '<thead>';
-		echo '<th>key</th>';
-		echo '<th>PHP unpack() format</th>';
-		echo '<th>Bytes</th>';
-		echo '</thead>';
-		echo '<tbody>';
-		foreach ( $this->types as $key => $val ) {
-			echo '<tr><td>' . $key . '</td><td>' . $val['format'] . '</td><td>' . $val['bytes'] . '</td></tr>';
-		}
-		echo '</tbody>';
-		echo '</table>';
-
-		echo '<br><hr><br>';
-
-		echo '<h3>Messages and Fields being listened for</h3>';
-		foreach ( $this->data_mesg_info as $key => $val ) {
-			echo '<h4>' . $val['mesg_name'] . ' (' . $key . ')</h4>';
-			echo '<table class=\'table table-condensed table-striped\'>';
-			echo '<thead><th>ID</th><th>Name</th><th>Scale</th><th>Offset</th><th>Units</th></thead><tbody>';
-			foreach ( $val['field_defns'] as $key2 => $val2 ) {
-				echo '<tr><td>' . $key2 . '</td><td>' . $val2['field_name'] . '</td><td>' . $val2['scale'] . '</td><td>' . $val2['offset'] . '</td><td>' . $val2['units'] . '</td></tr>';
-			}
-			echo '</tbody></table><br><br>';
-		}
-
-		echo '<br><hr><br>';
-
-		echo '<h3>FIT Definition Messages contained within the file</h3>';
-		echo '<table class=\'table table-condensed table-striped\'>';
-		echo '<thead>';
-		echo '<th>global_mesg_num</th>';
-		echo '<th>num_fields</th>';
-		echo '<th>field defns</th>';
-		echo '<th>total_size</th>';
-		echo '</thead>';
-		echo '<tbody>';
-		foreach ( $this->defn_mesgs_all as $key => $val ) {
-			echo '<tr><td>' . $val['global_mesg_num'] . ( isset( $this->data_mesg_info[ $val['global_mesg_num'] ] ) ? ' (' . $this->data_mesg_info[ $val['global_mesg_num'] ]['mesg_name'] . ')' : ' (unknown)' ) . '</td><td>' . $val['num_fields'] . '</td><td>';
-			foreach ( $val['field_defns'] as $defn ) {
-				echo 'defn: ' . $defn['field_definition_number'] . '; size: ' . $defn['size'] . '; type: ' . $defn['base_type'];
-				echo ' (' . ( isset( $this->data_mesg_info[ $val['global_mesg_num'] ]['field_defns'][ $defn['field_definition_number'] ] ) ? $this->data_mesg_info[ $val['global_mesg_num'] ]['field_defns'][ $defn['field_definition_number'] ]['field_name'] : 'unknown' ) . ')<br>';
-			}
-			echo '</td><td>' . $val['total_size'] . '</td></tr>';
-		}
-		echo '</tbody>';
-		echo '</table>';
-
-		echo '<br><hr><br>';
-
-		echo '<h3>Messages found in file</h3>';
-		foreach ( $this->data_mesgs as $mesg_key => $mesg ) {
-			echo '<table class=\'table table-condensed table-striped\'>';
-			echo '<thead><th>' . $mesg_key . '</th><th>count()</th></thead><tbody>';
-			foreach ( $mesg as $field_key => $field ) {
-				if ( is_array( $field ) ) {
-					echo '<tr><td>' . $field_key . '</td><td>' . count( $field ) . '</td></tr>';
-				} else {
-					echo '<tr><td>' . $field_key . '</td><td>' . $field . '</td></tr>';
-				}
-			}
-			echo '</tbody></table><br><br>';
-		}
-	}
-
-	/*
-	 * Process HR messages
-	 *
-	 * Based heavily on logic in commit:
-	 * https://github.com/GoldenCheetah/GoldenCheetah/commit/957ae470999b9a57b5b8ec57e75512d4baede1ec
-	 * Particularly the decodeHr() method
-	 *
-	 * @param object $queue  Queue object
-	 */
-	private function processHrMessages( $queue = null ) {
-		// Check that we have received HR messages
-		if ( empty( $this->data_mesgs['hr'] ) ) {
-			return;
-		}
-
-		$lock_expire = $this->get_lock_expiration( $queue );
-
-		$hr         = array();
-		$timestamps = array();
-
-		// Load all filtered_bpm values into the $hr array
-		foreach ( $this->data_mesgs['hr']['filtered_bpm'] as $hr_val ) {
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-
-			if ( is_array( $hr_val ) ) {
-				foreach ( $hr_val as $sub_hr_val ) {
-					$hr[] = $sub_hr_val;
-				}
+		/**
+		 * Get lock expiration.
+		 *
+		 * @param CCM_GPS_Fit_File_Queue|null $queue Queue for processing FIT file data.
+		 *
+		 * @return int|bool Lock expiration time.
+		 */
+		protected function get_lock_expiration( $queue = null ) {
+			if ( $queue ) {
+				$lock_expire = $queue->get_lock_expiration();
 			} else {
-				$hr[] = $hr_val;
+				$lock_expire = false;
+			}
+
+			return $lock_expire;
+		}
+
+		/**
+		 * Maybe set lock expiration if within 50% of expiration.
+		 *
+		 * @param CCM_GPS_Fit_File_Queue|null $queue       Queue for processing FIT file data.
+		 */
+		protected function maybe_set_lock_expiration( $queue ) {
+			if ( $queue ) {
+				$queue->maybe_set_lock_expiration();
 			}
 		}
 
-		// Manually scale timestamps (i.e. divide by 1024)
-		$last_event_timestamp = $this->data_mesgs['hr']['event_timestamp'];
-		if ( is_array( $last_event_timestamp ) ) {
-			$last_event_timestamp = $last_event_timestamp[0];
-		}
-		$start_timestamp = $this->data_mesgs['hr']['timestamp'] - $last_event_timestamp / 1024.0;
-		$timestamps[]    = $last_event_timestamp / 1024.0;
+		/**
+		 * Configure the logger.
+		 *
+		 * @return void
+		 */
+		public function configure_logger() {
+			$this->logger = new Logger( 'pffa' );
 
-		// Determine timestamps (similar to compressed timestamps)
-		foreach ( $this->data_mesgs['hr']['event_timestamp_12'] as $event_timestamp_12_val ) {
+			$error_level = $this->get_logging_level();
 
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+			// Create a formatter with a custom date format.
+			$date_format = 'd-M-Y H:i:s T';
+			$output      = "[%datetime%] %channel%.%level_name%: %message% %context% %extra%\n";
+			$formatter   = new LineFormatter( $output, $date_format, true, true );
 
-			$j = 0;
-			for ( $i = 0; $i < 11; $i++ ) {
-				$last_event_timestamp12 = $last_event_timestamp & 0xFFF;
-				$next_event_timestamp12 = null;
+			// Determine the log file path based on the environment.
+			$base_dir = $this->trailingslashit( $_ENV['PFFA_HOME'] );
+			$log_file = $base_dir . 'debug.log';
 
-				if ( $j % 2 === 0 ) {
-					$next_event_timestamp12 = $event_timestamp_12_val[ $i ] + ( ( $event_timestamp_12_val[ $i + 1 ] & 0xF ) << 8 );
-					$last_event_timestamp   = ( $last_event_timestamp & 0xFFFFF000 ) + $next_event_timestamp12;
-				} else {
-					$next_event_timestamp12 = 16 * $event_timestamp_12_val[ $i + 1 ] + ( ( $event_timestamp_12_val[ $i ] & 0xF0 ) >> 4 );
-					$last_event_timestamp   = ( $last_event_timestamp & 0xFFFFF000 ) + $next_event_timestamp12;
-					++$i;
-				}
-				if ( $next_event_timestamp12 < $last_event_timestamp12 ) {
-					$last_event_timestamp += 0x1000;
-				}
-
-				$timestamps[] = $last_event_timestamp / 1024.0;
-				++$j;
+			if ( ! $log_file ) {
+				error_log( 'pffa: Error log file not found.' );
+			} else {
+				$stream_handler = new StreamHandler( $log_file, $error_level );
+				$stream_handler->setFormatter( $formatter );
+				$this->logger->pushHandler( $stream_handler );
 			}
 		}
 
-		// Map HR values to timestamps
-		$filtered_bpm_arr = array();
-		$secs             = 0;
-		$min_record_ts    = min( $this->data_mesgs['record']['timestamp'] );
-		$max_record_ts    = max( $this->data_mesgs['record']['timestamp'] );
-		foreach ( $timestamps as $idx => $timestamp ) {
-
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
-
-			$ts_secs = round( $timestamp + $start_timestamp );
-
-			// Skip timestamps outside of the range we're interested in
-			if ( $ts_secs >= $min_record_ts && $ts_secs <= $max_record_ts ) {
-				if ( isset( $filtered_bpm_arr[ $ts_secs ] ) ) {
-					$filtered_bpm_arr[ $ts_secs ][0] += $hr[ $idx ];
-					++$filtered_bpm_arr[ $ts_secs ][1];
-				} else {
-					$filtered_bpm_arr[ $ts_secs ] = array( $hr[ $idx ], 1 );
-				}
-			}
+		/**
+		 * Add a trailing slash to a path if it doesn't already have one.
+		 */
+		private function trailingslashit( $path ) {
+			return rtrim( $path, '/\\' ) . DIRECTORY_SEPARATOR;
 		}
 
-		// Populate the heart_rate fields for record messages
-		foreach ( $filtered_bpm_arr as $idx => $arr ) {
-			$lock_expire = $this->maybe_set_lock_expiration( $queue, $lock_expire );
+		/**
+		 * Get the logging level for the plugin.
+		 *
+		 * Default is ERROR.
+		 *
+		 * Assumes that cycling-club-manager plugin is active.
+		 * Otherwise, will default to ERROR
+		 *
+		 * Hierarchy of logging levels:
+		 *   DEBUG: Detailed debug information.
+		 *   INFO: Interesting events. Examples: User logs in, SQL logs.
+		 *   NOTICE: Normal but significant events.
+		 *   WARNING: Exceptional occurrences that are not errors. Examples: Use of deprecated APIs, poor use of an API, undesirable things that are not necessarily wrong.
+		 *   ERROR: Runtime errors that do not require immediate action but should typically be logged and monitored.
+		 *   CRITICAL: Critical conditions. Example: Application component unavailable, unexpected exception.
+		 *   ALERT: Action must be taken immediately. Example: Entire website down, database unavailable, etc. This should trigger the SMS alerts and wake you up.
+		 *   EMERGENCY: Emergency: system is unusable.
+		 */
+		private function get_logging_level() {
 
-			$this->data_mesgs['record']['heart_rate'][ $idx ] = (int) round( $arr[0] / $arr[1] );
-			// $this->logger->debug( 'Set heart Rate: ' . $this->data_mesgs['record']['heart_rate'][ $idx ] );
+			// if ( is_multisite() ) {
+			//  $main_site_id = get_main_site_id(); // Get the main site ID.
+			//  switch_to_blog( $main_site_id );
+			//  $site_settings = get_option( 'phpffa_settings' );
+			//  restore_current_blog();
+			// } else {
+			//  $site_settings = get_option( 'phpffa_settings' );
+			// }
+
+			// $logging_level = isset( $site_settings['logging_level'] ) ? $site_settings['logging_level'] : Logger::ERROR;
+
+			return Level::Debug;
 		}
 	}
-
-	/**
-	 * Get lock expiration.
-	 *
-	 * @param CCM_GPS_Fit_File_Queue|null $queue Queue for processing FIT file data.
-	 *
-	 * @return int|bool Lock expiration time.
-	 */
-	protected function get_lock_expiration( $queue = null ) {
-		if ( $queue ) {
-			$lock_expire = $queue->get_lock_expiration();
-		} else {
-			$lock_expire = false;
-		}
-
-		return $lock_expire;
-	}
-
-	/**
-	 * Maybe set lock expiration if within 50% of expiration.
-	 *
-	 * @param CCM_GPS_Fit_File_Queue|null $queue       Queue for processing FIT file data.
-	 */
-	protected function maybe_set_lock_expiration( $queue ) {
-		if ( $queue ) {
-			$queue->maybe_set_lock_expiration();
-		}
-	}
-
-	/**
-	 * Configure the logger.
-	 *
-	 * @return void
-	 */
-	public function configure_logger() {
-		$this->logger = new Logger( 'pffa' );
-
-		$error_level = $this->get_logging_level();
-
-		// Create a formatter with a custom date format.
-		$date_format = 'd-M-Y H:i:s T';
-		$output      = "[%datetime%] %channel%.%level_name%: %message% %context% %extra%\n";
-		$formatter   = new LineFormatter( $output, $date_format, true, true );
-
-		// Determine the log file path based on the environment.
-		$base_dir = $this->trailingslashit( $_ENV['PFFA_HOME'] );
-		$log_file = $base_dir . 'debug.log';
-
-		if ( ! $log_file ) {
-			error_log( 'pffa: Error log file not found.' );
-		} else {
-			$stream_handler = new StreamHandler( $log_file, $error_level );
-			$stream_handler->setFormatter( $formatter );
-			$this->logger->pushHandler( $stream_handler );
-		}
-	}
-
-	/**
-	 * Add a trailing slash to a path if it doesn't already have one.
-	 */
-	private function trailingslashit( $path ) {
-		return rtrim( $path, '/\\' ) . DIRECTORY_SEPARATOR;
-	}
-
-	/**
-	 * Get the logging level for the plugin.
-	 *
-	 * Default is ERROR.
-	 *
-	 * Assumes that cycling-club-manager plugin is active.
-	 * Otherwise, will default to ERROR
-	 *
-	 * Hierarchy of logging levels:
-	 *   DEBUG: Detailed debug information.
-	 *   INFO: Interesting events. Examples: User logs in, SQL logs.
-	 *   NOTICE: Normal but significant events.
-	 *   WARNING: Exceptional occurrences that are not errors. Examples: Use of deprecated APIs, poor use of an API, undesirable things that are not necessarily wrong.
-	 *   ERROR: Runtime errors that do not require immediate action but should typically be logged and monitored.
-	 *   CRITICAL: Critical conditions. Example: Application component unavailable, unexpected exception.
-	 *   ALERT: Action must be taken immediately. Example: Entire website down, database unavailable, etc. This should trigger the SMS alerts and wake you up.
-	 *   EMERGENCY: Emergency: system is unusable.
-	 */
-	private function get_logging_level() {
-
-		// if ( is_multisite() ) {
-		//  $main_site_id = get_main_site_id(); // Get the main site ID.
-		//  switch_to_blog( $main_site_id );
-		//  $site_settings = get_option( 'phpffa_settings' );
-		//  restore_current_blog();
-		// } else {
-		//  $site_settings = get_option( 'phpffa_settings' );
-		// }
-
-		// $logging_level = isset( $site_settings['logging_level'] ) ? $site_settings['logging_level'] : Logger::ERROR;
-
-		return Level::Debug;
-	}
-}
 
 // phpcs:enable WordPress
 // phpcs:enable Squiz.Commenting
