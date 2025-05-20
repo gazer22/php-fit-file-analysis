@@ -7589,7 +7589,7 @@ class phpFITFileAnalysis {
 				$lock_expire = $this->maybe_set_lock_expiration( $queue );
 
 				// Fetch a batch of records sorted by timestamp ASC.
-				$query = 'SELECT id, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
+				$query = 'SELECT `id`, `file_num`, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
 				$stmt  = $this->db->prepare( $query );
 				$stmt->bindValue( ':batch_size', $batch_size, \PDO::PARAM_INT );
 				$stmt->bindValue( ':offset', $offset, \PDO::PARAM_INT );
@@ -7612,8 +7612,11 @@ class phpFITFileAnalysis {
 					// Look for non-increasing distance values and adjust them.
 					$record['distance'] += $dist_delta;
 					if ($record['distance'] < $last_distance) {
+						// $this->logger->debug( 'calculateStopPoints: distance value decreased from ' . $last_distance . ' to ' . $record['distance'] . ', current dist_delta = ' . $dist_delta );
+						// $this->logger->debug( ' record = ' . print_r( $record, true ) );
 						$dist_delta         += $last_distance - $record['distance'];
-						$record['distance'] += $dist_delta;
+						// $this->logger->debug( ' new dist_delta = ' . $dist_delta );
+						$record['distance']  = $last_distance;
 					}
 					$last_distance = $record['distance'];
 
