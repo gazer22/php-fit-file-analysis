@@ -6842,6 +6842,8 @@ class phpFITFileAnalysis {
 		// 131    s    signed short (always 16 bit, machine byte order)
 		// 133    l    signed long (always 32 bit, machine byte order)
 		// 142    q    signed long long (always 64 bit, machine byte order)
+		// Changed from using $this->defn_mesgs_all to $this->defn_mesgs.
+		// TODO - this could be far more efficient by looking up the field info directly from the $mesgs array.
 		foreach ( $this->defn_mesgs as $mesg ) {
 			if ( isset( $this->data_mesg_info[ $mesg['global_mesg_num'] ] ) ) {
 				$mesg_name = $this->data_mesg_info[ $mesg['global_mesg_num'] ]['mesg_name'];
