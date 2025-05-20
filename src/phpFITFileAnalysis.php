@@ -6033,6 +6033,8 @@ class phpFITFileAnalysis {
 
 			if ( $this->file_num ) {
 				$placeholders = array( $this->file_num );  // start with file_num.
+			if ( $this->file_num ) {
+				$placeholders = array( $this->file_num );  // start with file_num.
 			} else {
 				$placeholders = array( 'NULL' );
 			}
