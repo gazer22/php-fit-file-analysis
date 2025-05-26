@@ -7571,7 +7571,7 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		$lock_expire = $this->get_lock_expiration( $queue );
+		$this->get_lock_expiration( $queue );
 
 		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
 		// For each row in the table, call $record_callback and if it returns 1, set the stopped field for that table row to 1.
@@ -7584,12 +7584,41 @@ class phpFITFileAnalysis {
 		$this->create_temp_update_table();
 		$this->logger->debug( 'calculateStopPoints: created temp update table' );
 
+		$desired_fields = array(
+			'id',
+			'file_num',
+			'timestamp',
+			'distance',
+			'speed',
+			'paused',
+		);
+
+		// Escape each $deisred_fields with backticks.
+		$desired_fields = array_map(
+			function ( $field ) {
+				return '`' . $field . '`';
+			},
+			$desired_fields
+		);
+
+		$record_fields = array_column( $this->tables_created['record']['columns'], 'field_name' );
+
+		// If 'speed' is not in $record_fields but 'enhanced_speed' is, replace 'speed' with 'enhanced_speed' in $desired_fields.
+		if (!in_array( 'speed', $record_fields, true ) && in_array( 'enhanced_speed', $record_fields, true )) {
+			$speed_index = array_search( '`speed`', $desired_fields, true );
+			if ($speed_index !== false) {
+				$desired_fields[$speed_index] = '`enhanced_speed` as `speed`';
+			}
+		}
+
+		$desired_fields = implode( ', ', $desired_fields );
+
 		while (true) {
 			try {
-				$lock_expire = $this->maybe_set_lock_expiration( $queue );
+				$this->maybe_set_lock_expiration( $queue );
 
 				// Fetch a batch of records sorted by timestamp ASC.
-				$query = 'SELECT `id`, `file_num`, `timestamp`, `distance`, `speed`, `paused`  FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
+				$query = 'SELECT ' . $desired_fields . ' FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
 				$stmt  = $this->db->prepare( $query );
 				$stmt->bindValue( ':batch_size', $batch_size, \PDO::PARAM_INT );
 				$stmt->bindValue( ':offset', $offset, \PDO::PARAM_INT );
@@ -7614,9 +7643,9 @@ class phpFITFileAnalysis {
 					if ($record['distance'] < $last_distance) {
 						// $this->logger->debug( 'calculateStopPoints: distance value decreased from ' . $last_distance . ' to ' . $record['distance'] . ', current dist_delta = ' . $dist_delta );
 						// $this->logger->debug( ' record = ' . print_r( $record, true ) );
-						$dist_delta         += $last_distance - $record['distance'];
+						$dist_delta += $last_distance - $record['distance'];
 						// $this->logger->debug( ' new dist_delta = ' . $dist_delta );
-						$record['distance']  = $last_distance;
+						$record['distance'] = $last_distance;
 					}
 					$last_distance = $record['distance'];
 
