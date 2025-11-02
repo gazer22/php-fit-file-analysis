@@ -5977,9 +5977,10 @@ class phpFITFileAnalysis {
 			// $this->logger->debug( 'Nonrecord values: ' . print_r( $values, true ) );
 			$stmt->execute( $values );
 		} catch ( \PDOException $e ) {
-			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
+			$this->logger->error( 'storeNonRecordMesg(): Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
 			$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
 			$this->logger->error( ' values:  ' . implode( ', ', $values ) );
+            $this->logger->error( " SQL:\n" . $sql );
 			throw $e;
 		}
 
@@ -6090,9 +6091,10 @@ class phpFITFileAnalysis {
 		try {
 			$this->db->exec( $sql );
 		} catch ( \PDOException $e ) {
-			$this->logger->error( 'Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
+			$this->logger->error( 'storeRecordMesg(): Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
 			$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
 			$this->logger->error( ' values:  ' . implode( ', ', $values ) );
+            $this->logger->error( " SQL:\n" . $sql );
 			throw $e;
 		}
 
