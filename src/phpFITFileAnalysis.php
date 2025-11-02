@@ -19,7 +19,8 @@ use Monolog\Formatter\LineFormatter;
  * Adrian.GitHub@gmail.com
  *
  * G Frogley edits:
- * Added code to generate TRIMPexp and hrIF (Intensity Factor) value to measure session if Power is not present (June 2015).
+ * Added code to generate TRIMPexp and hrIF (Intensity Factor) value to measure
+ * session if Power is not present (June 2015).
  * Added code to generate Quadrant Analysis data (September 2015).
  *
  * Rafael Nájera edits:
@@ -51,7 +52,7 @@ if ( ! defined( 'FIT_UNIX_TS_DIFF' ) ) {
 
 class phpFITFileAnalysis {
 
-	public $data_mesgs              = array();               // Used to store the data read from the file in associative arrays.
+	public $data_mesgs              = array();  // Used to store the data read from the file in associative arrays.
 	private $dev_field_descriptions = array();
 	private $options                = null;     // Options provided to __construct().
 	private $file_contents          = '';       // FIT file is read-in to memory as a string, split into an array, and reversed. See __construct().
@@ -1051,7 +1052,14 @@ class phpFITFileAnalysis {
 	/**
 	 * D00001275 Flexible & Interoperable Data Transfer (FIT) Protocol Rev 1.7.pdf
 	 * 4.4 Scale/Offset
-	 * When specified, the binary quantity is divided by the scale factor and then the offset is subtracted, yielding a floating point quantity.
+	 * When specified, the binary quantity is divided by the scale factor and
+	 * then the offset is subtracted, yielding a floating point quantity.
+	 *
+	 * See Profile.xlsx, Types tab, mesg_num type name.  Array keys are message
+	 * numbers as shown as 'Value' on that tab.
+     * 
+	 * Note that not even close to all messages are included here.  Need to
+	 * handle appropriately.
 	 */
 	private $data_mesg_info = array(
 		0   => array(
@@ -5467,7 +5475,10 @@ class phpFITFileAnalysis {
 					// }
 
 					// Check that we have information on the Data Message.
-					if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ] ) ) {
+					if ( isset( $this->defn_mesgs[ $local_mesg_type ] )
+						&& isset( $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] )
+						&& isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ] )
+						) {
 						$data_mesg_start = microtime( true );
 
 						// If table is not build for this message type, build it.
@@ -5662,10 +5673,16 @@ class phpFITFileAnalysis {
 						$timing['store_mesg'] += microtime( true ) - $store_mesg_start;
 
 					} else {
+                        // Skip this data message as we don't have information on it.
+                        // Most likely, it's not implemented in our data_mesg_info array.
 						fseek( $this->file_contents, $this->defn_mesgs[ $local_mesg_type ]['total_size'], SEEK_CUR );
 						$this->file_pointer += $this->defn_mesgs[ $local_mesg_type ]['total_size'];
 						// $skipped_mesg        = $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ?? $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'];
-						// $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): skipping message type: ' . $skipped_mesg );
+						// $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): skipping message type, global_mesg_num not set or not in data_mesg_info: ' . $skipped_mesg . ', local mesg type: ' . $local_mesg_type );
+						// $this->logger->debug( '  defn_mesg[' . $local_mesg_type . ']: ' . print_r( $this->defn_mesgs[ $local_mesg_type ], true ) );
+						// if ( isset( $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ) && isset( $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ] ) ) {
+						// 	$this->logger->debug( '  data_mesg_info_original: ' . print_r( $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ], true ) );
+						// }
 					}
 			}
 		}  // while loop
