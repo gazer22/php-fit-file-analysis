@@ -5675,6 +5675,10 @@ class phpFITFileAnalysis {
 					} else {
                         // Skip this data message as we don't have information on it.
                         // Most likely, it's not implemented in our data_mesg_info array.
+                        if ( ! isset( $this->defn_mesgs[ $local_mesg_type ] ) ) {
+                            $this->logger->error( 'phpFITFileAnalysis->readDataRecords(): skipping data message, no definition message found for local_mesg_type: ' . $local_mesg_type );
+                            $this->logger->error( '  defn_mesgs: ' . print_r( $this->defn_mesgs, true ) );
+                        }
 						fseek( $this->file_contents, $this->defn_mesgs[ $local_mesg_type ]['total_size'], SEEK_CUR );
 						$this->file_pointer += $this->defn_mesgs[ $local_mesg_type ]['total_size'];
 						// $skipped_mesg        = $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ?? $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'];
