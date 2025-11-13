@@ -53,30 +53,30 @@ if ( ! defined( 'FIT_UNIX_TS_DIFF' ) ) {
 class phpFITFileAnalysis {
 
 	public $data_mesgs              = array();  // Used to store the data read from the file in associative arrays.
-	private $dev_field_descriptions = array();
-	private $options                = null;     // Options provided to __construct().
-	private $file_contents          = '';       // FIT file is read-in to memory as a string, split into an array, and reversed. See __construct().
-	private $file_pointer           = 0;        // Points to the location in the file that shall be read next.
-	private $defn_mesgs             = array();  // Array of FIT 'Definition Messages', which describe the architecture, format, and fields of 'Data Messages'.
-	private $defn_mesgs_all         = array();  // Keeps a record of all Definition Messages as index ($local_mesg_type) of $defn_mesgs may be reused in file.
-	private $file_header            = array();  // Contains information about the FIT file such as the Protocol version, Profile version, and Data Size.
-	private $php_trader_ext_loaded  = false;    // Is the PHP Trader extension loaded? Use $this->sma() algorithm if not available.
-	private $types                  = null;     // Set by $endianness depending on architecture in Definition Message.
-	private $garmin_timestamps      = false;    // By default the constant FIT_UNIX_TS_DIFF will be added to timestamps.
-	private $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
-	private $data_table             = '';       // Base name for data tables in the database.
-	private $tables_created         = array();  // Stores the name and columns of each table created.
-	private $file_num               = null;     // File ID.
-	private $db;                                // PDO object for database connection.
-	private $db_name;                           // Database name.
-	private $db_user;                           // Database user.
-	private $db_pass;                           // Database password.
-	private $buffer_size = 5000;                // Number of messags to buffer and then load to DB in batch.
+	protected $dev_field_descriptions = array();
+	protected $options                = null;     // Options provided to __construct().
+	protected $file_contents          = '';       // FIT file is read-in to memory as a string, split into an array, and reversed. See __construct().
+	protected $file_pointer           = 0;        // Points to the location in the file that shall be read next.
+	protected $defn_mesgs             = array();  // Array of FIT 'Definition Messages', which describe the architecture, format, and fields of 'Data Messages'.
+	protected $defn_mesgs_all         = array();  // Keeps a record of all Definition Messages as index ($local_mesg_type) of $defn_mesgs may be reused in file.
+	protected $file_header            = array();  // Contains information about the FIT file such as the Protocol version, Profile version, and Data Size.
+	protected $php_trader_ext_loaded  = false;    // Is the PHP Trader extension loaded? Use $this->sma() algorithm if not available.
+	protected $types                  = null;     // Set by $endianness depending on architecture in Definition Message.
+	protected $garmin_timestamps      = false;    // By default the constant FIT_UNIX_TS_DIFF will be added to timestamps.
+	protected $file_buff              = false;    // Set to true to NOT pull entire file in to memory.  Read the file in pieces.
+	protected $data_table             = '';       // Base name for data tables in the database.
+	protected $tables_created         = array();  // Stores the name and columns of each table created.
+	protected $file_num               = null;     // File ID.
+	protected $db;                                // PDO object for database connection.
+	protected $db_name;                           // Database name.
+	protected $db_user;                           // Database user.
+	protected $db_pass;                           // Database password.
+	protected $buffer_size = 5000;                // Number of messags to buffer and then load to DB in batch.
 	public $logger;                             // Monolog logger object.
 
 	// Enumerated data looked up by enumData().
 	// Values from 'Profile.xls' contained within the FIT SDK.
-	private $enum_data = array(
+	protected $enum_data = array(
 		'activity'            => array(
 			0 => 'manual',
 			1 => 'auto_multi_sport',
@@ -886,7 +886,7 @@ class phpFITFileAnalysis {
 	 * $types array holds a string used by the PHP unpack() function to format binary data.
 	 * 'tmp' is the name of the (single element) array created.
 	 */
-	private $endianness = array(
+	protected $endianness = array(
 		0 => array(  // Little Endianness
 			0   => array(
 				'format' => 'Ctmp',
@@ -1029,7 +1029,7 @@ class phpFITFileAnalysis {
 		),
 	);
 
-	private $invalid_values = array(
+	protected $invalid_values = array(
 		0   => 255,                  // 0xFF
 		1   => 127,                  // 0x7F
 		2   => 255,                  // 0xFF
@@ -1061,7 +1061,7 @@ class phpFITFileAnalysis {
 	 * Note that not even close to all messages are included here.  Need to
 	 * handle appropriately.
 	 */
-	private $data_mesg_info = array(
+	protected $data_mesg_info = array(
 		0   => array(
 			'mesg_name'   => 'file_id',
 			'field_defns' => array(
@@ -4912,7 +4912,7 @@ class phpFITFileAnalysis {
 		),
 	);
 
-	private $data_mesg_info_original; // Original data message info for reference.
+	protected $data_mesg_info_original; // Original data message info for reference.
 
 	/**
 	 * Constructor for phpFITFileAnalysis.
@@ -5111,7 +5111,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Establish database connection.
 	 */
-	private function connect_to_db() {
+	protected function connect_to_db() {
 		if ( $this->file_buff ) {
 			try {
 				$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass );
@@ -5164,7 +5164,7 @@ class phpFITFileAnalysis {
 	 * @return bool
 	 * @throws \Exception if any of the required options are missing or invalid.
 	 */
-	private function checkFileBufferOptions( $options ) {
+	protected function checkFileBufferOptions( $options ) {
 
 		if ( ! isset( $options['table_name'] ) || ! is_string( $options['table_name'] ) ) {
 			throw new \Exception( 'phpFITFileAnalysis->checkFileBufferOptions(): table_name option is required when buffer_input_to_db is set to true!' );
@@ -5190,7 +5190,7 @@ class phpFITFileAnalysis {
 	 * @param string $table_name
 	 * @return string
 	 */
-	private function cleanTableName( $table_name ) {
+	protected function cleanTableName( $table_name ) {
 		$table_name = str_replace( ' ', '_', $table_name );
 		$table_name = str_replace( '-', '_', $table_name );
 		$table_name = str_replace( '.', '_', $table_name );
@@ -5224,7 +5224,7 @@ class phpFITFileAnalysis {
 	 * @param array $options
 	 * @return void
 	 */
-	private function limit_data( $options ) {
+	protected function limit_data( $options ) {
 		if ( ! is_array( $options ) ) {
 			throw new \Exception( 'phpFITFileAnalysis->limit_data(): options must be an array!' );
 		}
@@ -5258,7 +5258,7 @@ class phpFITFileAnalysis {
 	 * D00001275 Flexible & Interoperable Data Transfer (FIT) Protocol Rev 1.7.pdf
 	 * Table 3-1. Byte Description of File Header
 	 */
-	private function readHeader() {
+	protected function readHeader() {
 		$header_size = unpack( 'C1header_size', fread( $this->file_contents, 1 ) )['header_size'];
 		++$this->file_pointer;
 
@@ -5297,7 +5297,7 @@ class phpFITFileAnalysis {
 	 *
 	 * @param CCM_GPS_Fit_File_Queue|null $queue           Queue for processing FIT file data.
 	 */
-	private function readDataRecords( $queue = null ) {
+	protected function readDataRecords( $queue = null ) {
 		$record_header_byte  = 0;
 		$message_type        = 0;
 		$developer_data_flag = 0;
@@ -5735,7 +5735,7 @@ class phpFITFileAnalysis {
 	 * @param int      $local_mesg_type  Related element of $this->defn_mesgs.
 	 * @param bool     $flush            Whether to flush any remaining data to the database.
 	 */
-	private function storeMesg( $mesgs, $local_mesg_type, $flush = false ) {
+	protected function storeMesg( $mesgs, $local_mesg_type, $flush = false ) {
 		static $timings = array(
 			'column_check' => 0,
 			'fixDataSingle' => 0,
@@ -5849,7 +5849,7 @@ class phpFITFileAnalysis {
 	 * @return void
 	 * @throws Exception If there is an error during the database operation.
 	 */
-	private function bufferAndLoadMessages( $mesgs, $flush ) {
+	protected function bufferAndLoadMessages( $mesgs, $flush ) {
 		static $mesg_count   = 0;
 		static $mesgs_buffer = array();
 
@@ -5903,7 +5903,7 @@ class phpFITFileAnalysis {
 	 * @param array $mesgs The messages to be stored.
 	 * @param string $table The table name.
 	 */
-	private function storeNonRecordMesg( $mesgs, $table ) {
+	protected function storeNonRecordMesg( $mesgs, $table ) {
 		// $this->logger->debug( 'Storing non-record messages: ' . print_r( $mesgs, true ) );
 
 		$table_name = $this->tables_created[ $table ]['location'];
@@ -5995,7 +5995,7 @@ class phpFITFileAnalysis {
 	 * @param array $mesgs The messages to be stored.
 	 * @param string $table The table name.
 	 */
-	private function storeRecordMesg( $mesgs, $table ) {
+	protected function storeRecordMesg( $mesgs, $table ) {
 		$table_name = $this->tables_created[ $table ]['location'];
 		if ( ! $table_name ) {
 			$this->logger->error( 'Table name not found for ' . $table );
@@ -6107,7 +6107,7 @@ class phpFITFileAnalysis {
 	 * @param int $local_mesg_type The message type.
 	 * @return bool True if the table was created successfully, null otherwise.
 	 */
-	private function create_table( $local_mesg_type ) {
+	protected function create_table( $local_mesg_type ) {
 		$mesg_name  = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
 		$table_name = $this->data_table . $mesg_name;
 		$table_name = $this->cleanTableName( $table_name );
@@ -6207,7 +6207,7 @@ class phpFITFileAnalysis {
 	 * @param array $field_names The field names to check against.
 	 * @return bool True if all mandatory field are present, false otherwise.
 	 */
-	private function checkForMandatoryFields( $field_names ) {
+	protected function checkForMandatoryFields( $field_names ) {
 		static $mandatory_fields = array( 'position_lat', 'position_long', 'timestamp', 'distance' );
 
 		foreach ( $mandatory_fields as $field ) {
@@ -6225,7 +6225,7 @@ class phpFITFileAnalysis {
 	 * @param array $mesgs The messages to be checked.
 	 * @param int   $local_mesg_type The local message type.
 	 */
-	private function check_for_columns_in_table( $mesgs, $local_mesg_type ) {
+	protected function check_for_columns_in_table( $mesgs, $local_mesg_type ) {
 		foreach ( $mesgs as $mesg_name => $mesg ) {
 			$table_columns = array_column( $this->tables_created[ $mesg_name ]['columns'], 'field_name' );
 			$mesg_elements = array_keys( $mesg );
@@ -6253,7 +6253,7 @@ class phpFITFileAnalysis {
 	 * @param int    $local_mesg_type The local message type.
 	 * @param array  $table_columns   The current columns in the table.
 	 */
-	private function add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns ) {
+	protected function add_columns_to_table( $mesg_name, $local_mesg_type, $table_columns ) {
 		$table_name = $this->tables_created[ $mesg_name ]['location'];
 		if ( ! $table_name ) {
 			$this->logger->error( 'Table name not found for ' . $mesg_name );
@@ -6344,7 +6344,7 @@ class phpFITFileAnalysis {
 	 * @param int $bytes Memory usage in bytes.
 	 * @return string Formatted memory usage with appropriate unit.
 	 */
-	private function formatMemoryUsage( $bytes ) {
+	protected function formatMemoryUsage( $bytes ) {
 		if ($bytes < 1024) {
 			return $bytes . ' B';
 		} elseif ($bytes < 1048576) {
@@ -6359,7 +6359,7 @@ class phpFITFileAnalysis {
 	/**
 	 * If the user has requested for the data to be fixed, identify the missing keys for that data.
 	 */
-	private function fixData( $options, $queue = null ) {
+	protected function fixData( $options, $queue = null ) {
 		$lock_expire = $this->get_lock_expiration( $queue );
 
 		// By default the constant FIT_UNIX_TS_DIFF will be added to timestamps, which have field type of date_time (or local_date_time).
@@ -6772,7 +6772,7 @@ class phpFITFileAnalysis {
 	 * Does mandatory fixes.
 	 * Does not yet identify the missing keys for that data.
 	 */
-	private function fixDataSingle( $mesgs ) {
+	protected function fixDataSingle( $mesgs ) {
 		// By default the constant FIT_UNIX_TS_DIFF will be added to timestamps, which have field type of date_time (or local_date_time).
 		// Timestamp fields (field number == 253) converted after being unpacked in $this->readDataRecords().
 		if ( ! $this->garmin_timestamps ) {
@@ -6951,7 +6951,7 @@ class phpFITFileAnalysis {
 		return $mesgs;
 	}
 
-	private function filterPauseGapThreshold( &$paused_timestamps ) {
+	protected function filterPauseGapThreshold( &$paused_timestamps ) {
 		$gap_threshold_seconds = 60;
 		$i                     = 0;
 		$checked_timestamps    = array();
@@ -6990,7 +6990,7 @@ class phpFITFileAnalysis {
 	 *
 	 * @return int|null The lock expiration time.
 	 */
-	private function interpolateMissingData( &$missing_keys, &$array, $is_int, $paused_timestamps, $queue = null, $lock_expire = null ) {
+	protected function interpolateMissingData( &$missing_keys, &$array, $is_int, $paused_timestamps, $queue = null, $lock_expire = null ) {
 		$lock_expire = $this->get_lock_expiration( $queue );
 
 		if ( ! is_array( $array ) ) {
@@ -7065,7 +7065,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Change arrays that contain only one element into non-arrays so you can use $variable rather than $variable[0] to access.
 	 */
-	private function oneElementArrays() {
+	protected function oneElementArrays() {
 		foreach ( $this->data_mesgs as $mesg_key => $mesg ) {
 			if ( $mesg_key === 'developer_data' ) {
 				continue;
@@ -7082,7 +7082,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Change arrays that contain only one element into non-arrays so you can use $variable rather than $variable[0] to access.
 	 */
-	private function oneElementArraysSingle( $mesgs ) {
+	protected function oneElementArraysSingle( $mesgs ) {
 		// Expect only one $mesg at a time.  Record messages are already clean.
 		foreach ( $mesgs as $mesg_key => $mesg ) {
 			if ( 'developer_data' === $mesg_key ) {
@@ -7149,7 +7149,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Transform the values read from the FIT file into the units requested by the user.
 	 */
-	private function setUnits( $options ) {
+	protected function setUnits( $options ) {
 		if ( ! empty( $options['units'] ) ) {
 			// Handle $options['units'] not being passed as array and/or not in lowercase.
 			$units = strtolower( ( is_array( $options['units'] ) ) ? $options['units'][0] : $options['units'] );
@@ -7364,7 +7364,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Transform the values read from the FIT file into the units requested by the user.
 	 */
-	private function setUnitsSingle( $mesgs ) {
+	protected function setUnitsSingle( $mesgs ) {
 		if ( ! empty( $this->options['units'] ) ) {
 			// Handle $this->options['units'] not being passed as array and/or not in lowercase.
 			$units = strtolower( ( is_array( $this->options['units'] ) ) ? $this->options['units'][0] : $this->options['units'] );
@@ -7744,7 +7744,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Create a temporary update table for the record data.
 	 */
-	private function create_temp_update_table() {
+	protected function create_temp_update_table() {
 		// Create a temporary table to store the updated records.
 		$query = 'CREATE TEMPORARY TABLE IF NOT EXISTS pffa_temp_update_table (id BIGINT UNSIGNED PRIMARY KEY, new_dist DECIMAL(10,5))';
 		$this->db->exec( $query );
@@ -7753,7 +7753,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Truncate the temporary update table.
 	 */
-	private function truncate_temp_update_table() {
+	protected function truncate_temp_update_table() {
 		// Truncate the temporary table to remove old data.
 		$query = 'TRUNCATE TABLE pffa_temp_update_table';
 		$this->db->exec( $query );
@@ -7762,7 +7762,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Drop the temporary update table.
 	 */
-	private function drop_temp_update_table() {
+	protected function drop_temp_update_table() {
 		// Drop the temporary table.
 		$query = 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_update_table';
 		$this->db->exec( $query );
@@ -7923,7 +7923,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Simple moving average algorithm
 	 */
-	private function sma( $array, $time_period ) {
+	protected function sma( $array, $time_period ) {
 		$data  = array_values( $array );
 		$count = count( $array );
 
@@ -8516,7 +8516,7 @@ class phpFITFileAnalysis {
 	*
 	* @param object $queue  Queue object
 	*/
-	private function processHrMessages( $queue = null ) {
+	protected function processHrMessages( $queue = null ) {
 		// Check that we have received HR messages
 		if ( empty( $this->data_mesgs['hr'] ) ) {
 			return;
@@ -8665,7 +8665,7 @@ class phpFITFileAnalysis {
 	/**
 	 * Add a trailing slash to a path if it doesn't already have one.
 	 */
-	private function trailingslashit( $path ) {
+	protected function trailingslashit( $path ) {
 		return rtrim( $path, '/\\' ) . DIRECTORY_SEPARATOR;
 	}
 
@@ -8687,7 +8687,7 @@ class phpFITFileAnalysis {
 	 *   ALERT: Action must be taken immediately. Example: Entire website down, database unavailable, etc. This should trigger the SMS alerts and wake you up.
 	 *   EMERGENCY: Emergency: system is unusable.
 	 */
-	private function get_logging_level() {
+	protected function get_logging_level() {
 
 		// if ( is_multisite() ) {
 		//  $main_site_id = get_main_site_id(); // Get the main site ID.
