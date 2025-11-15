@@ -6092,8 +6092,8 @@ class phpFITFileAnalysis {
 			$this->db->exec( $sql );
 		} catch ( \PDOException $e ) {
 			$this->logger->error( 'storeRecordMesg(): Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
-			$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
-			$this->logger->error( ' values:  ' . implode( ', ', $values ) );
+			// $this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
+			// $this->logger->error( ' values:  ' . implode( ', ', $values ) );
             $this->logger->error( " SQL:\n" . $sql );
 			throw $e;
 		}
