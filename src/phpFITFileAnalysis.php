@@ -7620,7 +7620,7 @@ class phpFITFileAnalysis {
 			'paused',
 		);
 
-		// Escape each $deisred_fields with backticks.
+		// Escape each $desired_fields with backticks.
 		$desired_fields = array_map(
 			function ( $field ) {
 				return '`' . $field . '`';
@@ -7642,8 +7642,6 @@ class phpFITFileAnalysis {
 
 		while (true) {
 			try {
-				$this->maybe_set_lock_expiration( $queue );
-
 				// Fetch a batch of records sorted by timestamp ASC.
 				$query = 'SELECT ' . $desired_fields . ' FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
 				$stmt  = $this->db->prepare( $query );
@@ -7713,6 +7711,7 @@ class phpFITFileAnalysis {
 				$total_processed += count( $records );
 
 				if ($total_processed % 10000 === 0) {
+					$this->maybe_set_lock_expiration( $queue );
 					$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
 				}
 
