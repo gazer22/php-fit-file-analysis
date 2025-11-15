@@ -5076,11 +5076,11 @@ class phpFITFileAnalysis {
 				throw new \Exception( 'phpFITFileAnalysis->addFile(): file_path is empty!' );
 			}
 			if ( ! file_exists( $file_path ) ) {
-				throw new \Exception( 'phpFITFileAnalysis->addFile(): file \'' . $file_path_or_data . '\' does not exist!' );
+				throw new \Exception( 'phpFITFileAnalysis->addFile(): file \'' . $file_path . '\' does not exist!' );
 			}
 			$handle = fopen( $file_path, 'rb' );
 			if ( ! $handle ) {
-				throw new \Exception( 'phpFITFileAnalysis->addFile(): unable to open file \'' . $file_path_or_data . '\'!' );
+				throw new \Exception( 'phpFITFileAnalysis->addFile(): unable to open file \'' . $file_path . '\'!' );
 			}
 
 			$this->file_contents = $handle;
