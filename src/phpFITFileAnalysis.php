@@ -52,7 +52,7 @@ if ( ! defined( 'FIT_UNIX_TS_DIFF' ) ) {
 
 class phpFITFileAnalysis {
 
-	public $data_mesgs              = array();  // Used to store the data read from the file in associative arrays.
+	public $data_mesgs                = array();  // Used to store the data read from the file in associative arrays.
 	protected $dev_field_descriptions = array();
 	protected $options                = null;     // Options provided to __construct().
 	protected $file_contents          = '';       // FIT file is read-in to memory as a string, split into an array, and reversed. See __construct().
@@ -1057,7 +1057,7 @@ class phpFITFileAnalysis {
 	 *
 	 * See Profile.xlsx, Types tab, mesg_num type name.  Array keys are message
 	 * numbers as shown as 'Value' on that tab.
-     * 
+	 *
 	 * Note that not even close to all messages are included here.  Need to
 	 * handle appropriately.
 	 */
@@ -5673,19 +5673,19 @@ class phpFITFileAnalysis {
 						$timing['store_mesg'] += microtime( true ) - $store_mesg_start;
 
 					} else {
-                        // Skip this data message as we don't have information on it.
-                        // Most likely, it's not implemented in our data_mesg_info array.
-                        if ( ! isset( $this->defn_mesgs[ $local_mesg_type ] ) ) {
-                            $this->logger->error( 'phpFITFileAnalysis->readDataRecords(): skipping data message, no definition message found for local_mesg_type: ' . $local_mesg_type );
-                            $this->logger->error( '  defn_mesgs: ' . print_r( $this->defn_mesgs, true ) );
-                        }
+						// Skip this data message as we don't have information on it.
+						// Most likely, it's not implemented in our data_mesg_info array.
+						if ( ! isset( $this->defn_mesgs[ $local_mesg_type ] ) ) {
+							$this->logger->error( 'phpFITFileAnalysis->readDataRecords(): skipping data message, no definition message found for local_mesg_type: ' . $local_mesg_type );
+							$this->logger->error( '  defn_mesgs: ' . print_r( $this->defn_mesgs, true ) );
+						}
 						fseek( $this->file_contents, $this->defn_mesgs[ $local_mesg_type ]['total_size'], SEEK_CUR );
 						$this->file_pointer += $this->defn_mesgs[ $local_mesg_type ]['total_size'];
 						// $skipped_mesg        = $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'] ?? $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'];
 						// $this->logger->debug( 'phpFITFileAnalysis->readDataRecords(): skipping message type, global_mesg_num not set or not in data_mesg_info: ' . $skipped_mesg . ', local mesg type: ' . $local_mesg_type );
 						// $this->logger->debug( '  defn_mesg[' . $local_mesg_type . ']: ' . print_r( $this->defn_mesgs[ $local_mesg_type ], true ) );
 						// if ( isset( $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ) && isset( $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ] ) ) {
-						// 	$this->logger->debug( '  data_mesg_info_original: ' . print_r( $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ], true ) );
+						//  $this->logger->debug( '  data_mesg_info_original: ' . print_r( $this->data_mesg_info_original[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ], true ) );
 						// }
 					}
 			}
@@ -5980,7 +5980,7 @@ class phpFITFileAnalysis {
 			$this->logger->error( 'storeNonRecordMesg(): Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
 			$this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
 			$this->logger->error( ' values:  ' . implode( ', ', $values ) );
-            $this->logger->error( " SQL:\n" . $sql );
+			$this->logger->error( " SQL:\n" . $sql );
 			throw $e;
 		}
 
@@ -6094,7 +6094,7 @@ class phpFITFileAnalysis {
 			$this->logger->error( 'storeRecordMesg(): Error inserting data into table, ' . $table_name . ': ' . $e->getMessage() );
 			// $this->logger->error( ' columns: ' . implode( ', ', $all_columns ) );
 			// $this->logger->error( ' values:  ' . implode( ', ', $values ) );
-            $this->logger->error( " SQL:\n" . $sql );
+			$this->logger->error( " SQL:\n" . $sql );
 			throw $e;
 		}
 
@@ -7582,9 +7582,11 @@ class phpFITFileAnalysis {
 	 * Calculate stop points and include them in the record table.
 	 *
 	 * @param callable $record_callback Callback function which should return 0 or 1 for stop field.
+	 * @param string   $union           SQL select from union to use.
+	 * @param array    $tables          Tables array from union mapping file id to table name.
 	 * @param object   $queue           Queue object
 	 */
-	public function calculateStopPoints( callable $record_callback, $queue = null ) {
+	public function calculateStopPoints( callable $record_callback, $union, $tables, $queue = null ) {
 		if ( ! is_callable( $record_callback ) ) {
 			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
 		}
@@ -7628,22 +7630,29 @@ class phpFITFileAnalysis {
 			$desired_fields
 		);
 
-		$record_fields = array_column( $this->tables_created['record']['columns'], 'field_name' );
+		// Union has already done this.
+		// $record_fields = array_column( $this->tables_created['record']['columns'], 'field_name' );
 
-		// If 'speed' is not in $record_fields but 'enhanced_speed' is, replace 'speed' with 'enhanced_speed' in $desired_fields.
-		if (!in_array( 'speed', $record_fields, true ) && in_array( 'enhanced_speed', $record_fields, true )) {
-			$speed_index = array_search( '`speed`', $desired_fields, true );
-			if ($speed_index !== false) {
-				$desired_fields[$speed_index] = '`enhanced_speed` as `speed`';
-			}
-		}
+		// // If 'speed' is not in $record_fields but 'enhanced_speed' is, replace 'speed' with 'enhanced_speed' in $desired_fields.
+		// if (!in_array( 'speed', $record_fields, true ) && in_array( 'enhanced_speed', $record_fields, true )) {
+		//  $speed_index = array_search( '`speed`', $desired_fields, true );
+		//  if ($speed_index !== false) {
+		//      $desired_fields[$speed_index] = '`enhanced_speed` as `speed`';
+		//  }
+		// }
 
 		$desired_fields = implode( ', ', $desired_fields );
+
+		try {
+			$union = $this->create_temp_records_table( $union, $desired_fields );
+		} catch ( \Exception $e ) {
+			throw $e;
+		}
 
 		while (true) {
 			try {
 				// Fetch a batch of records sorted by timestamp ASC.
-				$query = 'SELECT ' . $desired_fields . ' FROM ' . $this->tables_created['record']['location'] . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
+				$query = 'SELECT ' . $desired_fields . ' FROM ' . $union . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
 				$stmt  = $this->db->prepare( $query );
 				$stmt->bindValue( ':batch_size', $batch_size, \PDO::PARAM_INT );
 				$stmt->bindValue( ':offset', $offset, \PDO::PARAM_INT );
@@ -7656,8 +7665,8 @@ class phpFITFileAnalysis {
 					break;
 				}
 
-				// Track IDs that need to be updated.
-				$ids_to_update_stops = array();
+				// Track IDs that need to be updated, grouped by file_num.
+				$ids_to_update_stops = array(); // Grouped by file_num.
 				$placeholders        = array();
 				$distance_updates    = array();
 
@@ -7676,41 +7685,54 @@ class phpFITFileAnalysis {
 
 					// Add any changed points to the updates arrays.
 					if ( $dist_delta > 0 ) {
-						$placeholders[]     = '(?,?)';
+						$placeholders[]     = '(?,?,?)';
 						$distance_updates[] = $record['id'];
+						$distance_updates[] = $record['file_num'];
 						$distance_updates[] = $record['distance'];
 					}
 
 					// Identify stops.
 					$stopped = call_user_func( $record_callback, $record );
 					if ( 1 === $stopped) {
-						$ids_to_update_stops[] = $record['id'];
+						$file_num = $record['file_num'];
+						if ( ! isset( $ids_to_update_stops[ $file_num ] ) ) {
+							$ids_to_update_stops[ $file_num ] = array();
+						}
+						$ids_to_update_stops[ $file_num ][] = $record['id'];
 					}
 				}
 
 				if ( ! empty( $distance_updates ) ) {
-					$sql  = 'INSERT INTO pffa_temp_update_table (id, new_dist) VALUES ' . implode( ',', $placeholders );
+					$sql  = 'INSERT INTO pffa_temp_update_table (id, file_num, new_dist) VALUES ' . implode( ',', $placeholders );
 					$stmt = $this->db->prepare( $sql );
 					$stmt->execute( $distance_updates );
 					$stmt->closeCursor();
 
-					$sql  = 'UPDATE ' . $this->tables_created['record']['location'] . ' r JOIN pffa_temp_update_table t ON r.id = t.id SET r.distance = t.new_dist';
-					$stmt = $this->db->prepare( $sql );
-					$stmt->execute();
-					$stmt->closeCursor();
+					// Update each table separately based on file_num.
+					foreach ( $tables as $file_num => $table_location ) {
+						$sql  = 'UPDATE ' . $table_location . ' r JOIN pffa_temp_update_table t ON r.id = t.id AND t.file_num = :file_num SET r.distance = t.new_dist';
+						$stmt = $this->db->prepare( $sql );
+						$stmt->bindValue( ':file_num', $file_num, \PDO::PARAM_INT );
+						$stmt->execute();
+						$stmt->closeCursor();
+					}
 
 					$this->truncate_temp_update_table();
 				}
 
-				// Update the stopped field for all matching records in one query.
+				// Update the stopped field for all matching records, grouped by table.
 				if (! empty( $ids_to_update_stops ) ) {
-					$update_query = 'UPDATE ' . $this->tables_created['record']['location'] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids_to_update_stops ) ) . ')';
-					$this->db->exec( $update_query );
+					foreach ( $ids_to_update_stops as $file_num => $ids ) {
+						if ( isset( $tables[ $file_num ] ) ) {
+							$update_query = 'UPDATE ' . $tables[ $file_num ] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')';
+							$this->db->exec( $update_query );
+						}
+					}
 				}
 
 				$total_processed += count( $records );
 
-				if ($total_processed % 10000 === 0) {
+				if ($total_processed % ( $batch_size * 10 ) === 0) {
 					$this->maybe_set_lock_expiration( $queue );
 					$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
 				}
@@ -7735,17 +7757,79 @@ class phpFITFileAnalysis {
 			}
 		}
 
+		// $this->drop_temp_records_table();
 		$this->drop_temp_update_table();
 
 		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
 	}
 
 	/**
+	 * Create a temporary records table for processing.
+	 *
+	 * @param string $union          SQL select from union to use.
+	 * @param string $desired_fields Comma-separated list of desired fields.
+	 * @return string Updated union table name.
+	 */
+	protected function create_temp_records_table( $union, $desired_fields ) {
+		try {
+			// Replace any existing temp table and build a sorted, compact working table for processing.
+			$this->db->exec( 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_records' );
+
+			$create_sql = 'CREATE TEMPORARY TABLE pffa_temp_records AS SELECT ' . $desired_fields . ' FROM ' . $union . ' ORDER BY `timestamp` ASC';
+			$this->db->exec( $create_sql );
+
+			// Add useful indexes to speed up subsequent updates/joins.
+			// Some MySQL versions do not support "CREATE INDEX IF NOT EXISTS" so check existing indexes first.
+			$existingIndexes = array();
+			$idxStmt = $this->db->query( "SHOW INDEX FROM pffa_temp_records" );
+			if ( $idxStmt !== false ) {
+				$rows = $idxStmt->fetchAll( \PDO::FETCH_ASSOC );
+				foreach ( $rows as $row ) {
+					if ( isset( $row['Key_name'] ) ) {
+						$existingIndexes[] = $row['Key_name'];
+					}
+				}
+			}
+
+			if ( ! in_array( 'idx_pffa_ts', $existingIndexes, true ) ) {
+				$this->db->exec( 'CREATE INDEX idx_pffa_ts ON pffa_temp_records (`timestamp`)' );
+			}
+			if ( ! in_array( 'idx_pffa_file_num', $existingIndexes, true ) ) {
+				$this->db->exec( 'CREATE INDEX idx_pffa_file_num ON pffa_temp_records (`file_num`)' );
+			}
+
+			// Switch processing to the temp table.
+			$union = 'pffa_temp_records';
+			try {
+				$stmt = $this->db->query( 'SELECT MIN(`timestamp`) AS min_ts, MAX(`timestamp`) AS max_ts, COUNT(*) AS cnt FROM pffa_temp_records' );
+				if ( $stmt !== false ) {
+					$row = $stmt->fetch( \PDO::FETCH_ASSOC );
+					if ( $row ) {
+						$min_ts    = isset( $row['min_ts'] ) && $row['min_ts'] !== null ? (int) $row['min_ts'] : null;
+						$max_ts    = isset( $row['max_ts'] ) && $row['max_ts'] !== null ? (int) $row['max_ts'] : null;
+						$rowCount  = isset( $row['cnt'] ) ? (int) $row['cnt'] : 0;
+						$min_human = $min_ts ? gmdate( 'Y-m-d H:i:s', $min_ts ) . ' UTC' : 'N/A';
+						$max_human = $max_ts ? gmdate( 'Y-m-d H:i:s', $max_ts ) . ' UTC' : 'N/A';
+						$this->logger->debug( 'calculateStopPoints: pffa_temp_records row count: ' . number_format( $rowCount ) . '; timestamp range: min ' . $min_human . ', max ' . $max_human );
+					}
+				}
+			} catch ( \PDOException $e ) {
+				$this->logger->error( 'calculateStopPoints: failed to get stats from pffa_temp_records: ' . $e->getMessage() );
+			}
+		} catch ( \PDOException $e ) {
+			$this->logger->error( 'calculateStopPoints: failed to create temporary table: ' . $e->getMessage() );
+			throw $e;
+		}
+		return $union;
+	}
+
+
+	/**
 	 * Create a temporary update table for the record data.
 	 */
 	protected function create_temp_update_table() {
 		// Create a temporary table to store the updated records.
-		$query = 'CREATE TEMPORARY TABLE IF NOT EXISTS pffa_temp_update_table (id BIGINT UNSIGNED PRIMARY KEY, new_dist DECIMAL(10,5))';
+		$query = 'CREATE TEMPORARY TABLE IF NOT EXISTS pffa_temp_update_table (id BIGINT UNSIGNED, file_num BIGINT UNSIGNED, new_dist DECIMAL(10,5), PRIMARY KEY (id, file_num))';
 		$this->db->exec( $query );
 	}
 
@@ -7764,6 +7848,15 @@ class phpFITFileAnalysis {
 	protected function drop_temp_update_table() {
 		// Drop the temporary table.
 		$query = 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_update_table';
+		$this->db->exec( $query );
+	}
+
+	/**
+	 * Drop the temporary records table.
+	 */
+	protected function drop_temp_records_table() {
+		// Drop the temporary table.
+		$query = 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_records';
 		$this->db->exec( $query );
 	}
 
