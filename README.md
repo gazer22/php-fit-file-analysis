@@ -306,6 +306,44 @@ By default, fields of type date_time and local_date_time read from FIT files wil
 #### Overwrite with Developer Data
 The FIT standard allows developers to define the meaning of data without requiring changes to the FIT profile being used. They may define data that is already incorporated in the standard - e.g. HR, cadence, power, etc. By default, if developers do this, the data will overwrite anything in the regular ```$pFFA->data_mesgs['record']``` array. If you do not want this occur, set the 'overwrite_with_dev_data' option to false. The data will still be available in ```$pFFA->data_mesgs['developer_data']```.
 
+#### Checkpoint and Restart (NEW)
+When processing large FIT files with `buffer_input_to_db` enabled, you can now use checkpoint/restart functionality to handle interruptions. This allows processing to be paused and resumed without losing progress, with **transactional safety** to prevent duplicate records.
+
+**Enable checkpointing:**
+```php
+$options = [
+    'buffer_input_to_db'     => true,
+    'file_id'                => 12345,  // Unique identifier
+    'database'               => [...],
+    'mega_batch_size'        => 100000,  // Checkpoint every 100k records
+    'resume_from_checkpoint' => true,    // Auto-resume enabled
+];
+$pFFA = new adriangibbons\phpFITFileAnalysis('large-file.fit', $options);
+```
+
+**Key Features:**
+- **Atomic checkpoints** - Each mega batch + checkpoint saved in a single database transaction
+- **No duplicate records** - If server crashes mid-batch, entire batch rolls back
+- **Automatic resume** - Seamless continuation from checkpoint on restart
+- **InnoDB enforced** - Checkpoint table automatically created with InnoDB engine (MySQL)
+- Database-backed state persistence
+- Automatic cleanup on completion
+
+**Documentation:**
+- See [CHECKPOINT_QUICKREF.md](CHECKPOINT_QUICKREF.md) for quick reference
+- See [CHECKPOINT_USAGE.md](CHECKPOINT_USAGE.md) for detailed documentation
+- See [demo/checkpoint-example.php](demo/checkpoint-example.php) for working examples
+
+**Recommended batch sizes:**
+| File Size | mega_batch_size |
+|-----------|-----------------|
+| < 10 MB | `null` (disabled) |
+| 10-50 MB | `25,000-50,000` |
+| 50-200 MB | `50,000-100,000` |
+| > 200 MB | `100,000-200,000` |
+
+⚠️ **Note:** Checkpoint functionality only works with `buffer_input_to_db = true` and requires a unique `file_id` for each file. For MySQL/MariaDB, ensure tables use InnoDB engine for transactional support (enforced automatically for checkpoint table).
+
 ## Analysis
 The following functions return arrays of data that could be used to create tables/charts:
 ```php

@@ -71,8 +71,14 @@ class phpFITFileAnalysis {
 	protected $db_name;                           // Database name.
 	protected $db_user;                           // Database user.
 	protected $db_pass;                           // Database password.
-	protected $buffer_size = 5000;                // Number of messags to buffer and then load to DB in batch.
-	public $logger;                             // Monolog logger object.
+	protected $buffer_size             = 5000;    // Number of messags to buffer and then load to DB in batch.
+	protected $mega_batch_size         = null;    // Number of records to process before saving checkpoint (null = no checkpoints).
+	protected $current_file_path       = null;    // Path to the file currently being processed.
+	protected $checkpoint_table        = null;    // Name of the checkpoint table in database.
+	protected $last_checkpoint_record  = 0;       // Last record number where checkpoint was saved.
+	protected $processing_start_time   = null;    // Timestamp when processing started.
+	protected $total_records_processed = 0;       // Total number of records processed in current session.
+	public $logger;                               // Monolog logger object.
 
 	// Enumerated data looked up by enumData().
 	// Values from 'Profile.xls' contained within the FIT SDK.
@@ -4946,6 +4952,12 @@ class phpFITFileAnalysis {
 
 		$this->data_mesg_info_original = $this->data_mesg_info; // Store original data message info for reference.
 
+		// Set mega batch size for checkpointing (only applicable when buffer_input_to_db is true)
+		if ( isset( $options['mega_batch_size'] ) && is_numeric( $options['mega_batch_size'] ) && $options['mega_batch_size'] > 0 ) {
+			$this->mega_batch_size = (int) $options['mega_batch_size'];
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): mega_batch_size set to: ' . $this->mega_batch_size );
+		}
+
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
 		} elseif ( isset( $options['buffer_input_to_db'] ) && $options['buffer_input_to_db'] && $this->checkFileBufferOptions( $options['database'] ) ) {
@@ -4953,8 +4965,10 @@ class phpFITFileAnalysis {
 			$this->db_user = $options['database']['username'];
 			$this->db_pass = $options['database']['password'];
 
-			$this->file_buff  = true;
-			$this->data_table = $this->cleanTableName( $options['database']['table_name'] ) . '_';
+			$this->file_buff         = true;
+			$this->data_table        = $this->cleanTableName( $options['database']['table_name'] ) . '_';
+
+            $this->checkpoint_table  = 'pffa_fit_file_checkpoints';
 
 			$this->file_num = $options['file_id'];
 			$this->logger->debug( 'phpFITFileAnalysis->__construct(): file_num: ' . $this->file_num );
@@ -4964,6 +4978,16 @@ class phpFITFileAnalysis {
 				throw new \Exception( 'phpFITFileAnalysis: unable to connect to database' );
 			} else {
 				$this->logger->debug( 'phpFITFileAnalysis->__construct(): connected to database: ' . $this->db_name );
+			}
+
+			if ( $this->db && $this->file_num !== null ) {
+				// Try to acquire file lock.
+				if ( ! $this->acquireFileLock( $this->file_num ) ) {
+					throw new \Exception( "Cannot process file {$this->file_num} - another process is already working on it" );
+				}
+
+				// Register shutdown function to release lock.
+				register_shutdown_function( array( $this, 'releaseFileLock' ), $this->file_num );
 			}
 		} else {
 			// $this->logger->debug( 'phpFITFileAnalysis->__construct(): working on: ' . $file_path_or_data );
@@ -5007,12 +5031,31 @@ class phpFITFileAnalysis {
 		}
 		$this->php_trader_ext_loaded = extension_loaded( 'trader' );
 
-		// Process the file contents.
-		$this->readHeader();
+		// Check for existing checkpoint and attempt to resume if enabled
+		$checkpoint             = null;
+		$resume_from_checkpoint = false;
+		if ( $this->file_buff && $this->mega_batch_size && $this->file_num ) {
+			$checkpoint = $this->loadCheckpoint( $this->file_num );
+			if ( $checkpoint && isset( $options['resume_from_checkpoint'] ) && $options['resume_from_checkpoint'] ) {
+				$resume_from_checkpoint = true;
+				$this->logger->info( 'Checkpoint found for file_num ' . $this->file_num . ' - attempting to resume from record ' . $checkpoint['record_count'] );
+			}
+		}
 
-		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
+        if ( $resume_from_checkpoint && $checkpoint ) {
+            // Seek to saved file position
+            fseek( $this->file_contents, $checkpoint['file_pointer'], SEEK_SET );
+            $this->file_pointer = $checkpoint['file_pointer'];
+            
+            // Resume reading from checkpoint record
+            $this->readDataRecords( $queue, $checkpoint['record_count'] );
+		} else {
+			// Normal processing from start.
+			$this->readHeader();
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): readHeader() completed for ' . $file_path_or_data );
 
-		$this->readDataRecords( $queue );
+			$this->readDataRecords( $queue );
+		}
 
 		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs =  ' . count( $this->defn_mesgs ) );
 		// $this->logger->debug( 'phpFITFileAnalysis->__construct(): $this->defn_mesgs_all =  ' . count( $this->defn_mesgs_all ) );
@@ -5056,6 +5099,12 @@ class phpFITFileAnalysis {
 
 		$this->logger->debug( 'phpFITFileAnalysis->__construct(): complete for ' . $file_path_or_data );
 
+		// Clean up checkpoint after successful completion (only in buffer mode with checkpointing)
+		if ( $this->file_buff && $this->mega_batch_size && $this->file_num ) {
+			$this->deleteCheckpoint( $this->file_num );
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): checkpoint cleaned up for file_num ' . $this->file_num );
+		}
+
 		// $this->logger->debug( 'defn_mesgs: ' . print_r( $this->defn_mesgs, true ) );
 		// $this->logger->debug( 'defn_mesgs_all: ' . print_r( $this->defn_mesgs_all, true ) );
 
@@ -5074,18 +5123,26 @@ class phpFITFileAnalysis {
 		}
 
 		return array(
-		'file_buff'         => $this->file_buff,
-		'data_table'        => $this->data_table,
-		'file_num'          => $this->file_num,
-		'db_name'           => $this->db_name,
-		'db_user'           => $this->db_user,
-		'db_pass'           => $this->db_pass,
-		'tables_created'    => $this->tables_created,
-		'options'           => $this->options,
-		'file_header'       => $this->file_header,
-		'php_trader_ext_loaded' => $this->php_trader_ext_loaded,
-		'garmin_timestamps' => $this->garmin_timestamps,
-		'buffer_size'       => $this->buffer_size,
+			'file_buff'                 => $this->file_buff,
+			'data_table'                => $this->data_table,
+			'file_num'                  => $this->file_num,
+			'db_name'                   => $this->db_name,
+			'db_user'                   => $this->db_user,
+			'db_pass'                   => $this->db_pass,
+			'tables_created'            => $this->tables_created,
+			'options'                   => $this->options,
+			'file_header'               => $this->file_header,
+			'php_trader_ext_loaded'     => $this->php_trader_ext_loaded,
+			'garmin_timestamps'         => $this->garmin_timestamps,
+			'buffer_size'               => $this->buffer_size,
+			'mega_batch_size'           => $this->mega_batch_size,
+			'checkpoint_table'          => $this->checkpoint_table,
+			'last_checkpoint_record'    => $this->last_checkpoint_record,
+			'processing_start_time'     => $this->processing_start_time,
+			'total_records_processed'   => $this->total_records_processed,
+			'file_pointer'              => $this->file_pointer,
+			'defn_mesgs'                => $this->defn_mesgs,
+			'dev_field_descriptions'    => $this->dev_field_descriptions,
 		);
 	}
 
@@ -5101,18 +5158,27 @@ class phpFITFileAnalysis {
 		$instance = new self( null, null, null, $logger );
 
 		// Restore state
-		$instance->file_buff             = $state['file_buff'];
-		$instance->data_table            = $state['data_table'];
-		$instance->file_num              = $state['file_num'];
-		$instance->db_name               = $state['db_name'];
-		$instance->db_user               = $state['db_user'];
-		$instance->db_pass               = $state['db_pass'];
-		$instance->tables_created        = $state['tables_created'];
-		$instance->options               = $state['options'];
-		$instance->file_header           = $state['file_header'];
-		$instance->php_trader_ext_loaded = $state['php_trader_ext_loaded'];
-		$instance->garmin_timestamps     = $state['garmin_timestamps'];
-		$instance->buffer_size           = $state['buffer_size'];
+		$instance->file_buff               = $state['file_buff'];
+		$instance->data_table              = $state['data_table'];
+		$instance->file_num                = $state['file_num'];
+		$instance->db_name                 = $state['db_name'];
+		$instance->db_user                 = $state['db_user'];
+		$instance->db_pass                 = $state['db_pass'];
+		$instance->tables_created          = $state['tables_created'];
+		$instance->options                 = $state['options'];
+		$instance->file_header             = $state['file_header'];
+		$instance->php_trader_ext_loaded   = $state['php_trader_ext_loaded'];
+		$instance->garmin_timestamps       = $state['garmin_timestamps'];
+		$instance->buffer_size             = $state['buffer_size'];
+		$instance->mega_batch_size         = $state['mega_batch_size'] ?? null;
+		$instance->checkpoint_table        = $state['checkpoint_table'] ?? null;
+		$instance->current_file_path       = $state['current_file_path'] ?? null;
+		$instance->last_checkpoint_record  = $state['last_checkpoint_record'] ?? 0;
+		$instance->processing_start_time   = $state['processing_start_time'] ?? null;
+		$instance->total_records_processed = $state['total_records_processed'] ?? 0;
+		$instance->file_pointer            = $state['file_pointer'] ?? 0;
+		$instance->defn_mesgs              = $state['defn_mesgs'] ?? array();
+		$instance->dev_field_descriptions  = $state['dev_field_descriptions'] ?? array();
 
 		// Reconnect to database
 		if (!$instance->connect_to_db()) {
@@ -5227,6 +5293,336 @@ class phpFITFileAnalysis {
 	 */
 	public function getTableInfo() {
 		return $this->tables_created;
+	}
+
+	/**
+	 * Create the checkpoint table if it doesn't exist.
+	 *
+	 * @return bool True if table exists or was created successfully.
+	 */
+    protected function createCheckpointTable() {
+        if ( ! $this->file_buff || ! $this->checkpoint_table ) {
+            return false;
+        }
+
+        try {
+            $driver        = $this->db->getAttribute( \PDO::ATTR_DRIVER_NAME );
+            $engine_clause = $driver === 'mysql' ? 'ENGINE=InnoDB' : '';
+
+            // SIMPLIFIED SCHEMA: Only essential columns
+            $sql = "CREATE TABLE IF NOT EXISTS `{$this->checkpoint_table}` (
+                `file_num` INT UNSIGNED NOT NULL,
+                `record_count` INT UNSIGNED NOT NULL,
+                `file_pointer` BIGINT UNSIGNED NOT NULL,
+                `checkpoint_time` BIGINT UNSIGNED NOT NULL,
+                PRIMARY KEY (`file_num`),
+                INDEX `idx_checkpoint_time` (`checkpoint_time`)
+            ) {$engine_clause} DEFAULT CHARSET=utf8mb4 COMMENT='FIT file processing checkpoints'";
+
+            $this->db->exec( $sql );
+            $this->logger->debug( 'Checkpoint table created or verified: ' . $this->checkpoint_table );
+            return true;
+        } catch ( \PDOException $e ) {
+            $this->logger->error( 'Failed to create checkpoint table: ' . $e->getMessage() );
+            return false;
+        }
+    }
+
+	/**
+     * Save current processing state as a checkpoint.
+     * 
+     * SIMPLIFIED: Only stores resume position since table state persists in database.
+     *
+     * @param int $record_count Current record number being processed.
+     * @param int $file_pointer Current file pointer position.
+     * @return bool True if checkpoint saved successfully.
+     */
+    protected function saveCheckpoint( $record_count, $file_pointer ) {
+        if ( ! $this->db || ! $this->file_buff || ! $this->mega_batch_size ) {
+            return false;
+        }
+
+        // Ensure checkpoint table exists
+        $this->ensureCheckpointTableExists();
+
+        try {
+            // Start transaction if needed
+            $in_transaction = $this->db->inTransaction();
+            if ( ! $in_transaction ) {
+                $this->db->beginTransaction();
+            }
+
+            try {
+                // SIMPLIFIED: Only store essential resume coordinates
+                $sql = "INSERT INTO {$this->checkpoint_table} 
+                        (file_num, record_count, file_pointer, checkpoint_time) 
+                        VALUES (:file_num, :record_count, :file_pointer, :checkpoint_time)
+                        ON DUPLICATE KEY UPDATE 
+                        record_count = :record_count, 
+                        file_pointer = :file_pointer, 
+                        checkpoint_time = :checkpoint_time";
+
+                $stmt = $this->db->prepare( $sql );
+                $stmt->execute( array(
+                    ':file_num'        => $this->file_num,
+                    ':record_count'    => $record_count,
+                    ':file_pointer'    => $file_pointer,
+                    ':checkpoint_time' => time(),
+                    ) 
+                );
+
+                // Commit if we started the transaction
+                if ( ! $in_transaction ) {
+                    $this->db->commit();
+                }
+
+                $this->last_checkpoint_record = $record_count;
+                $this->logger->info( 'Checkpoint saved at record ' . number_format( $record_count ) . ', file_pointer: ' . $file_pointer );
+                return true;
+
+            } catch ( \Exception $e ) {
+                if ( ! $in_transaction && $this->db->inTransaction() ) {
+                    $this->db->rollBack();
+                }
+                throw new \Exception( 'Failed to save checkpoint: ' . $e->getMessage() );
+            }
+        } catch ( \Exception $e ) {
+            throw new \Exception( 'Mega batch checkpoint failed at record ' . number_format( $record_count ) . ': ' . $e->getMessage() );
+        }
+    }
+
+    /**
+     * Load checkpoint for resumption.
+     */
+    protected function loadCheckpoint( $file_num ) {
+        if ( ! $this->file_buff || ! $this->checkpoint_table ) {
+            return null;
+        }
+
+        $this->ensureCheckpointTableExists();
+
+        try {
+            $sql  = "SELECT record_count, file_pointer FROM `{$this->checkpoint_table}` 
+                    WHERE `file_num` = :file_num";
+            $stmt = $this->db->prepare( $sql );
+            $stmt->execute( array( 'file_num' => $file_num ) );
+            $result = $stmt->fetch( \PDO::FETCH_ASSOC );
+
+            if ( $result ) {
+                $this->logger->info( "Checkpoint loaded for file_num {$file_num} at record {$result['record_count']}" );
+                return $result;
+            }
+
+            return null;
+        } catch ( \PDOException $e ) {
+            $this->logger->error( 'Failed to load checkpoint: ' . $e->getMessage() );
+            return null;
+        }
+    }
+
+    /**
+     * Ensure the checkpoint table exists, creating it if necessary.
+     *
+     * @return bool True if table exists or was created successfully.
+     */
+    protected function ensureCheckpointTableExists() {
+        if ( ! $this->file_buff || ! $this->checkpoint_table ) {
+            return false;
+        }
+
+        try {
+            // Check if table already exists
+            $driver = $this->db->getAttribute( \PDO::ATTR_DRIVER_NAME );
+            
+            if ( $driver === 'mysql' ) {
+                $sql = "SHOW TABLES LIKE '{$this->checkpoint_table}'";
+                $stmt = $this->db->query( $sql );
+                
+                if ( $stmt->fetch() ) {
+                    // Table exists
+                    return true;
+                }
+            } else {
+                // For other databases, try to query the table
+                try {
+                    $this->db->query( "SELECT 1 FROM {$this->checkpoint_table} LIMIT 1" );
+                    return true;
+                } catch ( \PDOException $e ) {
+                    // Table doesn't exist, create it
+                }
+            }
+
+            // Table doesn't exist, create it
+            return $this->createCheckpointTable();
+
+        } catch ( \PDOException $e ) {
+            $this->logger->error( 'Failed to check/create checkpoint table: ' . $e->getMessage() );
+            return false;
+        }
+    }
+
+	/**
+	 * Restore processing state from checkpoint.
+	 *
+	 * @param array $checkpoint Checkpoint data from loadCheckpoint().
+	 * @return bool True if state restored successfully.
+	 */
+	protected function restoreFromCheckpoint( $checkpoint ) {
+		if ( ! $checkpoint ) {
+			return false;
+		}
+
+		try {
+			$this->file_pointer            = (int) $checkpoint['file_pointer'];
+			$this->defn_mesgs              = $checkpoint['defn_mesgs'];
+			$this->dev_field_descriptions  = $checkpoint['dev_field_descriptions'] ?? array();
+			$this->tables_created          = $checkpoint['tables_created'];
+			$this->file_header             = $checkpoint['file_header'];
+			$this->last_checkpoint_record  = (int) $checkpoint['last_checkpoint_record'];
+			$this->processing_start_time   = (int) $checkpoint['processing_start_time'];
+			$this->total_records_processed = (int) $checkpoint['total_records_processed'];
+
+			$this->logger->info( "State restored from checkpoint: record {$this->last_checkpoint_record}, file_pointer: {$this->file_pointer}" );
+			return true;
+		} catch ( \Exception $e ) {
+			$this->logger->error( 'Failed to restore from checkpoint: ' . $e->getMessage() );
+			return false;
+		}
+	}
+
+	/**
+	 * Delete checkpoint for a file after successful processing.
+	 *
+	 * @param int $file_num File number to delete checkpoint for.
+	 * @return bool True if deleted successfully or no checkpoint exists.
+	 */
+	public function deleteCheckpoint( $file_num = null ) {
+		if ( ! $this->file_buff || ! $this->checkpoint_table ) {
+			return false;
+		}
+
+		$file_num = $file_num ?? $this->file_num;
+
+		try {
+			$sql  = "DELETE FROM `{$this->checkpoint_table}` WHERE `file_num` = :file_num";
+			$stmt = $this->db->prepare( $sql );
+			$stmt->execute( array( 'file_num' => $file_num ) );
+
+			$this->logger->info( "Checkpoint deleted for file_num {$file_num}" );
+			return true;
+		} catch ( \PDOException $e ) {
+			$this->logger->error( 'Failed to delete checkpoint: ' . $e->getMessage() );
+			return false;
+		}
+	}
+
+	/**
+	 * Check if a checkpoint exists for a file.
+	 *
+	 * @param int $file_num File number to check.
+	 * @return bool True if checkpoint exists.
+	 */
+	public function checkpointExists( $file_num ) {
+		if ( ! $this->file_buff || ! $this->checkpoint_table ) {
+			return false;
+		}
+
+		$checkpoint = $this->loadCheckpoint( $file_num );
+		return $checkpoint !== null;
+	}
+
+	/**
+	 * Process a mega batch with transactional checkpointing.
+	 *
+	 * Ensures atomic operation: either both data insert AND checkpoint save succeed,
+	 * or both are rolled back. This prevents duplicate records on resume.
+	 *
+	 * @param int $total_records_processed Total records processed so far.
+	 * @return bool True if successful.
+	 * @throws \Exception If transaction fails.
+	 */
+	protected function processMegaBatchWithCheckpoint( $total_records_processed ) {
+		if ( ! $this->db ) {
+			$this->logger->error( 'PDO database connection required for checkpointing' );
+			return false;
+		}
+
+		// Verify database supports transactions (one-time check)
+		static $verified = false;
+		if ( ! $verified ) {
+			$this->verifyTransactionSupport();
+			$verified = true;
+		}
+
+		// Begin transaction for atomic batch+checkpoint
+		$this->db->beginTransaction();
+
+		try {
+			// Step 1: Flush all buffered data to database
+			$this->storeMesg( null, null, true );
+
+			// Step 2: Update checkpoint state AFTER successful insert
+			$this->total_records_processed = $total_records_processed;
+
+			// Step 3: Save checkpoint to database
+			$this->saveCheckpoint( $total_records_processed, $this->file_pointer );
+
+			// Step 4: Commit both data AND checkpoint together
+			$this->db->commit();
+
+			$this->logger->debug( 'Checkpoint saved (transactional): ' . number_format( $total_records_processed ) . ' records, position ' . $this->file_pointer );
+			return true;
+
+		} catch ( \Exception $e ) {
+			// Rollback everything on any failure (only if a transaction is active)
+			if ( $this->db && $this->db->inTransaction() ) {
+				$this->db->rollBack();
+			}
+
+			// Re-throw with context
+			throw new \Exception(
+				"Mega batch checkpoint failed at record {$total_records_processed}: " .
+				$e->getMessage()
+			);
+		}
+	}
+
+	/**
+	 * Verify that the database supports transactions.
+	 *
+	 * For MySQL, checks if tables use InnoDB engine.
+	 * Issues warning if MyISAM or other non-transactional engine detected.
+	 *
+	 * @return void
+	 */
+	protected function verifyTransactionSupport() {
+		if ( ! $this->db ) {
+			return;
+		}
+
+		try {
+			$driver = $this->db->getAttribute( \PDO::ATTR_DRIVER_NAME );
+
+			if ( $driver === 'mysql' ) {
+				// Get the checkpoint table engine
+				$stmt = $this->db->query(
+					'SELECT ENGINE FROM information_schema.TABLES ' .
+					"WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{$this->checkpoint_table}'"
+				);
+
+				$result = $stmt->fetch( \PDO::FETCH_ASSOC );
+
+				if ( $result && strtolower( $result['ENGINE'] ) !== 'innodb' ) {
+					$this->logger->warning(
+						"WARNING: Checkpoint table '{$this->checkpoint_table}' uses {$result['ENGINE']} engine. " .
+						'InnoDB is recommended for transactional safety. Duplicate records may occur on resume.'
+					);
+				}
+			}
+		} catch ( \Exception $e ) {
+			// Non-fatal - just skip verification
+			$this->logger->debug( 'Could not verify transaction support: ' . $e->getMessage() );
+		}
 	}
 
 	/**
@@ -5372,14 +5768,15 @@ class phpFITFileAnalysis {
 	 * Reads the remainder of $this->file_contents and store the data in the $this->data_mesgs array.
 	 *
 	 * @param CCM_GPS_Fit_File_Queue|null $queue           Queue for processing FIT file data.
+	 * @param int                         $start_record    Record number to start from (for resuming).
 	 */
-	protected function readDataRecords( $queue = null ) {
+	protected function readDataRecords( $queue = null, $start_record = 0 ) {
 		$record_header_byte  = 0;
 		$message_type        = 0;
 		$developer_data_flag = 0;
 		$local_mesg_type     = 0;
 		$previousTS          = 0;
-		$record_count        = 0;
+		$record_count        = $start_record;  // Start from checkpoint if resuming
 
 		// Timing accumulators
 		$timing = array(
@@ -5395,11 +5792,26 @@ class phpFITFileAnalysis {
 
 		$start_total = microtime( true );
 
+		// If resuming from checkpoint, seek to the saved file position
+		if ( $start_record > 0 && $this->file_pointer > 0 ) {
+			fseek( $this->file_contents, $this->file_pointer, SEEK_SET );
+			$this->logger->info( "Resuming from record {$start_record}, file_pointer: {$this->file_pointer}" );
+		}
+
 		while ( $this->file_header['header_size'] + $this->file_header['data_size'] > $this->file_pointer ) {
 			$step_start = microtime( true );
 
 			// Check if we need to re-lock the process
 			$this->maybe_set_lock_expiration( $queue );
+
+            // Save checkpoint at mega_batch_size intervals (only in buffer mode with checkpointing enabled)
+			if ( $this->file_buff && $this->mega_batch_size &&
+				$record_count > 0 &&
+				( $record_count - $this->last_checkpoint_record ) >= $this->mega_batch_size ) {
+
+				// Use transactional checkpoint to prevent duplicate records
+				$this->processMegaBatchWithCheckpoint( $record_count );
+			}
 
 			++$record_count;
 
@@ -5767,7 +6179,26 @@ class phpFITFileAnalysis {
 			}
 		}  // while loop
 
-		$this->storeMesg( null, null, true );  // Flush any remaining data to the database
+		// Final flush - use transaction if checkpointing enabled
+		if ( $this->file_buff && $this->mega_batch_size && $this->db ) {
+			try {
+				$this->db->beginTransaction();
+				$this->storeMesg( null, null, true );  // Flush remaining data
+				$this->total_records_processed = $record_count;
+				$this->saveCheckpoint( $record_count, $this->file_pointer );  // Save final checkpoint
+				$this->db->commit();
+				$this->logger->debug( 'Final checkpoint saved with transaction' );
+			} catch ( \Exception $e ) {
+				// Rollback everything on any failure (only if a transaction is active).
+				if ( $this->db && $this->db->inTransaction() ) {
+					$this->db->rollBack();
+				}
+				$this->logger->error( 'Final checkpoint transaction failed: ' . $e->getMessage() );
+				throw $e;
+			}
+		} else {
+			$this->storeMesg( null, null, true );  // Flush any remaining data to the database
+		}
 
 		$total_time                     = microtime( true ) - $start_total;
 		$timing_summary                 = array();
@@ -5838,7 +6269,7 @@ class phpFITFileAnalysis {
 			$count_summary  = array();
 			foreach ( $timings as $type => $timer ) {
 				$timing_summary[$type] = round( $timer / max( $counts[$type], 1 ) * 1000, 4 ) . ' ms/' . $type;
-				$count_summary[$type]  = "$type: " . $counts[$type];
+				$count_summary[$type]  = "$type: " . number_format( $counts[$type] );
 			}
 			$this->logger->debug( 'Buffering timing per record: ' . implode( ', ', $timing_summary ) );
 			$this->logger->debug( ' counts: ' . implode( ', ', $count_summary ) );
@@ -5851,7 +6282,7 @@ class phpFITFileAnalysis {
 			if ( $mesgs && null !== $local_mesg_type ) {
 				$mesg_name = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['mesg_name'];
 
-				if ( 'hrv' === $mesg_name ) {
+				if ( 'hrv' === $mesg_name && isset( $mesgs['hrv']['times'] ) && is_array( $mesgs['hrv']['times'] ) ) {
 					foreach ( $mesgs['hrv']['times'] as &$value ) {
 						if ( 65.535 === $value ) {
 							$value = null;
@@ -5925,53 +6356,73 @@ class phpFITFileAnalysis {
 	 * @return void
 	 * @throws Exception If there is an error during the database operation.
 	 */
-	protected function bufferAndLoadMessages( $mesgs, $flush ) {
-		static $mesg_count   = 0;
-		static $mesgs_buffer = array();
+    protected function bufferAndLoadMessages( $mesgs, $flush ) {
+        static $mesg_count   = 0;
+        static $mesgs_buffer = array();
 
-		if ( $mesgs ) {
-			$count        = count( $mesgs );
-			$mesgs_names  = array_keys( $mesgs );
-			$mesgs_values = array_values( $mesgs );
-			for ( $i=0; $i < $count; $i++ ) {
-				$mesg_name = $mesgs_names[$i];
-				$mesg      = $mesgs_values[$i];
+        if ( $mesgs ) {
+            $count        = count( $mesgs );
+            $mesgs_names  = array_keys( $mesgs );
+            $mesgs_values = array_values( $mesgs );
+            for ( $i=0; $i < $count; $i++ ) {
+                $mesg_name = $mesgs_names[$i];
+                $mesg      = $mesgs_values[$i];
 
-				// $this->logger->debug( 'Buffering message: ' . $mesg_name . ' - ' . print_r( $mesg, true ) );
+                // Ignore record messages which do not contain mandatory fields.
+                if ( 'record' === $mesg_name ) {
+                    $has_mandatory_fields = $this->checkForMandatoryFields( array_keys( $mesg ) );
+                    if ( ! $has_mandatory_fields ) {
+                        continue;
+                    }
+                }
 
-				// Ignore record messages which do not contain mandatory fields.
-				if ( 'record' === $mesg_name ) {
-					$has_mandatory_fields = $this->checkForMandatoryFields( array_keys( $mesg ) );
-					if ( ! $has_mandatory_fields ) {
-						// $this->logger->debug( 'Skipping record message with missing mandatory fields: ' . print_r( $mesg, true ) );
-						continue;
-					}
-				}
+                // Buffer the messages
+                $mesgs_buffer[$mesg_name][] = array(
+                    'data'  => $mesg,
+                );
+            }
+            $mesg_count += count( $mesgs );
+        }
 
-				// Buffer the messages
-				$mesgs_buffer[$mesg_name][] = array(
-					'data'  => $mesg,
-				);
-			}
-			$mesg_count += count( $mesgs );
-		}
+        if ( $flush || $mesg_count >= $this->buffer_size ) {
+            if ( empty( $mesgs_buffer ) ) {
+                // Nothing to flush
+                $mesgs_buffer = array();
+                $mesg_count   = 0;
+                return;
+            }
 
-		if ( $flush || $mesg_count >= $this->buffer_size ) {
-			// $this->logger->debug( 'Buffering ' . $mesg_count . ' messages into tables with message types: ' . implode( ', ', array_keys( $mesgs_buffer ) ) );
-			// $this->logger->debug( 'Buffering messages: ' . print_r( $mesgs_buffer, true ) );
+            // Start transaction before processing buffer
+            $in_transaction = $this->db->inTransaction();
+            if ( ! $in_transaction ) {
+                $this->db->beginTransaction();
+            }
 
-			foreach ( $mesgs_buffer as $table => $mesgs ) {
-				if ( 'record' === $table ) {
-					$this->storeRecordMesg( $mesgs, $table );
-				} else {
-					$this->storeNonRecordMesg( $mesgs, $table );
-				}
-			}
+            try {
+                foreach ( $mesgs_buffer as $table => $mesgs ) {
+                    if ( 'record' === $table ) {
+                        $this->storeRecordMesg( $mesgs, $table );
+                    } else {
+                        $this->storeNonRecordMesg( $mesgs, $table );
+                    }
+                }
 
-			$mesgs_buffer = array();
-			$mesg_count   = 0;
-		}
-	}
+                // Commit transaction if we started it
+                if ( ! $in_transaction ) {
+                    $this->db->commit();
+                }
+            } catch ( \Exception $e ) {
+                // Rollback transaction if we started it
+                if ( ! $in_transaction && $this->db->inTransaction() ) {
+                    $this->db->rollBack();
+                }
+                throw $e;
+            }
+
+            $mesgs_buffer = array();
+            $mesg_count   = 0;
+        }
+    }
 
 	/**
 	 * Enter non-record messages into their respective tables.
@@ -8771,6 +9222,55 @@ class phpFITFileAnalysis {
 
 			$this->data_mesgs['record']['heart_rate'][ $idx ] = (int) round( $arr[0] / $arr[1] );
 			// $this->logger->debug( 'Set heart Rate: ' . $this->data_mesgs['record']['heart_rate'][ $idx ] );
+		}
+	}
+
+	/**
+	 * Acquire a lock for processing a specific file to prevent duplicate processing.
+	 *
+	 * @param int $file_num The file ID.
+	 * @return bool True if lock acquired, false otherwise.
+	 */
+	protected function acquireFileLock( $file_num ) {
+		if ( ! $this->db ) {
+			return true; // No database, no locking needed
+		}
+
+		try {
+			// Use database lock with timeout
+			$sql    = "SELECT GET_LOCK('fit_file_process_{$file_num}', 1) AS lock_result";
+			$stmt   = $this->db->query( $sql );
+			$result = $stmt->fetch( \PDO::FETCH_ASSOC );
+
+			if ( 1 === $result['lock_result'] ) {
+				$this->logger->debug( "Acquired lock for file {$file_num}" );
+				return true;
+			} else {
+				$this->logger->warning( "Failed to acquire lock for file {$file_num} - another process is already working on it" );
+				return false;
+			}
+		} catch ( \Exception $e ) {
+			$this->logger->error( "Error acquiring lock for file {$file_num}: " . $e->getMessage() );
+			return false;
+		}
+	}
+
+	/**
+	 * Release the lock for processing a specific file.
+	 *
+	 * @param int $file_num The file ID.
+	 */
+	protected function releaseFileLock( $file_num ) {
+		if ( ! $this->db ) {
+			return;
+		}
+
+		try {
+			$sql = "SELECT RELEASE_LOCK('fit_file_process_{$file_num}') AS lock_result";
+			$this->db->query( $sql );
+			$this->logger->debug( "Released lock for file {$file_num}" );
+		} catch ( \Exception $e ) {
+			$this->logger->error( "Error releasing lock for file {$file_num}: " . $e->getMessage() );
 		}
 	}
 
