@@ -4938,6 +4938,12 @@ class phpFITFileAnalysis {
 			$this->logger = $logger;
 		}
 
+		// RELOAD PATH: Skip file processing if initial parameters are null
+		if (null === $file_path_or_data && null === $options ) {
+			$this->logger->debug( 'phpFITFileAnalysis: created empty instance for state reload' );
+			return;
+		}
+
 		$this->data_mesg_info_original = $this->data_mesg_info; // Store original data message info for reference.
 
 		if ( isset( $options['input_is_data'] ) ) {
@@ -5023,7 +5029,9 @@ class phpFITFileAnalysis {
 		$this->logger->debug( 'phpFITFileAnalysis->__construct(): readDataRecords() completed for ' . $file_path_or_data );
 
 		if ( $record_callback ) {
-			$this->calculateStopPoints( $record_callback, $queue );
+			$union                   = $this->tables_created['record']['location'];
+			$tables[$this->file_num] = $union;
+			$this->calculateStopPoints( $record_callback, $union, $tables, $queue );
 			$this->logger->debug( 'phpFITFileAnalysis->__construct(): calculateStopPoints() completed for ' . $file_path_or_data );
 		}
 
@@ -5053,6 +5061,74 @@ class phpFITFileAnalysis {
 
 		fclose( $this->file_contents );
 	}
+
+	/**
+	 * Export critical state for later reload (buffer_input_to_db mode only).
+	 *
+	 * @return array State data needed to reconstruct this instance.
+	 * @throws \Exception If not using buffer_input_to_db mode.
+	 */
+	public function export_state() {
+		if (!$this->file_buff) {
+			throw new \Exception( 'export_state() only works with buffer_input_to_db mode' );
+		}
+
+		return array(
+		'file_buff'         => $this->file_buff,
+		'data_table'        => $this->data_table,
+		'file_num'          => $this->file_num,
+		'db_name'           => $this->db_name,
+		'db_user'           => $this->db_user,
+		'db_pass'           => $this->db_pass,
+		'tables_created'    => $this->tables_created,
+		'options'           => $this->options,
+		'file_header'       => $this->file_header,
+		'php_trader_ext_loaded' => $this->php_trader_ext_loaded,
+		'garmin_timestamps' => $this->garmin_timestamps,
+		'buffer_size'       => $this->buffer_size,
+		);
+	}
+
+	/**
+	 * Create instance from previously exported state (buffer_input_to_db mode only).
+	 *
+	 * @param array  $state  State data from export_state().
+	 * @param Logger $logger Logger instance.
+	 * @return phpFITFileAnalysis Reconstructed instance.
+	 */
+	public static function from_state( $state, $logger = null ) {
+		// Create a dummy instance without processing files
+		$instance = new self( null, null, null, $logger );
+
+		// Restore state
+		$instance->file_buff             = $state['file_buff'];
+		$instance->data_table            = $state['data_table'];
+		$instance->file_num              = $state['file_num'];
+		$instance->db_name               = $state['db_name'];
+		$instance->db_user               = $state['db_user'];
+		$instance->db_pass               = $state['db_pass'];
+		$instance->tables_created        = $state['tables_created'];
+		$instance->options               = $state['options'];
+		$instance->file_header           = $state['file_header'];
+		$instance->php_trader_ext_loaded = $state['php_trader_ext_loaded'];
+		$instance->garmin_timestamps     = $state['garmin_timestamps'];
+		$instance->buffer_size           = $state['buffer_size'];
+
+		// Reconnect to database
+		if (!$instance->connect_to_db()) {
+			throw new \Exception( 'Failed to reconnect to database' );
+		}
+
+		// Recreate data_mesgs accessor
+		$instance->data_mesgs = new \PFFA_Data_Mesgs(
+			$instance->db,
+			$instance->tables_created,
+			$instance->logger
+		);
+
+		return $instance;
+	}
+
 
 	/**
 	 * Add another fit file to the data.
@@ -7781,7 +7857,7 @@ class phpFITFileAnalysis {
 			// Add useful indexes to speed up subsequent updates/joins.
 			// Some MySQL versions do not support "CREATE INDEX IF NOT EXISTS" so check existing indexes first.
 			$existingIndexes = array();
-			$idxStmt = $this->db->query( "SHOW INDEX FROM pffa_temp_records" );
+			$idxStmt         = $this->db->query( 'SHOW INDEX FROM pffa_temp_records' );
 			if ( $idxStmt !== false ) {
 				$rows = $idxStmt->fetchAll( \PDO::FETCH_ASSOC );
 				foreach ( $rows as $row ) {
