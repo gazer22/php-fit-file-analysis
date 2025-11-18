@@ -8221,7 +8221,9 @@ class phpFITFileAnalysis {
 					// $this->logger->debug( ' new dist_delta = ' . $dist_delta );
 					$record['distance'] = $last_distance;
 				}
-				$last_distance = $record['distance'];
+				$record['step_dist'] = $record['distance'] - $last_distance;
+                $last_distance       = $record['distance'];
+                
 
 				// Add any changed points to the updates arrays.
 				if ( $dist_delta > 0 ) {
