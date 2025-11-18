@@ -8278,7 +8278,7 @@ class phpFITFileAnalysis {
 			if (! empty( $ids_to_update_stops ) ) {
 				foreach ( $ids_to_update_stops as $file_num => $ids ) {
 					if ( isset( $tables[ $file_num ] ) ) {
-						$this->logger->debug( 'calculateStopPoints: updating stopped field for ' . count( $ids ) . ' records in table ' . $tables[ $file_num ] );
+						// $this->logger->debug( 'calculateStopPoints: updating stopped field for ' . count( $ids ) . ' records in table ' . $tables[ $file_num ] );
 						try {
 							$update_query = 'UPDATE ' . $tables[ $file_num ] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')';
 							$this->db->exec( $update_query );
