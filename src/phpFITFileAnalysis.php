@@ -5450,7 +5450,7 @@ class phpFITFileAnalysis {
 					$this->db->query( "SELECT 1 FROM {$this->checkpoint_table} LIMIT 1" );
 					return true;
 				} catch ( \PDOException $e ) {  //phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
-					// Table doesn't exist, create it 
+					// Table doesn't exist, create it
 				}
 			}
 
@@ -8138,7 +8138,7 @@ class phpFITFileAnalysis {
 		$total_processed = 0;
 		$last_distance   = 0;
 		$dist_delta      = 0;
-        $last_time       = 0;
+		$last_time       = 0;
 
 		// $this->create_temp_update_table();
 		// $this->logger->debug( 'calculateStopPoints: created temp update table' );
@@ -8206,11 +8206,11 @@ class phpFITFileAnalysis {
 
 			// Iterate through the records and apply the callback.
 			foreach ($records as $record) {
-                if ( $last_time === 0 ) {
-                    $last_time = $record['timestamp'] - 1;
-                }
-                $record['step_dur'] = $record['timestamp'] - $last_time;
-                $last_time          = $record['timestamp'];
+				if ( $last_time === 0 ) {
+					$last_time = $record['timestamp'] - 1;
+				}
+				$record['step_dur'] = $record['timestamp'] - $last_time;
+				$last_time          = $record['timestamp'];
 
 				// Look for non-increasing distance values and adjust them.
 				$record['distance'] += $dist_delta;
@@ -8242,41 +8242,41 @@ class phpFITFileAnalysis {
 				}
 			}
 
-            // Maybe don't need to do distance updates?
+			// Maybe don't need to do distance updates?
 			// if ( ! empty( $distance_updates ) ) {
-			// 	try {
-			// 		$sql  = 'INSERT INTO pffa_temp_update_table (id, file_num, new_dist) VALUES ' . implode( ',', $placeholders );
-			// 		$stmt = $this->db->prepare( $sql );
-			// 		$stmt->execute( $distance_updates );
-			// 		$stmt->closeCursor();
-			// 	} catch ( \PDOException $e ) {
-			// 		$this->logger->error( 'calculateStopPoints: Database error during distance updates insert: ' . $e->getMessage() );
-			// 		throw $e;
-			// 	}
+			//  try {
+			//      $sql  = 'INSERT INTO pffa_temp_update_table (id, file_num, new_dist) VALUES ' . implode( ',', $placeholders );
+			//      $stmt = $this->db->prepare( $sql );
+			//      $stmt->execute( $distance_updates );
+			//      $stmt->closeCursor();
+			//  } catch ( \PDOException $e ) {
+			//      $this->logger->error( 'calculateStopPoints: Database error during distance updates insert: ' . $e->getMessage() );
+			//      throw $e;
+			//  }
 
 				// Update each table separately based on file_num.
-                // Don't bother doing this - leave base tables unchanged except for updating stopped field, which comes next.
+				// Don't bother doing this - leave base tables unchanged except for updating stopped field, which comes next.
 				// foreach ( $tables as $file_num => $table_location ) {
-				// 	try {
-				// 		$sql  = 'UPDATE ' . $table_location . ' r JOIN pffa_temp_update_table t ON r.id = t.id AND t.file_num = :file_num SET r.distance = t.new_dist';
-				// 		$stmt = $this->db->prepare( $sql );
-				// 		$stmt->bindValue( ':file_num', $file_num, \PDO::PARAM_INT );
-				// 		$stmt->execute();
-				// 		$stmt->closeCursor();
-				// 	} catch ( \PDOException $e ) {
-				// 		$this->logger->error( 'calculateStopPoints: Database error during distance updates for table ' . $table_location . ': ' . $e->getMessage() );
-				// 		throw $e;
-				// 	}
+				//  try {
+				//      $sql  = 'UPDATE ' . $table_location . ' r JOIN pffa_temp_update_table t ON r.id = t.id AND t.file_num = :file_num SET r.distance = t.new_dist';
+				//      $stmt = $this->db->prepare( $sql );
+				//      $stmt->bindValue( ':file_num', $file_num, \PDO::PARAM_INT );
+				//      $stmt->execute();
+				//      $stmt->closeCursor();
+				//  } catch ( \PDOException $e ) {
+				//      $this->logger->error( 'calculateStopPoints: Database error during distance updates for table ' . $table_location . ': ' . $e->getMessage() );
+				//      throw $e;
+				//  }
 				// }
 
-            //     $this->truncate_temp_update_table();
+			//     $this->truncate_temp_update_table();
 			// }
 
 			// Update the stopped field for all matching records, grouped by table.
 			if (! empty( $ids_to_update_stops ) ) {
 				foreach ( $ids_to_update_stops as $file_num => $ids ) {
 					if ( isset( $tables[ $file_num ] ) ) {
-                        $this->logger->debug( 'calculateStopPoints: updating stopped field for ' . count( $ids ) . ' records in table ' . $tables[ $file_num ] );
+						$this->logger->debug( 'calculateStopPoints: updating stopped field for ' . count( $ids ) . ' records in table ' . $tables[ $file_num ] );
 						try {
 							$update_query = 'UPDATE ' . $tables[ $file_num ] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')';
 							$this->db->exec( $update_query );
