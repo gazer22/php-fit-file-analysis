@@ -8138,9 +8138,10 @@ class phpFITFileAnalysis {
 		$total_processed = 0;
 		$last_distance   = 0;
 		$dist_delta      = 0;
+        $last_time       = 0;
 
-		$this->create_temp_update_table();
-		$this->logger->debug( 'calculateStopPoints: created temp update table' );
+		// $this->create_temp_update_table();
+		// $this->logger->debug( 'calculateStopPoints: created temp update table' );
 
 		$desired_fields = array(
 			'id',
@@ -8188,106 +8189,120 @@ class phpFITFileAnalysis {
 				$stmt->execute();
 
 				$records = $stmt->fetchAll( \PDO::FETCH_ASSOC );
-
-				// Break the loop if no more records are found.
-				if (empty( $records )) {
-					break;
-				}
-
-				// Track IDs that need to be updated, grouped by file_num.
-				$ids_to_update_stops = array(); // Grouped by file_num.
-				$placeholders        = array();
-				$distance_updates    = array();
-
-				// Iterate through the records and apply the callback.
-				foreach ($records as $record) {
-					// Look for non-increasing distance values and adjust them.
-					$record['distance'] += $dist_delta;
-					if ($record['distance'] < $last_distance) {
-						// $this->logger->debug( 'calculateStopPoints: distance value decreased from ' . $last_distance . ' to ' . $record['distance'] . ', current dist_delta = ' . $dist_delta );
-						// $this->logger->debug( ' record = ' . print_r( $record, true ) );
-						$dist_delta += $last_distance - $record['distance'];
-						// $this->logger->debug( ' new dist_delta = ' . $dist_delta );
-						$record['distance'] = $last_distance;
-					}
-					$last_distance = $record['distance'];
-
-					// Add any changed points to the updates arrays.
-					if ( $dist_delta > 0 ) {
-						$placeholders[]     = '(?,?,?)';
-						$distance_updates[] = $record['id'];
-						$distance_updates[] = $record['file_num'];
-						$distance_updates[] = $record['distance'];
-					}
-
-					// Identify stops.
-					$stopped = call_user_func( $record_callback, $record );
-					if ( 1 === $stopped) {
-						$file_num = $record['file_num'];
-						if ( ! isset( $ids_to_update_stops[ $file_num ] ) ) {
-							$ids_to_update_stops[ $file_num ] = array();
-						}
-						$ids_to_update_stops[ $file_num ][] = $record['id'];
-					}
-				}
-
-				if ( ! empty( $distance_updates ) ) {
-					$sql  = 'INSERT INTO pffa_temp_update_table (id, file_num, new_dist) VALUES ' . implode( ',', $placeholders );
-					$stmt = $this->db->prepare( $sql );
-					$stmt->execute( $distance_updates );
-					$stmt->closeCursor();
-
-					// Update each table separately based on file_num.
-					foreach ( $tables as $file_num => $table_location ) {
-						$sql  = 'UPDATE ' . $table_location . ' r JOIN pffa_temp_update_table t ON r.id = t.id AND t.file_num = :file_num SET r.distance = t.new_dist';
-						$stmt = $this->db->prepare( $sql );
-						$stmt->bindValue( ':file_num', $file_num, \PDO::PARAM_INT );
-						$stmt->execute();
-						$stmt->closeCursor();
-					}
-
-					$this->truncate_temp_update_table();
-				}
-
-				// Update the stopped field for all matching records, grouped by table.
-				if (! empty( $ids_to_update_stops ) ) {
-					foreach ( $ids_to_update_stops as $file_num => $ids ) {
-						if ( isset( $tables[ $file_num ] ) ) {
-							$update_query = 'UPDATE ' . $tables[ $file_num ] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')';
-							$this->db->exec( $update_query );
-						}
-					}
-				}
-
-				$total_processed += count( $records );
-
-				if ($total_processed % ( $batch_size * 10 ) === 0) {
-					$this->maybe_set_lock_expiration( $queue );
-					$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
-				}
-
-				// Increment the offset for the next batch.
-				$offset += $batch_size;
 			} catch ( \PDOException $e ) {
-				// Check if the error is related to a lost connection.
-				if (strpos( $e->getMessage(), 'server has gone away' ) !== false || strpos( $e->getMessage(), 'no connection to the server' ) !== false) {
-					$this->logger->error( 'Database connection lost. Attempting to reconnect...' );
-					try {
-						$this->connect_to_db(); // Reconnect to the database.
-						$this->logger->info( 'Reconnected to the database successfully.' );
-					} catch (\PDOException $reconnectException) {
-						$this->logger->error( 'Failed to reconnect to the database: ' . $reconnectException->getMessage() );
-						throw $reconnectException; // Exit the loop if reconnection fails.
+				$this->logger->error( 'calculateStopPoints: Database error during record fetch: ' . $e->getMessage() );
+				throw $e;
+			}
+
+			// Break the loop if no more records are found.
+			if (empty( $records )) {
+				break;
+			}
+
+			// Track IDs that need to be updated, grouped by file_num.
+			$ids_to_update_stops = array(); // Grouped by file_num.
+			$placeholders        = array();
+			$distance_updates    = array();
+
+			// Iterate through the records and apply the callback.
+			foreach ($records as $record) {
+                if ( $last_time === 0 ) {
+                    $last_time = $record['timestamp'] - 1;
+                }
+                $record['step_dur'] = $record['timestamp'] - $last_time;
+                $last_time          = $record['timestamp'];
+
+				// Look for non-increasing distance values and adjust them.
+				$record['distance'] += $dist_delta;
+				if ($record['distance'] < $last_distance) {
+					// $this->logger->debug( 'calculateStopPoints: distance value decreased from ' . $last_distance . ' to ' . $record['distance'] . ', current dist_delta = ' . $dist_delta );
+					// $this->logger->debug( ' record = ' . print_r( $record, true ) );
+					$dist_delta += $last_distance - $record['distance'];
+					// $this->logger->debug( ' new dist_delta = ' . $dist_delta );
+					$record['distance'] = $last_distance;
+				}
+				$last_distance = $record['distance'];
+
+				// Add any changed points to the updates arrays.
+				if ( $dist_delta > 0 ) {
+					$placeholders[]     = '(?,?,?)';
+					$distance_updates[] = $record['id'];
+					$distance_updates[] = $record['file_num'];
+					$distance_updates[] = $record['distance'];
+				}
+
+				// Identify stops.
+				$stopped = call_user_func( $record_callback, $record );
+				if ( 1 === $stopped) {
+					$file_num = $record['file_num'];
+					if ( ! isset( $ids_to_update_stops[ $file_num ] ) ) {
+						$ids_to_update_stops[ $file_num ] = array();
 					}
-				} else {
-					// Rethrow other exceptions.
-					throw $e;
+					$ids_to_update_stops[ $file_num ][] = $record['id'];
 				}
 			}
+
+            // Maybe don't need to do distance updates?
+			// if ( ! empty( $distance_updates ) ) {
+			// 	try {
+			// 		$sql  = 'INSERT INTO pffa_temp_update_table (id, file_num, new_dist) VALUES ' . implode( ',', $placeholders );
+			// 		$stmt = $this->db->prepare( $sql );
+			// 		$stmt->execute( $distance_updates );
+			// 		$stmt->closeCursor();
+			// 	} catch ( \PDOException $e ) {
+			// 		$this->logger->error( 'calculateStopPoints: Database error during distance updates insert: ' . $e->getMessage() );
+			// 		throw $e;
+			// 	}
+
+				// Update each table separately based on file_num.
+                // Don't bother doing this - leave base tables unchanged except for updating stopped field, which comes next.
+				// foreach ( $tables as $file_num => $table_location ) {
+				// 	try {
+				// 		$sql  = 'UPDATE ' . $table_location . ' r JOIN pffa_temp_update_table t ON r.id = t.id AND t.file_num = :file_num SET r.distance = t.new_dist';
+				// 		$stmt = $this->db->prepare( $sql );
+				// 		$stmt->bindValue( ':file_num', $file_num, \PDO::PARAM_INT );
+				// 		$stmt->execute();
+				// 		$stmt->closeCursor();
+				// 	} catch ( \PDOException $e ) {
+				// 		$this->logger->error( 'calculateStopPoints: Database error during distance updates for table ' . $table_location . ': ' . $e->getMessage() );
+				// 		throw $e;
+				// 	}
+				// }
+
+            //     $this->truncate_temp_update_table();
+			// }
+
+			// Update the stopped field for all matching records, grouped by table.
+			if (! empty( $ids_to_update_stops ) ) {
+				foreach ( $ids_to_update_stops as $file_num => $ids ) {
+					if ( isset( $tables[ $file_num ] ) ) {
+                        $this->logger->debug( 'calculateStopPoints: updating stopped field for ' . count( $ids ) . ' records in table ' . $tables[ $file_num ] );
+						try {
+							$update_query = 'UPDATE ' . $tables[ $file_num ] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')';
+							$this->db->exec( $update_query );
+						} catch ( \PDOException $e ) {
+							$this->logger->error( 'calculateStopPoints: Database error during stopped updates for table ' . $tables[ $file_num ] . ': ' . $e->getMessage() . ", SQL:\n" . $update_query );
+							throw $e;
+						}
+					}
+				}
+			}
+
+			$total_processed += count( $records );
+
+			if ($total_processed % ( $batch_size * 10 ) === 0) {
+				$this->maybe_set_lock_expiration( $queue );
+				$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
+			}
+
+			// Increment the offset for the next batch.
+			$offset += $batch_size;
 		}
 
-		// $this->drop_temp_records_table();
-		$this->drop_temp_update_table();
+		// $this->truncate_temp_update_table();
+
+		$this->drop_temp_records_table();
+		// $this->drop_temp_update_table();
 
 		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
 	}
