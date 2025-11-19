@@ -8139,11 +8139,7 @@ class phpFITFileAnalysis {
 		$temp_table = $this->data_table . '_stop_calc_' . uniqid();
 
 		$when = call_user_func( $when_callback );
-		$this->logger->debug( 'calculateStopPoints: Using WHEN clause: ' . $when );
-
 		$when = $this->sanitize_when( $when );
-		$this->logger->debug( 'calculateStopPoints: Using WHEN clause AFTER sanitization: ' . $when );
-
 
 		$create_temp = "
             CREATE TEMPORARY TABLE {$temp_table} AS
@@ -8255,9 +8251,6 @@ class phpFITFileAnalysis {
 			$this->logger->error( 'calculateStopPoints: $when too long.' );
 			throw new \Exception( 'calculateStopPoints: when clause too long.' );
 		}
-
-		// $when is now considered sanitized for safe embedding into the CASE expression
-		$this->logger->debug( 'calculateStopPoints: using sanitized when clause.' );
 
 		return $when;
 	}
