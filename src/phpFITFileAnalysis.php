@@ -8138,8 +8138,12 @@ class phpFITFileAnalysis {
 		// CRITICAL: Include file_num when dealing with UNION.
 		$temp_table = $this->data_table . '_stop_calc_' . uniqid();
 
-		$when = $when_callback();
+		$when = call_user_func( $when_callback );
+		$this->logger->debug( 'calculateStopPoints: Using WHEN clause: ' . $when );
+
 		$when = $this->sanitize_when( $when );
+		$this->logger->debug( 'calculateStopPoints: Using WHEN clause AFTER sanitization: ' . $when );
+
 
 		$create_temp = "
             CREATE TEMPORARY TABLE {$temp_table} AS
@@ -8161,14 +8165,14 @@ class phpFITFileAnalysis {
                         OVER (' . ( $single_table ? '' : 'PARTITION BY file_num ' ) . "ORDER BY timestamp) AS step_dist
                 FROM {$union}
             ) calc
-            WHERE is_stopped = 1
+            HAVING is_stopped = 1
         ";
 
 		try {
 			$this->db->exec( $create_temp );
 			$this->logger->debug( "Created temp table {$temp_table} with stop calculations" );
 		} catch (\PDOException $e) {
-			$this->logger->error( 'Failed to create temp table: ' . $e->getMessage() );
+			$this->logger->error( 'Failed to create temp table: ' . $e->getMessage()  . "\nSQL:\n" . $create_temp );
 			throw $e;
 		}
 
@@ -8254,6 +8258,8 @@ class phpFITFileAnalysis {
 
 		// $when is now considered sanitized for safe embedding into the CASE expression
 		$this->logger->debug( 'calculateStopPoints: using sanitized when clause.' );
+
+		return $when;
 	}
 
 	/**
