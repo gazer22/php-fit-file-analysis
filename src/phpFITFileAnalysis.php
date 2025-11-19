@@ -8110,14 +8110,14 @@ class phpFITFileAnalysis {
 	/**
 	 * Calculate stop points and include them in the record table.
 	 *
-	 * @param callable $record_callback Callback function which should return 0 or 1 for stop field.
+	 * @param callable $when_callback   Callback function which should return the WHEN lines of a CASE statement to define is_stopped.
 	 * @param string   $union           SQL select from union to use.
 	 * @param array    $tables          Tables to update indexed by file_id.  To update one single table, pass a string.
 	 * @param object   $queue           Queue object
 	 */
-	public function calculateStopPoints( callable $record_callback, $union, $tables, $queue = null ) {
-		if ( ! is_callable( $record_callback ) ) {
-			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): record_callback not callable!' );
+	public function calculateStopPoints( callable $when_callback, $union, $tables, $queue = null ) {
+		if ( ! is_callable( $when_callback ) ) {
+			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): when_callback not callable!' );
 		}
 
 		if ( isset( $this->options['buffer_input_to_db'] ) && $this->options['buffer_input_to_db'] && $this->checkFileBufferOptions( $this->options['database'] ) ) {
@@ -8129,117 +8129,131 @@ class phpFITFileAnalysis {
 			}
 		}
 
-		$single_table = false;
-		if ( ! is_array( $tables ) && is_string( $tables ) ) {
-			$single_table = true;
-			$tables       = array( 0 => $tables ); // Convert to array for consistency.
-			$this->logger->debug( 'calculateStopPoints: single table mode enabled for table ' . $tables[0] );
+		$single_table = !is_array( $tables );
+		if ($single_table) {
+			$tables = array( 0 => $tables );
 		}
 
-		$this->logger->debug( 'calculateStopPoints: Starting calculation of stop points in record data, union = ' . $union . ', tables = ' . print_r( $tables, true ) );
+		// Step 1: Create temp table with stop calculations.
+		// CRITICAL: Include file_num when dealing with UNION.
+		$temp_table = $this->data_table . '_stop_calc_' . uniqid();
 
-		$this->get_lock_expiration( $queue );
+		$when = $when_callback();
+		$when = $this->sanitize_when( $when );
 
-		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
-		// For each row in the table, call $record_callback and if it returns 1, set the stopped field for that table row to 1.
-		$batch_size      = 1000; // Define the batch size for processing.
-		$offset          = 0; // Start from the first record.
-		$total_processed = 0;
-		$last_distance   = 0;
-		$last_time       = 0;
+		$create_temp = "
+            CREATE TEMPORARY TABLE {$temp_table} AS
+            SELECT 
+                id,
+                " . ( $single_table ? '0 AS file_num,' : 'file_num,' ) . '
+                CASE ' . $when . '
+                    ELSE 0
+                END AS is_stopped
+            FROM (
+                SELECT 
+                    id,
+                    ' . ( $single_table ? '' : 'file_num,' ) . '
+                    speed,
+                    paused,
+                    timestamp - LAG(timestamp, 1, timestamp - 1) 
+                        OVER (' . ( $single_table ? '' : 'PARTITION BY file_num ' ) . 'ORDER BY timestamp) AS step_dur,
+                    distance - LAG(distance, 1, 0) 
+                        OVER (' . ( $single_table ? '' : 'PARTITION BY file_num ' ) . "ORDER BY timestamp) AS step_dist
+                FROM {$union}
+            ) calc
+            WHERE is_stopped = 1
+        ";
 
-		$desired_fields = array(
-			'id',
-			'file_num',
-			'timestamp',
-			'distance',
-			'speed',
-			'paused',
-		);
+		try {
+			$this->db->exec( $create_temp );
+			$this->logger->debug( "Created temp table {$temp_table} with stop calculations" );
+		} catch (\PDOException $e) {
+			$this->logger->error( 'Failed to create temp table: ' . $e->getMessage() );
+			throw $e;
+		}
 
-		// Escape each $desired_fields with backticks.
-		$desired_fields = array_map(
-			function ( $field ) {
-				return '`' . $field . '`';
-			},
-			$desired_fields
-		);
+		// Step 2: Update each base table separately using file_num.
+		$total_updated = 0;
+		foreach ($tables as $file_num => $table_name) {
+			$this->maybe_set_lock_expiration( $queue );
 
-		$desired_fields = implode( ', ', $desired_fields );
+			$update_sql = "
+                UPDATE {$table_name} t
+                INNER JOIN {$temp_table} calc 
+                    ON t.id = calc.id
+                    " . ( $single_table ? '' : "AND calc.file_num = {$file_num}" ) . '
+                SET t.stopped = 1
+            ';
 
-		while (true) {
 			try {
-				// Fetch a batch of records sorted by timestamp ASC.
-				$query = 'SELECT ' . $desired_fields . ' FROM ' . $union . ' ORDER BY timestamp ASC LIMIT :batch_size OFFSET :offset';
-				$stmt  = $this->db->prepare( $query );
-				$stmt->bindValue( ':batch_size', $batch_size, \PDO::PARAM_INT );
-				$stmt->bindValue( ':offset', $offset, \PDO::PARAM_INT );
+				$stmt = $this->db->prepare( $update_sql );
 				$stmt->execute();
+				$updated        = $stmt->rowCount();
+				$total_updated += $updated;
 
-				$records = $stmt->fetchAll( \PDO::FETCH_ASSOC );
-			} catch ( \PDOException $e ) {
-				$this->logger->error( 'calculateStopPoints: Database error during record fetch: ' . $e->getMessage() );
+				$this->logger->debug( 'Updated ' . number_format( $updated ) . ' stopped points in ' . $table_name );
+			} catch (\PDOException $e) {
+				$this->logger->error( "Failed to update {$table_name}: " . $e->getMessage() );
 				throw $e;
 			}
-
-			// Break the loop if no more records are found.
-			if (empty( $records )) {
-				break;
-			}
-
-			// Track IDs that need to be updated, grouped by file_num.
-			$ids_to_update_stops = array();
-
-			// Iterate through the records and apply the callback.
-			foreach ($records as $record) {
-				if ( $last_time === 0 ) {
-					$last_time = $record['timestamp'] - 1;
-				}
-				$record['step_dur'] = $record['timestamp'] - $last_time;
-				$last_time          = $record['timestamp'];
-
-				$record['step_dist'] = $record['distance'] - $last_distance;
-				$last_distance       = $record['distance'];
-
-				// Identify stops.
-				$stopped = call_user_func( $record_callback, $record );
-				if ( 1 === $stopped) {
-					$file_num = $single_table ? 0 : $record['file_num'];
-					if ( ! isset( $ids_to_update_stops[ $file_num ] ) ) {
-						$ids_to_update_stops[ $file_num ] = array();
-					}
-					$ids_to_update_stops[ $file_num ][] = $record['id'];
-				}
-			}
-
-			// Update the stopped field for all matching records, grouped by table.
-			if (! empty( $ids_to_update_stops ) ) {
-				foreach ( $ids_to_update_stops as $file_num => $ids ) {
-					if ( isset( $tables[ $file_num ] ) ) {
-						// $this->logger->debug( 'calculateStopPoints: updating stopped field for ' . count( $ids ) . ' records in table ' . $tables[ $file_num ] );
-						try {
-							$update_query = 'UPDATE ' . $tables[ $file_num ] . ' SET stopped = 1 WHERE id IN (' . implode( ',', array_map( 'intval', $ids ) ) . ')';
-							$this->db->exec( $update_query );
-						} catch ( \PDOException $e ) {
-							$this->logger->error( 'calculateStopPoints: Database error during stopped updates for table ' . $tables[ $file_num ] . ': ' . $e->getMessage() . ", SQL:\n" . $update_query );
-							throw $e;
-						}
-					}
-				}
-			}
-
-			$total_processed += count( $records );
-
-			if ($total_processed % ( $batch_size * 10 ) === 0) {
-				$this->maybe_set_lock_expiration( $queue );
-				$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database so far' );
-			}
-
-			// Increment the offset for the next batch.
-			$offset += $batch_size;
 		}
 
-		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
+		// Step 3: Clean up temp table.
+		$this->db->exec( "DROP TEMPORARY TABLE IF EXISTS {$temp_table}" );
+
+		$this->logger->debug( 'calculateStopPoints: Updated ' . number_format( $total_updated ) . ' total stopped points across ' . count( $tables ) . ' table(s)' );
+
+		return true;
+	}
+
+	protected function sanitize_when( $when ) {
+		// Sanitize $when produced by the callback to avoid SQL injection or dangerous SQL fragments.
+		$when = trim( (string) $when );
+		$when = preg_replace( '/\s+/', ' ', $when ); // collapse whitespace
+
+		if ( empty( $when ) ) {
+			$this->logger->error( 'calculateStopPoints: $when is empty after sanitization.' );
+			throw new \Exception( 'calculateStopPoints: when clause cannot be empty.' );
+		}
+
+		// Basic sanity checks - reject obviously dangerous tokens
+		$dangerous_patterns = array(
+			'/;/',        // statement terminator
+			'/\-\-/',     // comment
+			'/\/\*/',     // comment start
+			'/\*\//',     // comment end
+			'/`/',        // backtick
+			'/@/',        // user variables
+			'/\$/',       // dollar (possible PL/pgSQL things)
+		);
+		foreach ( $dangerous_patterns as $pat ) {
+			if ( preg_match( $pat, $when ) ) {
+				$this->logger->error( 'calculateStopPoints: rejected $when containing forbidden token.' );
+				throw new \Exception( 'calculateStopPoints: invalid expression in when clause.' );
+			}
+		}
+
+		// Disallow SQL keywords that would allow additional queries or UNION-based attacks
+		$forbidden_keywords = '/\b(union|select|insert|update|delete|drop|create|alter|replace|rename|exec|execute|declare|prepare|set|grant|revoke)\b/i';
+		if ( preg_match( $forbidden_keywords, $when ) ) {
+			$this->logger->error( 'calculateStopPoints: rejected $when containing forbidden SQL keywords.' );
+			throw new \Exception( 'calculateStopPoints: invalid expression in when clause.' );
+		}
+
+		// Allow only a restricted set of characters (identifiers, numbers, comparison/logical operators, parentheses, commas, spaces, arithmetic)
+		if ( ! preg_match( '/^[A-Za-z0-9_\s\(\),\<\>\=\!\.\-\+\*\/%]+$/', $when ) ) {
+			$this->logger->error( 'calculateStopPoints: $when contains invalid characters.' );
+			throw new \Exception( 'calculateStopPoints: invalid characters in when clause.' );
+		}
+
+		// Final safety: enforce reasonable length
+		if ( strlen( $when ) > 2000 ) {
+			$this->logger->error( 'calculateStopPoints: $when too long.' );
+			throw new \Exception( 'calculateStopPoints: when clause too long.' );
+		}
+
+		// $when is now considered sanitized for safe embedding into the CASE expression
+		$this->logger->debug( 'calculateStopPoints: using sanitized when clause.' );
 	}
 
 	/**
