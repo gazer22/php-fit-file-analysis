@@ -8112,7 +8112,7 @@ class phpFITFileAnalysis {
 	 *
 	 * @param callable $record_callback Callback function which should return 0 or 1 for stop field.
 	 * @param string   $union           SQL select from union to use.
-	 * @param array    $tables          Tables array from union mapping file id to table name.
+	 * @param array    $tables          Tables to update indexed by file_id.  To update one single table, pass a string.
 	 * @param object   $queue           Queue object
 	 */
 	public function calculateStopPoints( callable $record_callback, $union, $tables, $queue = null ) {
@@ -8129,6 +8129,12 @@ class phpFITFileAnalysis {
 			}
 		}
 
+		$single_table = false;
+		if ( ! is_array( $tables ) && ! is_string( $tables ) ) {
+			$single_table = true;
+			$tables       = array( 0 => $tables ); // Convert to array for consistency.
+		}
+
 		$this->get_lock_expiration( $queue );
 
 		// Iterate (in batches) through all entries in the record table sorted by timestamp ASC.
@@ -8137,11 +8143,7 @@ class phpFITFileAnalysis {
 		$offset          = 0; // Start from the first record.
 		$total_processed = 0;
 		$last_distance   = 0;
-		$dist_delta      = 0;
 		$last_time       = 0;
-
-		// $this->create_temp_update_table();
-		// $this->logger->debug( 'calculateStopPoints: created temp update table' );
 
 		$desired_fields = array(
 			'id',
@@ -8160,24 +8162,7 @@ class phpFITFileAnalysis {
 			$desired_fields
 		);
 
-		// Union has already done this.
-		// $record_fields = array_column( $this->tables_created['record']['columns'], 'field_name' );
-
-		// // If 'speed' is not in $record_fields but 'enhanced_speed' is, replace 'speed' with 'enhanced_speed' in $desired_fields.
-		// if (!in_array( 'speed', $record_fields, true ) && in_array( 'enhanced_speed', $record_fields, true )) {
-		//  $speed_index = array_search( '`speed`', $desired_fields, true );
-		//  if ($speed_index !== false) {
-		//      $desired_fields[$speed_index] = '`enhanced_speed` as `speed`';
-		//  }
-		// }
-
 		$desired_fields = implode( ', ', $desired_fields );
-
-		try {
-			$union = $this->create_temp_records_table( $union, $desired_fields );
-		} catch ( \Exception $e ) {
-			throw $e;
-		}
 
 		while (true) {
 			try {
@@ -8200,9 +8185,7 @@ class phpFITFileAnalysis {
 			}
 
 			// Track IDs that need to be updated, grouped by file_num.
-			$ids_to_update_stops = array(); // Grouped by file_num.
-			$placeholders        = array();
-			$distance_updates    = array();
+			$ids_to_update_stops = array();
 
 			// Iterate through the records and apply the callback.
 			foreach ($records as $record) {
@@ -8212,67 +8195,19 @@ class phpFITFileAnalysis {
 				$record['step_dur'] = $record['timestamp'] - $last_time;
 				$last_time          = $record['timestamp'];
 
-				// Look for non-increasing distance values and adjust them.
-				$record['distance'] += $dist_delta;
-				if ($record['distance'] < $last_distance) {
-					// $this->logger->debug( 'calculateStopPoints: distance value decreased from ' . $last_distance . ' to ' . $record['distance'] . ', current dist_delta = ' . $dist_delta );
-					// $this->logger->debug( ' record = ' . print_r( $record, true ) );
-					$dist_delta += $last_distance - $record['distance'];
-					// $this->logger->debug( ' new dist_delta = ' . $dist_delta );
-					$record['distance'] = $last_distance;
-				}
 				$record['step_dist'] = $record['distance'] - $last_distance;
-                $last_distance       = $record['distance'];
-                
-
-				// Add any changed points to the updates arrays.
-				if ( $dist_delta > 0 ) {
-					$placeholders[]     = '(?,?,?)';
-					$distance_updates[] = $record['id'];
-					$distance_updates[] = $record['file_num'];
-					$distance_updates[] = $record['distance'];
-				}
+				$last_distance       = $record['distance'];
 
 				// Identify stops.
 				$stopped = call_user_func( $record_callback, $record );
 				if ( 1 === $stopped) {
-					$file_num = $record['file_num'];
+					$file_num = $single_table ? 0 : $record['file_num'];
 					if ( ! isset( $ids_to_update_stops[ $file_num ] ) ) {
 						$ids_to_update_stops[ $file_num ] = array();
 					}
 					$ids_to_update_stops[ $file_num ][] = $record['id'];
 				}
 			}
-
-			// Maybe don't need to do distance updates?
-			// if ( ! empty( $distance_updates ) ) {
-			//  try {
-			//      $sql  = 'INSERT INTO pffa_temp_update_table (id, file_num, new_dist) VALUES ' . implode( ',', $placeholders );
-			//      $stmt = $this->db->prepare( $sql );
-			//      $stmt->execute( $distance_updates );
-			//      $stmt->closeCursor();
-			//  } catch ( \PDOException $e ) {
-			//      $this->logger->error( 'calculateStopPoints: Database error during distance updates insert: ' . $e->getMessage() );
-			//      throw $e;
-			//  }
-
-				// Update each table separately based on file_num.
-				// Don't bother doing this - leave base tables unchanged except for updating stopped field, which comes next.
-				// foreach ( $tables as $file_num => $table_location ) {
-				//  try {
-				//      $sql  = 'UPDATE ' . $table_location . ' r JOIN pffa_temp_update_table t ON r.id = t.id AND t.file_num = :file_num SET r.distance = t.new_dist';
-				//      $stmt = $this->db->prepare( $sql );
-				//      $stmt->bindValue( ':file_num', $file_num, \PDO::PARAM_INT );
-				//      $stmt->execute();
-				//      $stmt->closeCursor();
-				//  } catch ( \PDOException $e ) {
-				//      $this->logger->error( 'calculateStopPoints: Database error during distance updates for table ' . $table_location . ': ' . $e->getMessage() );
-				//      throw $e;
-				//  }
-				// }
-
-			//     $this->truncate_temp_update_table();
-			// }
 
 			// Update the stopped field for all matching records, grouped by table.
 			if (! empty( $ids_to_update_stops ) ) {
@@ -8301,109 +8236,7 @@ class phpFITFileAnalysis {
 			$offset += $batch_size;
 		}
 
-		// $this->truncate_temp_update_table();
-
-		$this->drop_temp_records_table();
-		// $this->drop_temp_update_table();
-
 		$this->logger->debug( 'calculateStopPoints: Processed ' . number_format( $total_processed ) . ' records from the database' );
-	}
-
-	/**
-	 * Create a temporary records table for processing.
-	 *
-	 * @param string $union          SQL select from union to use.
-	 * @param string $desired_fields Comma-separated list of desired fields.
-	 * @return string Updated union table name.
-	 */
-	protected function create_temp_records_table( $union, $desired_fields ) {
-		try {
-			// Replace any existing temp table and build a sorted, compact working table for processing.
-			$this->db->exec( 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_records' );
-
-			$create_sql = 'CREATE TEMPORARY TABLE pffa_temp_records AS SELECT ' . $desired_fields . ' FROM ' . $union . ' ORDER BY `timestamp` ASC';
-			$this->db->exec( $create_sql );
-
-			// Add useful indexes to speed up subsequent updates/joins.
-			// Some MySQL versions do not support "CREATE INDEX IF NOT EXISTS" so check existing indexes first.
-			$existingIndexes = array();
-			$idxStmt         = $this->db->query( 'SHOW INDEX FROM pffa_temp_records' );
-			if ( $idxStmt !== false ) {
-				$rows = $idxStmt->fetchAll( \PDO::FETCH_ASSOC );
-				foreach ( $rows as $row ) {
-					if ( isset( $row['Key_name'] ) ) {
-						$existingIndexes[] = $row['Key_name'];
-					}
-				}
-			}
-
-			if ( ! in_array( 'idx_pffa_ts', $existingIndexes, true ) ) {
-				$this->db->exec( 'CREATE INDEX idx_pffa_ts ON pffa_temp_records (`timestamp`)' );
-			}
-			if ( ! in_array( 'idx_pffa_file_num', $existingIndexes, true ) ) {
-				$this->db->exec( 'CREATE INDEX idx_pffa_file_num ON pffa_temp_records (`file_num`)' );
-			}
-
-			// Switch processing to the temp table.
-			$union = 'pffa_temp_records';
-			try {
-				$stmt = $this->db->query( 'SELECT MIN(`timestamp`) AS min_ts, MAX(`timestamp`) AS max_ts, COUNT(*) AS cnt FROM pffa_temp_records' );
-				if ( $stmt !== false ) {
-					$row = $stmt->fetch( \PDO::FETCH_ASSOC );
-					if ( $row ) {
-						$min_ts    = isset( $row['min_ts'] ) && $row['min_ts'] !== null ? (int) $row['min_ts'] : null;
-						$max_ts    = isset( $row['max_ts'] ) && $row['max_ts'] !== null ? (int) $row['max_ts'] : null;
-						$rowCount  = isset( $row['cnt'] ) ? (int) $row['cnt'] : 0;
-						$min_human = $min_ts ? gmdate( 'Y-m-d H:i:s', $min_ts ) . ' UTC' : 'N/A';
-						$max_human = $max_ts ? gmdate( 'Y-m-d H:i:s', $max_ts ) . ' UTC' : 'N/A';
-						$this->logger->debug( 'calculateStopPoints: pffa_temp_records row count: ' . number_format( $rowCount ) . '; timestamp range: min ' . $min_human . ', max ' . $max_human );
-					}
-				}
-			} catch ( \PDOException $e ) {
-				$this->logger->error( 'calculateStopPoints: failed to get stats from pffa_temp_records: ' . $e->getMessage() );
-			}
-		} catch ( \PDOException $e ) {
-			$this->logger->error( 'calculateStopPoints: failed to create temporary table: ' . $e->getMessage() );
-			throw $e;
-		}
-		return $union;
-	}
-
-
-	/**
-	 * Create a temporary update table for the record data.
-	 */
-	protected function create_temp_update_table() {
-		// Create a temporary table to store the updated records.
-		$query = 'CREATE TEMPORARY TABLE IF NOT EXISTS pffa_temp_update_table (id BIGINT UNSIGNED, file_num BIGINT UNSIGNED, new_dist DECIMAL(10,5), PRIMARY KEY (id, file_num))';
-		$this->db->exec( $query );
-	}
-
-	/**
-	 * Truncate the temporary update table.
-	 */
-	protected function truncate_temp_update_table() {
-		// Truncate the temporary table to remove old data.
-		$query = 'TRUNCATE TABLE pffa_temp_update_table';
-		$this->db->exec( $query );
-	}
-
-	/**
-	 * Drop the temporary update table.
-	 */
-	protected function drop_temp_update_table() {
-		// Drop the temporary table.
-		$query = 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_update_table';
-		$this->db->exec( $query );
-	}
-
-	/**
-	 * Drop the temporary records table.
-	 */
-	protected function drop_temp_records_table() {
-		// Drop the temporary table.
-		$query = 'DROP TEMPORARY TABLE IF EXISTS pffa_temp_records';
-		$this->db->exec( $query );
 	}
 
 	/**
