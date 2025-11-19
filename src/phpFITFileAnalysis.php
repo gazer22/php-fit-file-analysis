@@ -8130,10 +8130,13 @@ class phpFITFileAnalysis {
 		}
 
 		$single_table = false;
-		if ( ! is_array( $tables ) && ! is_string( $tables ) ) {
+		if ( ! is_array( $tables ) && is_string( $tables ) ) {
 			$single_table = true;
 			$tables       = array( 0 => $tables ); // Convert to array for consistency.
+			$this->logger->debug( 'calculateStopPoints: single table mode enabled for table ' . $tables[0] );
 		}
+
+		$this->logger->debug( 'calculateStopPoints: Starting calculation of stop points in record data, union = ' . $union . ', tables = ' . print_r( $tables, true ) );
 
 		$this->get_lock_expiration( $queue );
 
