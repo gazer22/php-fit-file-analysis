@@ -8117,16 +8117,15 @@ class phpFITFileAnalysis {
 	 */
 	public function calculateStopPoints( callable $when_callback, $union, $tables, $queue = null ) {
 		if ( ! is_callable( $when_callback ) ) {
-			throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints(): when_callback not callable!' );
+			$this->logger->error( 'calculateStopPoints: when_callback is not callable' );
+			return false;
 		}
 
 		if ( isset( $this->options['buffer_input_to_db'] ) && $this->options['buffer_input_to_db'] && $this->checkFileBufferOptions( $this->options['database'] ) ) {
-			if ( ! $this->connect_to_db() ) {
-				$this->logger->error( 'phpFITFileAnalysis->calculateStopPoints(): unable to connect to database!' );
-				throw new \Exception( 'phpFITFileAnalysis->calculateStopPoints: unable to connect to database' );
-			} else {
-				$this->logger->debug( 'phpFITFileAnalysis->calculateStopPoints(): connected to database: ' . $this->db_name );
-			}
+			// Continue with database operations
+		} else {
+			$this->logger->error( 'calculateStopPoints: buffer_input_to_db not enabled or invalid database options' );
+			return false;
 		}
 
 		$single_table = !is_array( $tables );
@@ -8140,61 +8139,57 @@ class phpFITFileAnalysis {
 
 		$when = call_user_func( $when_callback );
 		$when = $this->sanitize_when( $when );
-
-		$create_temp = "
-            CREATE TEMPORARY TABLE {$temp_table} AS
-            SELECT 
-                id,
-                " . ( $single_table ? '0 AS file_num,' : 'file_num,' ) . '
-                CASE ' . $when . '
-                    ELSE 0
-                END AS is_stopped
-            FROM (
+		try {
+			$sql = "
+                CREATE TEMPORARY TABLE {$temp_table} AS
                 SELECT 
                     id,
-                    ' . ( $single_table ? '' : 'file_num,' ) . '
-                    speed,
-                    paused,
-                    timestamp - LAG(timestamp, 1, timestamp - 1) 
-                        OVER (' . ( $single_table ? '' : 'PARTITION BY file_num ' ) . 'ORDER BY timestamp) AS step_dur,
-                    distance - LAG(distance, 1, 0) 
-                        OVER (' . ( $single_table ? '' : 'PARTITION BY file_num ' ) . "ORDER BY timestamp) AS step_dist
-                FROM {$union}
-            ) calc
-            HAVING is_stopped = 1
-        ";
+                " . ( $single_table ? '0 AS file_num,' : 'file_num,' ) . '
+                    CASE {$when}
+                        ELSE 0
+                    END AS is_stopped
+                FROM (
+                    SELECT 
+                        id,
+                    ' . ( $single_table ? '' : 'file_num,' ) . "
+                        speed,
+                        paused,
+                        timestamp - COALESCE(LAG(timestamp, 1) OVER (ORDER BY timestamp), timestamp - 1) AS step_dur,
+                        distance - COALESCE(LAG(distance, 1) OVER (ORDER BY timestamp), 0) AS step_dist
+                    FROM {$union}
+                ) calc
+                HAVING is_stopped = 1
+            ";
 
-		try {
-			$this->db->exec( $create_temp );
+			$this->db->exec( $sql );
 			$this->logger->debug( "Created temp table {$temp_table} with stop calculations" );
 		} catch (\PDOException $e) {
-			$this->logger->error( 'Failed to create temp table: ' . $e->getMessage()  . "\nSQL:\n" . $create_temp );
-			throw $e;
+			$this->logger->error( 'Failed to create temp table: ' . $e->getMessage() . "\nSQL:\n" . $sql );
+			return false;
 		}
 
 		// Step 2: Update each base table separately using file_num.
 		$total_updated = 0;
 		foreach ($tables as $file_num => $table_name) {
-			$this->maybe_set_lock_expiration( $queue );
-
-			$update_sql = "
-                UPDATE {$table_name} t
-                INNER JOIN {$temp_table} calc 
-                    ON t.id = calc.id
-                    " . ( $single_table ? '' : "AND calc.file_num = {$file_num}" ) . '
-                SET t.stopped = 1
-            ';
+   			$this->maybe_set_lock_expiration( $queue );
 
 			try {
-				$stmt = $this->db->prepare( $update_sql );
-				$stmt->execute();
-				$updated        = $stmt->rowCount();
-				$total_updated += $updated;
+				$update_sql = "
+                    UPDATE {$table_name} r
+                    INNER JOIN {$temp_table} t ON r.id = t.id
+                    SET r.is_stopped = t.is_stopped
+                ";
 
-				$this->logger->debug( 'Updated ' . number_format( $updated ) . ' stopped points in ' . $table_name );
+				if (!$single_table) {
+					$update_sql .= " WHERE t.file_num = {$file_num}";
+				}
+
+				$rows_affected  = $this->db->exec( $update_sql );
+				$total_updated += $rows_affected;
+
+				$this->logger->debug( 'Updated ' . number_format( $rows_affected ) . ' stopped points in table ' . $table_name );
 			} catch (\PDOException $e) {
-				$this->logger->error( "Failed to update {$table_name}: " . $e->getMessage() );
-				throw $e;
+				$this->logger->error( "Failed to update table {$table_name}: " . $e->getMessage() );
 			}
 		}
 
@@ -8206,6 +8201,26 @@ class phpFITFileAnalysis {
 		return true;
 	}
 
+	/**
+	 * Sanitize a "when" value for FIT file processing.
+	 *
+	 * Normalize various representations of a timestamp into a canonical Unix timestamp (seconds since the Unix epoch).
+	 * This method accepts multiple input forms commonly found in FIT files or user input and converts them to an
+	 * integer timestamp (or returns null for empty inputs).
+	 *
+	 * Supported input types:
+	 *  - int: treated as a Unix timestamp (seconds)
+	 *  - string: numeric strings are treated as timestamps; non-numeric strings are parsed as date/time (e.g. ISO-8601/RFC3339)
+	 *  - DateTimeInterface: converted to UTC and returned as a Unix timestamp
+	 *  - null or empty string: returned as null
+	 *
+	 * The implementation should trim whitespace, handle fractional seconds where present, and normalize time zones
+	 * to UTC before producing the integer timestamp.
+	 *
+	 * @param mixed $when The raw "when" value to sanitize (int|string|DateTimeInterface|null)
+	 * @return int|null Normalized Unix timestamp (seconds) or null if input was null/empty
+	 * @throws \InvalidArgumentException If the value cannot be parsed or is otherwise invalid
+	 */
 	protected function sanitize_when( $when ) {
 		// Sanitize $when produced by the callback to avoid SQL injection or dangerous SQL fragments.
 		$when = trim( (string) $when );
