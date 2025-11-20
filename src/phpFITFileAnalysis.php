@@ -8147,7 +8147,7 @@ class phpFITFileAnalysis {
                 " . ( $single_table ? '0 AS file_num,' : 'file_num,' ) . "
                     CASE {$when}
                         ELSE 0
-                    END AS is_stopped
+                    END AS stopped
                 FROM (
                     SELECT 
                         id,
@@ -8158,7 +8158,7 @@ class phpFITFileAnalysis {
                         distance - COALESCE(LAG(distance, 1) OVER (ORDER BY timestamp), 0) AS step_dist
                     FROM {$union}
                 ) calc
-                HAVING is_stopped = 1
+                HAVING stopped = 1
             ";
 
 			$this->db->exec( $sql );
@@ -8177,7 +8177,7 @@ class phpFITFileAnalysis {
 				$update_sql = "
                     UPDATE {$table_name} r
                     INNER JOIN {$temp_table} t ON r.id = t.id
-                    SET r.is_stopped = t.is_stopped
+                    SET r.stopped = t.stopped
                 ";
 
 				if (!$single_table) {
