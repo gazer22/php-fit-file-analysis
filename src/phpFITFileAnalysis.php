@@ -8144,14 +8144,14 @@ class phpFITFileAnalysis {
                 CREATE TEMPORARY TABLE {$temp_table} AS
                 SELECT 
                     id,
-                    {$union} AS file_num,
+                " . ( $single_table ? '0 AS file_num,' : 'file_num,' ) . '
                     CASE {$when}
                         ELSE 0
                     END AS is_stopped
                 FROM (
                     SELECT 
                         id,
-                        {$union},
+                    ' . ( $single_table ? '' : 'file_num,' ) . "
                         speed,
                         paused,
                         timestamp - COALESCE(LAG(timestamp, 1) OVER (ORDER BY timestamp), timestamp - 1) AS step_dur,
