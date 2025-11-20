@@ -139,6 +139,7 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	 * Return $this->columns as array_keys().
 	 */
 	public function get_keys(): array {
+        $this->logger->debug( "Getting keys for table cache {$this->table_name}." );
 		return ( $this->columns );
 	}
 
