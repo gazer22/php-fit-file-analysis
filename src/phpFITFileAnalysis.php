@@ -5641,17 +5641,21 @@ class phpFITFileAnalysis {
 	protected function checkFileBufferOptions( $options ) {
 
 		if ( ! isset( $options['table_name'] ) || ! is_string( $options['table_name'] ) ) {
+			$this->logger->error( 'phpFITFileAnalysis->checkFileBufferOptions(): table_name option is required when buffer_input_to_db is set to true' );
 			throw new \Exception( 'phpFITFileAnalysis->checkFileBufferOptions(): table_name option is required when buffer_input_to_db is set to true!' );
 		}
 
 		if ( ! isset( $options['data_source_name'] ) || ! is_string( $options['data_source_name'] ) ) {
+			$this->logger->error( 'phpFITFileAnalysis->checkFileBufferOptions(): data_source_name option is required when buffer_input_to_db is set to true' );
 			throw new \Exception( 'phpFITFileAnalysis->checkFileBufferOptions(): data_source_name option is required when buffer_input_to_db is set to true!' );
 		}
 
 		if ( ! isset( $options['username'] ) || ! is_string( $options['username'] ) ) {
+			$this->logger->error( 'phpFITFileAnalysis->checkFileBufferOptions(): username option is required when buffer_input_to_db is set to true' );
 			throw new \Exception( 'phpFITFileAnalysis->checkFileBufferOptions(): username option is required when buffer_input_to_db is set to true!' );
 		}
 		if ( ! isset( $options['password'] ) || ! is_string( $options['password'] ) ) {
+			$this->logger->error( 'phpFITFileAnalysis->checkFileBufferOptions(): password option is required when buffer_input_to_db is set to true' );
 			throw new \Exception( 'phpFITFileAnalysis->checkFileBufferOptions(): password option is required when buffer_input_to_db is set to true!' );
 		}
 
@@ -8121,10 +8125,14 @@ class phpFITFileAnalysis {
 			return false;
 		}
 
-		if ( isset( $this->options['buffer_input_to_db'] ) && $this->options['buffer_input_to_db'] && $this->checkFileBufferOptions( $this->options['database'] ) ) {
-			// Continue with database operations
-		} else {
+		$file_buffer_options = false;
+		if ( isset( $this->options['buffer_input_to_db'] ) && $this->options['buffer_input_to_db'] ) {
+			$file_buffer_options = $this->checkFileBufferOptions( $this->options['database'] );
+		}
+
+		if ( ! isset( $this->options['buffer_input_to_db'] ) || ! $this->options['buffer_input_to_db'] || ! $file_buffer_options ) {
 			$this->logger->error( 'calculateStopPoints: buffer_input_to_db not enabled or invalid database options' );
+			$this->logger->debug( '  buffer_input_to_db: ' . ( isset( $this->options['buffer_input_to_db'] ) ? var_export( $this->options['buffer_input_to_db'], true ) : 'not set' ) );
 			return false;
 		}
 
@@ -8171,7 +8179,7 @@ class phpFITFileAnalysis {
 		// Step 2: Update each base table separately using file_num.
 		$total_updated = 0;
 		foreach ($tables as $file_num => $table_name) {
-   			$this->maybe_set_lock_expiration( $queue );
+			$this->maybe_set_lock_expiration( $queue );
 
 			try {
 				$update_sql = "
