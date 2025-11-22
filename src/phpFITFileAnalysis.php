@@ -8176,6 +8176,15 @@ class phpFITFileAnalysis {
 			return false;
 		}
 
+		try {
+			$count = (int) $this->db->query( "SELECT COUNT(*) FROM {$temp_table}" )->fetchColumn();
+		} catch ( \PDOException $e ) {
+			$this->logger->warning( 'calculateStopPoints: Unable to determine temp table count: ' . $e->getMessage() );
+			$count = 0;
+		}
+
+		$this->logger->debug( 'calculateStopPoints: Created temp table ' . $temp_table . ' with count = ' . number_format( $count ) );
+
 		// Step 2: Update each base table separately using file_num.
 		$total_updated = 0;
 		foreach ($tables as $file_num => $table_name) {
@@ -8196,6 +8205,7 @@ class phpFITFileAnalysis {
 				$total_updated += $rows_affected;
 
 				$this->logger->debug( 'Updated ' . number_format( $rows_affected ) . ' stopped points in table ' . $table_name );
+				// $this->logger->debug( " SQL:\n" . $update_sql );
 			} catch (\PDOException $e) {
 				$this->logger->error( "Failed to update table {$table_name}: " . $e->getMessage() );
 			}
