@@ -4977,6 +4977,7 @@ class phpFITFileAnalysis {
 				$this->logger->error( 'phpFITFileAnalysis->__construct(): unable to connect to database!' );
 				throw new \Exception( 'phpFITFileAnalysis: unable to connect to database' );
 			} else {
+				$this->db->setAttribute( \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true );
 				$this->logger->debug( 'phpFITFileAnalysis->__construct(): connected to database: ' . $this->db_name );
 			}
 
@@ -5109,6 +5110,15 @@ class phpFITFileAnalysis {
 		// $this->logger->debug( 'defn_mesgs_all: ' . print_r( $this->defn_mesgs_all, true ) );
 
 		fclose( $this->file_contents );
+	}
+
+	/**
+	 * Destructor - ensure lock is released.
+	 */
+	public function __destruct() {
+		if ( $this->file_num !== null && $this->db ) {
+			$this->releaseFileLock( $this->file_num );
+		}
 	}
 
 	/**
@@ -5409,6 +5419,7 @@ class phpFITFileAnalysis {
 			$stmt = $this->db->prepare( $sql );
 			$stmt->execute( array( 'file_num' => $file_num ) );
 			$result = $stmt->fetch( \PDO::FETCH_ASSOC );
+			$stmt->closeCursor();
 
 			if ( $result ) {
 				$this->logger->info( "Checkpoint loaded for file_num {$file_num} at record {$result['record_count']}" );
@@ -5440,10 +5451,12 @@ class phpFITFileAnalysis {
 				$sql  = "SHOW TABLES LIKE '{$this->checkpoint_table}'";
 				$stmt = $this->db->query( $sql );
 
-				if ( $stmt->fetch() ) {
+				if ( $stmt->rowCount() > 0 ) {
 					// Table exists
+					$stmt->closeCursor();
 					return true;
 				}
+				$stmt->closeCursor();
 			} else {
 				// For other databases, try to query the table
 				try {
@@ -9167,11 +9180,24 @@ class phpFITFileAnalysis {
 		}
 
 		try {
+			try {
+				$stmt = $this->db->query( 'SELECT 1' );
+				if ( $stmt ) {
+					$stmt->fetchAll();
+					$stmt->closeCursor();
+				}
+			} catch ( \PDOException $e ) {
+				// Ignore errors from the dummy query - we just want to clear the connection.
+				$this->logger->debug( "Cleared connection state before releasing lock for file {$file_num}" );
+
+			}
 			$sql = "SELECT RELEASE_LOCK('fit_file_process_{$file_num}') AS lock_result";
 			$this->db->query( $sql );
 			$this->logger->debug( "Released lock for file {$file_num}" );
-		} catch ( \Exception $e ) {
+		} catch ( \PDOException $e ) {
 			$this->logger->error( "Error releasing lock for file {$file_num}: " . $e->getMessage() );
+		} catch ( \Exception $e ) {
+			$this->logger->error( "Unexpected error releasing lock for file {$file_num}: " . $e->getMessage() );
 		}
 	}
 
