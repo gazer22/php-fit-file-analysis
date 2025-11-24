@@ -6706,10 +6706,11 @@ class phpFITFileAnalysis {
 			$sql .= '`' . $column['field_name'] . '` ' . $column['type'] . ' DEFAULT NULL, ';
 		}
 
-		// If 'record', add spatial point and indexes.
+		// If 'record', add paused, stopped, delta_t, spatial point and indexes.
 		if ( 'record' === $mesg_name ) {
 			$sql .= '`paused` TINYINT(1) DEFAULT NULL, ';
 			$sql .= '`stopped` TINYINT(1) DEFAULT NULL, ';
+			$sql .= '`delta_t` INT DEFAULT NULL, ';
 			$sql .= '`spatial_point` POINT NOT NULL, ';
 			$sql .= 'SPATIAL INDEX spatial_idx (`spatial_point`), ';
 			$sql .= 'INDEX distance (`distance`), ';
@@ -6722,6 +6723,10 @@ class phpFITFileAnalysis {
 			$columns[] = array(
 			'field_name' => 'stopped',
 			'type'       => 'TINYINT(1) DEFAULT NULL',
+			);
+			$columns[] = array(
+			'field_name' => 'delta_t',
+			'type'       => 'INT DEFAULT NULL',
 			);
 			$columns[] = array(
 			'field_name' => 'spatial_point',
@@ -8154,6 +8159,38 @@ class phpFITFileAnalysis {
 			$tables = array( 0 => $tables );
 		}
 
+		// Determine if we should use enhanced_speed or just speed field: if union contains enhanced_speed in the first select statement, use that.  If it's a single table, get columns from the table to determine.
+		$use_enhanced_speed = false;
+		if ( $single_table ) {
+			try {
+				$stmt = $this->db->prepare( 'SHOW COLUMNS FROM ' . $tables[0] );
+				$stmt->execute();
+				$columns = $stmt->fetchAll( \PDO::FETCH_COLUMN );
+				$stmt->closeCursor();
+
+				if ( in_array( 'enhanced_speed', $columns, true ) ) {
+					$use_enhanced_speed = true;
+				}
+			} catch ( \PDOException $e ) {
+				$this->logger->warning( 'calculateStopPoints: Unable to determine columns for table ' . $tables[0] . ': ' . $e->getMessage() );
+			}
+		} else {
+			// Check first select statement in union for enhanced_speed.
+			$pattern = '/SELECT\s+(?:DISTINCT\s+)?(.*?)\sFROM\s+/is';
+			if ( preg_match( $pattern, $union, $matches ) ) {
+				$select_fields = strtolower( $matches[1] );
+				if ( strpos( $select_fields, 'enhanced_speed' ) !== false ) {
+					$use_enhanced_speed = true;
+				}
+			}
+		}
+
+		if ( $use_enhanced_speed ) {
+			$speed_select = 'enhanced_speed as speed';
+		} else {
+			$speed_select = 'speed';
+		}
+
 		// Step 1: Create temp table with stop calculations.
 		// CRITICAL: Include file_num when dealing with UNION.
 		$temp_table = $this->data_table . '_stop_calc_' . uniqid();
@@ -8165,6 +8202,7 @@ class phpFITFileAnalysis {
                 CREATE TEMPORARY TABLE {$temp_table} AS
                 SELECT 
                     id,
+					step_dur as delta_t,
                 " . ( $single_table ? '0 AS file_num,' : 'file_num,' ) . "
                     CASE {$when}
                         ELSE 0
@@ -8173,7 +8211,7 @@ class phpFITFileAnalysis {
                     SELECT 
                         id,
                     " . ( $single_table ? '' : 'file_num,' ) . "
-                        speed,
+                        {$speed_select},
                         paused,
                         timestamp - COALESCE(LAG(timestamp, 1) OVER (ORDER BY timestamp), timestamp - 1) AS step_dur,
                         distance - COALESCE(LAG(distance, 1) OVER (ORDER BY timestamp), 0) AS step_dist
@@ -8205,9 +8243,10 @@ class phpFITFileAnalysis {
 
 			try {
 				$update_sql = "
-                    UPDATE {$table_name} r
-                    INNER JOIN {$temp_table} t ON r.id = t.id
-                    SET r.stopped = t.stopped
+					UPDATE {$table_name} r
+					INNER JOIN {$temp_table} t ON r.id = t.id
+					SET r.stopped = t.stopped,
+						r.delta_t = t.delta_t
                 ";
 
 				if (!$single_table) {
