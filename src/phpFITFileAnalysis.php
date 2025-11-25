@@ -5168,42 +5168,58 @@ class phpFITFileAnalysis {
 		// Create a dummy instance without processing files
 		$instance = new self( null, null, null, $logger );
 
+		try {
+			$instance->initializeFromState( $state );
+		} catch ( \Exception $e ) {
+			throw new \Exception( 'Failed to initialize phpFITFileAnalysis from state: ' . $e->getMessage() );
+		}
+
+		return $instance;
+	}
+
+	/**
+	 * Initialize instance from exported state.
+	 *
+	 * @param array $state State data from export_state().
+	 * @throws \Exception If database reconnection fails.
+	 */
+	public function initializeFromState( $state ) {
 		// Restore state
-		$instance->file_buff               = $state['file_buff'];
-		$instance->data_table              = $state['data_table'];
-		$instance->file_num                = $state['file_num'];
-		$instance->db_name                 = $state['db_name'];
-		$instance->db_user                 = $state['db_user'];
-		$instance->db_pass                 = $state['db_pass'];
-		$instance->tables_created          = $state['tables_created'];
-		$instance->options                 = $state['options'];
-		$instance->file_header             = $state['file_header'];
-		$instance->php_trader_ext_loaded   = $state['php_trader_ext_loaded'];
-		$instance->garmin_timestamps       = $state['garmin_timestamps'];
-		$instance->buffer_size             = $state['buffer_size'];
-		$instance->mega_batch_size         = $state['mega_batch_size'] ?? null;
-		$instance->checkpoint_table        = $state['checkpoint_table'] ?? null;
-		$instance->current_file_path       = $state['current_file_path'] ?? null;
-		$instance->last_checkpoint_record  = $state['last_checkpoint_record'] ?? 0;
-		$instance->processing_start_time   = $state['processing_start_time'] ?? null;
-		$instance->total_records_processed = $state['total_records_processed'] ?? 0;
-		$instance->file_pointer            = $state['file_pointer'] ?? 0;
-		$instance->defn_mesgs              = $state['defn_mesgs'] ?? array();
-		$instance->dev_field_descriptions  = $state['dev_field_descriptions'] ?? array();
+		$this->file_buff               = $state['file_buff'];
+		$this->data_table              = $state['data_table'];
+		$this->file_num                = $state['file_num'];
+		$this->db_name                 = $state['db_name'];
+		$this->db_user                 = $state['db_user'];
+		$this->db_pass                 = $state['db_pass'];
+		$this->tables_created          = $state['tables_created'];
+		$this->options                 = $state['options'];
+		$this->file_header             = $state['file_header'];
+		$this->php_trader_ext_loaded   = $state['php_trader_ext_loaded'];
+		$this->garmin_timestamps       = $state['garmin_timestamps'];
+		$this->buffer_size             = $state['buffer_size'];
+		$this->mega_batch_size         = $state['mega_batch_size'] ?? null;
+		$this->checkpoint_table        = $state['checkpoint_table'] ?? null;
+		$this->current_file_path       = $state['current_file_path'] ?? null;
+		$this->last_checkpoint_record  = $state['last_checkpoint_record'] ?? 0;
+		$this->processing_start_time   = $state['processing_start_time'] ?? null;
+		$this->total_records_processed = $state['total_records_processed'] ?? 0;
+		$this->file_pointer            = $state['file_pointer'] ?? 0;
+		$this->defn_mesgs              = $state['defn_mesgs'] ?? array();
+		$this->dev_field_descriptions  = $state['dev_field_descriptions'] ?? array();
+
+		$this->logger->debug( 'phpFITFileAnalysis: instance restored from state for file_num ' . $this->file_num . ", file header:\n" . print_r( $this->file_header, true ) );
 
 		// Reconnect to database
-		if (!$instance->connect_to_db()) {
+		if (!$this->connect_to_db()) {
 			throw new \Exception( 'Failed to reconnect to database' );
 		}
 
 		// Recreate data_mesgs accessor
-		$instance->data_mesgs = new \PFFA_Data_Mesgs(
-			$instance->db,
-			$instance->tables_created,
-			$instance->logger
+		$this->data_mesgs = new \PFFA_Data_Mesgs(
+			$this->db,
+			$this->tables_created,
+			$this->logger
 		);
-
-		return $instance;
 	}
 
 
