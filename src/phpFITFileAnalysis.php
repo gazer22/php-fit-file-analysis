@@ -4955,7 +4955,7 @@ class phpFITFileAnalysis {
 		// Set mega batch size for checkpointing (only applicable when buffer_input_to_db is true)
 		if ( isset( $options['mega_batch_size'] ) && is_numeric( $options['mega_batch_size'] ) && $options['mega_batch_size'] > 0 ) {
 			$this->mega_batch_size = (int) $options['mega_batch_size'];
-			$this->logger->debug( 'phpFITFileAnalysis->__construct(): mega_batch_size set to: ' . $this->mega_batch_size );
+			$this->logger->debug( 'phpFITFileAnalysis->__construct(): mega_batch_size set to: ' . number_format( $this->mega_batch_size ) );
 		}
 
 		if ( isset( $options['input_is_data'] ) ) {
@@ -5103,6 +5103,7 @@ class phpFITFileAnalysis {
 		// Clean up checkpoint after successful completion (only in buffer mode with checkpointing)
 		if ( $this->file_buff && $this->mega_batch_size && $this->file_num ) {
 			$this->deleteCheckpoint( $this->file_num );
+			$this->releaseFileLock( $this->file_num );
 			$this->logger->debug( 'phpFITFileAnalysis->__construct(): checkpoint cleaned up for file_num ' . $this->file_num );
 		}
 
