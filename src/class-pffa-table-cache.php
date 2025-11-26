@@ -106,6 +106,7 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 					}
 				)
 			);
+            $stmt->closeCursor();
 
 			$this->use_timestamp_as_key = 'record' === $key && in_array( 'timestamp', $this->columns, true );
 		} catch ( \PDOException $e ) {
@@ -156,10 +157,12 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 					$stmt = $this->db->prepare( "SELECT `timestamp`, `{$field}` FROM {$this->table_name} ORDER BY `timestamp`" );
 					$stmt->execute();
 					$this->cache[ $field ] = $stmt->fetchAll( \PDO::FETCH_KEY_PAIR );
+                    $stmt->closeCursor();
 				} else {
 					$stmt = $this->db->prepare( "SELECT `{$field}` FROM {$this->table_name}" );
 					$stmt->execute();
 					$result                = $stmt->fetchAll( \PDO::FETCH_COLUMN );
+                    $stmt->closeCursor();
 					$this->cache[ $field ] = ( count( $result ) === 1 ) ? $result[0] : $result;
 				}
 			} catch ( \PDOException $e ) {

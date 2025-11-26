@@ -5118,6 +5118,13 @@ class phpFITFileAnalysis {
 	 */
 	public function __destruct() {
 		if ( $this->file_num !== null && $this->db ) {
+            try {
+                if ( $this->db->inTransaction() ) {
+                    $this->db->rollBack();
+                }
+            } catch ( \PDOException $e ) {
+                // Ignore errors during cleanup
+            }
 			$this->releaseFileLock( $this->file_num );
 		}
 	}
@@ -5286,6 +5293,8 @@ class phpFITFileAnalysis {
 			try {
 				$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass );
 				$this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
+                $this->db->setAttribute( \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true );
+                $this->db->setAttribute( \PDO::ATTR_EMULATE_PREPARES, false );
 				// $this->logger->debug( 'phpFITFileAnalysis: connected to database - after attributes: ' . print_r( $this->db, true ) );
 			} catch ( \PDOException $e ) {
 				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
@@ -5643,6 +5652,7 @@ class phpFITFileAnalysis {
 				);
 
 				$result = $stmt->fetch( \PDO::FETCH_ASSOC );
+                $stmt->closeCursor();
 
 				if ( $result && strtolower( $result['ENGINE'] ) !== 'innodb' ) {
 					$this->logger->warning(
@@ -8245,7 +8255,9 @@ class phpFITFileAnalysis {
 		}
 
 		try {
-			$count = (int) $this->db->query( "SELECT COUNT(*) FROM {$temp_table}" )->fetchColumn();
+			$stmt  = $this->db->query( "SELECT COUNT(*) FROM {$temp_table}" );
+			$count = (int) $stmt->fetchColumn();
+			$stmt->closeCursor();
 		} catch ( \PDOException $e ) {
 			$this->logger->warning( 'calculateStopPoints: Unable to determine temp table count: ' . $e->getMessage() );
 			$count = 0;
@@ -9211,6 +9223,7 @@ class phpFITFileAnalysis {
 			$sql    = "SELECT GET_LOCK('fit_file_process_{$file_num}', 1) AS lock_result";
 			$stmt   = $this->db->query( $sql );
 			$result = $stmt->fetch( \PDO::FETCH_ASSOC );
+			$stmt->closeCursor();
 
 			if ( 1 === $result['lock_result'] ) {
 				$this->logger->debug( "Acquired lock for file {$file_num}" );
