@@ -8248,6 +8248,16 @@ class phpFITFileAnalysis {
             ";
 
 			$this->db->exec( $sql );
+			// No cursor to close for exec(); exec() doesn't return a PDOStatement.
+			// If you'd like to be defensive (or if you switch to query()/prepare()), you can run a tiny query and close its cursor:
+			try {
+				$dummy = $this->db->query( 'SELECT 1' );
+				if ( $dummy ) {
+					$dummy->closeCursor();
+				}
+			} catch ( \PDOException $e ) {
+				// ignore - this is only a defensive noop
+			}
 			$this->logger->debug( "Created temp table {$temp_table} with stop calculations" );
 		} catch (\PDOException $e) {
 			$this->logger->error( 'Failed to create temp table: ' . $e->getMessage() . "\nSQL:\n" . $sql );
