@@ -5118,13 +5118,13 @@ class phpFITFileAnalysis {
 	 */
 	public function __destruct() {
 		if ( $this->file_num !== null && $this->db ) {
-            try {
-                if ( $this->db->inTransaction() ) {
-                    $this->db->rollBack();
-                }
-            } catch ( \PDOException $e ) {
-                // Ignore errors during cleanup
-            }
+			try {
+				if ( $this->db->inTransaction() ) {
+					$this->db->rollBack();
+				}
+			} catch ( \PDOException $e ) {
+				// Ignore errors during cleanup
+			}
 			$this->releaseFileLock( $this->file_num );
 		}
 	}
@@ -5291,13 +5291,25 @@ class phpFITFileAnalysis {
 	protected function connect_to_db() {
 		if ( $this->file_buff ) {
 			try {
-				$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass );
-				$this->db->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION ); // Enable exceptions for errors
-                $this->db->setAttribute( \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true );
-                $this->db->setAttribute( \PDO::ATTR_EMULATE_PREPARES, false );
-				// $this->logger->debug( 'phpFITFileAnalysis: connected to database - after attributes: ' . print_r( $this->db, true ) );
+				$pdoOptions = array(
+					\PDO::ATTR_ERRMODE                  => \PDO::ERRMODE_EXCEPTION,
+					\PDO::ATTR_DEFAULT_FETCH_MODE       => \PDO::FETCH_ASSOC,
+					\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true, // prevent HY000 2014 unbuffered query error
+				);
+
+				$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass, $pdoOptions );
+
+				// Optional: explicitly buffer results at session level for MySQL.
+				// Not strictly necessary with PDO buffered queries, but harmless.
+				try {
+					$this->db->exec( 'SET SESSION sql_buffer_result = 1' );
+				} catch ( \PDOException $e ) {
+					// ignore if not supported
+				}
+                $this->logger->debug( 'phpFITFileAnalysis->__construct(): connected to database: ' . $this->db_name );
 			} catch ( \PDOException $e ) {
 				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
+				$this->db = null;
 				return false;
 			}
 		}
@@ -5652,7 +5664,7 @@ class phpFITFileAnalysis {
 				);
 
 				$result = $stmt->fetch( \PDO::FETCH_ASSOC );
-                $stmt->closeCursor();
+				$stmt->closeCursor();
 
 				if ( $result && strtolower( $result['ENGINE'] ) !== 'innodb' ) {
 					$this->logger->warning(
@@ -9260,18 +9272,13 @@ class phpFITFileAnalysis {
 
 		try {
 			try {
-				$stmt = $this->db->query( 'SELECT 1' );
-				if ( $stmt ) {
-					$stmt->fetchAll();
-					$stmt->closeCursor();
-				}
-			} catch ( \PDOException $e ) {
-				// Ignore errors from the dummy query - we just want to clear the connection.
-				$this->logger->debug( "Cleared connection state before releasing lock for file {$file_num}" );
-
+				$this->db->query( 'SELECT 1' )->fetchAll();
+			} catch ( \PDOException $ignore ) {
+				// ignore
 			}
-			$sql = "SELECT RELEASE_LOCK('fit_file_process_{$file_num}') AS lock_result";
-			$this->db->query( $sql );
+			$stmt = $this->db->prepare( "SELECT RELEASE_LOCK('fit_file_process_{$file_num}') AS lock_result" );
+			$stmt->execute();
+			$stmt->closeCursor();
 			$this->logger->debug( "Released lock for file {$file_num}" );
 		} catch ( \PDOException $e ) {
 			$this->logger->error( "Error releasing lock for file {$file_num}: " . $e->getMessage() );
