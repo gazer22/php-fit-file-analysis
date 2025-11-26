@@ -9190,23 +9190,29 @@ class phpFITFileAnalysis {
 		}
 
 		try {
-			// Use database lock with timeout
-			$sql    = "SELECT GET_LOCK('fit_file_process_{$file_num}', 1) AS lock_result";
-			$stmt   = $this->db->query( $sql );
-			$result = $stmt->fetch( \PDO::FETCH_ASSOC );
+			$stmt = $this->db->prepare( 'SELECT GET_LOCK(:lock_name, 0)' );
+			$stmt->execute(
+				array(
+					'lock_name' => $this->getFileLockName( $file_num ),
+				)
+			);
+			$locked = (int) $stmt->fetchColumn() === 1;
+			$stmt->closeCursor();
 
-			if ( 1 === $result['lock_result'] ) {
+			if ( $locked ) {
 				$this->logger->debug( "Acquired lock for file {$file_num}" );
-				return true;
 			} else {
-				$this->logger->warning( "Failed to acquire lock for file {$file_num} - another process is already working on it" );
-				return false;
+				$this->logger->warning( "Unable to acquire lock for file {$file_num}" );
 			}
-		} catch ( \Exception $e ) {
+
+			return $locked;
+		} catch ( \PDOException $e ) {
 			$this->logger->error( "Error acquiring lock for file {$file_num}: " . $e->getMessage() );
-			return false;
+		} catch ( \Exception $e ) {
+			$this->logger->error( "Unexpected error acquiring lock for file {$file_num}: " . $e->getMessage() );
 		}
-	}
+
+		return false;   }
 
 	/**
 	 * Release the lock for processing a specific file.
@@ -9219,25 +9225,37 @@ class phpFITFileAnalysis {
 		}
 
 		try {
-			try {
-				$stmt = $this->db->query( 'SELECT 1' );
-				if ( $stmt ) {
-					$stmt->fetchAll();
-					$stmt->closeCursor();
-				}
-			} catch ( \PDOException $e ) {
-				// Ignore errors from the dummy query - we just want to clear the connection.
-				$this->logger->debug( "Cleared connection state before releasing lock for file {$file_num}" );
+			$stmt = $this->db->prepare( 'SELECT RELEASE_LOCK(:lock_name)' );
+			$stmt->execute(
+				array(
+					'lock_name' => $this->getFileLockName( $file_num ),
+				)
+			);
+			$result = (int) $stmt->fetchColumn();
+			$stmt->closeCursor();
 
+			if ( 1 === $result ) {
+				$this->logger->debug( "Released lock for file {$file_num}" );
+			} elseif ( 0 === $result ) {
+				$this->logger->warning( "Lock for file {$file_num} was not held" );
+			} else {
+				$this->logger->warning( "Lock for file {$file_num} did not exist" );
 			}
-			$sql = "SELECT RELEASE_LOCK('fit_file_process_{$file_num}') AS lock_result";
-			$this->db->query( $sql );
-			$this->logger->debug( "Released lock for file {$file_num}" );
 		} catch ( \PDOException $e ) {
 			$this->logger->error( "Error releasing lock for file {$file_num}: " . $e->getMessage() );
 		} catch ( \Exception $e ) {
 			$this->logger->error( "Unexpected error releasing lock for file {$file_num}: " . $e->getMessage() );
 		}
+	}
+
+	/**
+	 * Get the lock name for a specific file.
+	 *
+	 * @param int $file_num The file ID.
+	 * @return string The lock name.
+	 */
+	protected function getFileLockName( $file_num ) {
+		return sprintf( 'ccm_pffa_file_lock_%s', (string) $file_num );
 	}
 
 	/**
