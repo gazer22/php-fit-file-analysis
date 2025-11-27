@@ -5131,6 +5131,8 @@ class phpFITFileAnalysis {
 	 * Destructor - ensure lock is released.
 	 */
 	public function __destruct() {
+		$this->flush_pending_wpdb_results();
+
 		if ( $this->file_num !== null && $this->db ) {
 			try {
 				if ( $this->db->inTransaction() ) {
@@ -5140,6 +5142,67 @@ class phpFITFileAnalysis {
 				// Ignore errors during cleanup
 			}
 			$this->releaseFileLock( $this->file_num );
+		}
+	}
+
+	/**
+	 * Drain any pending mysqli result sets when operating via wpdb.
+	 */
+	protected function flush_pending_wpdb_results() {
+		if ( 'wpdb' !== $this->db_connection_type ) {
+			return;
+		}
+
+		if ( ! class_exists( '\\wpdb', false ) || ! class_exists( '\\mysqli', false ) ) {
+			return;
+		}
+
+		$wpdb = null;
+
+		if ( $this->db instanceof \PFFA_WPDB_Adapter && method_exists( $this->db, 'get_wpdb' ) ) {
+			$wpdb = $this->db->get_wpdb();
+		}
+
+		if ( ! $wpdb && is_object( $this->wpdb_instance ) && is_a( $this->wpdb_instance, 'wpdb' ) ) {
+			$wpdb = $this->wpdb_instance;
+		}
+
+		if ( ! $wpdb && isset( $GLOBALS['wpdb'] ) && is_object( $GLOBALS['wpdb'] ) && is_a( $GLOBALS['wpdb'], 'wpdb' ) ) {
+			$wpdb = $GLOBALS['wpdb'];
+		}
+
+		if ( ! $wpdb || ! isset( $wpdb->dbh ) ) {
+			return;
+		}
+
+		$mysqli = $wpdb->dbh;
+
+		if ( ! ( $mysqli instanceof \mysqli ) ) {
+			return;
+		}
+
+		try {
+			if ( $mysqli->field_count > 0 ) {
+				$result = $mysqli->store_result();
+				if ( $result instanceof \mysqli_result ) {
+					$result->free();
+				}
+			}
+
+			while ( $mysqli->more_results() ) {
+				if ( ! $mysqli->next_result() ) {
+					break;
+				}
+
+				$result = $mysqli->store_result();
+				if ( $result instanceof \mysqli_result ) {
+					$result->free();
+				}
+			}
+		} catch ( \Throwable $e ) {
+			if ( $this->logger ) {
+				$this->logger->debug( 'flush_pending_wpdb_results(): ' . $e->getMessage() );
+			}
 		}
 	}
 
@@ -5377,8 +5440,8 @@ class phpFITFileAnalysis {
 
 			try {
 				$this->db->exec( 'SET SESSION sql_buffer_result = 1' );
-			} catch ( \PDOException $e ) {
-				// ignore if not supported
+			} catch ( \PDOException $e ) { 
+				//phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
 			}
 		} catch ( \PDOException $e ) {
 			$this->logger->error( 'Connection failed: ' . $e->getMessage() );
@@ -5531,6 +5594,7 @@ class phpFITFileAnalysis {
 			$stmt->execute( array( 'file_num' => $file_num ) );
 			$result = $stmt->fetch( \PDO::FETCH_ASSOC );
 			$stmt->closeCursor();
+			$this->flush_pending_wpdb_results();
 
 			if ( $result ) {
 				$this->logger->info( "Checkpoint loaded for file_num {$file_num} at record {$result['record_count']}" );
@@ -5565,13 +5629,19 @@ class phpFITFileAnalysis {
 				if ( $stmt->rowCount() > 0 ) {
 					// Table exists
 					$stmt->closeCursor();
+					$this->flush_pending_wpdb_results();
 					return true;
 				}
 				$stmt->closeCursor();
+				$this->flush_pending_wpdb_results();
 			} else {
 				// For other databases, try to query the table
 				try {
-					$this->db->query( "SELECT 1 FROM {$this->checkpoint_table} LIMIT 1" );
+					$stmt = $this->db->query( "SELECT 1 FROM {$this->checkpoint_table} LIMIT 1" );
+					if ( $stmt ) {
+						$stmt->closeCursor();
+					}
+					$this->flush_pending_wpdb_results();
 					return true;
 				} catch ( \PDOException $e ) {  //phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
 					// Table doesn't exist, create it
@@ -5738,6 +5808,7 @@ class phpFITFileAnalysis {
 
 				$result = $stmt->fetch( \PDO::FETCH_ASSOC );
 				$stmt->closeCursor();
+				$this->flush_pending_wpdb_results();
 
 				if ( $result && strtolower( $result['ENGINE'] ) !== 'innodb' ) {
 					$this->logger->warning(
@@ -8292,6 +8363,7 @@ class phpFITFileAnalysis {
 				$stmt->execute();
 				$columns = $stmt->fetchAll( \PDO::FETCH_COLUMN );
 				$stmt->closeCursor();
+				$this->flush_pending_wpdb_results();
 
 				if ( in_array( 'enhanced_speed', $columns, true ) ) {
 					$use_enhanced_speed = true;
@@ -8352,6 +8424,7 @@ class phpFITFileAnalysis {
 				$dummy = $this->db->query( 'SELECT 1' );
 				if ( $dummy ) {
 					$dummy->closeCursor();
+					$this->flush_pending_wpdb_results();
 				}
 			} catch ( \PDOException $e ) {
 				// ignore - this is only a defensive noop
@@ -8366,6 +8439,7 @@ class phpFITFileAnalysis {
 			$stmt  = $this->db->query( "SELECT COUNT(*) FROM {$temp_table}" );
 			$count = (int) $stmt->fetchColumn();
 			$stmt->closeCursor();
+			$this->flush_pending_wpdb_results();
 		} catch ( \PDOException $e ) {
 			$this->logger->warning( 'calculateStopPoints: Unable to determine temp table count: ' . $e->getMessage() );
 			$count = 0;
@@ -9347,6 +9421,7 @@ class phpFITFileAnalysis {
 			);
 			$locked = (int) $stmt->fetchColumn() === 1;
 			$stmt->closeCursor();
+			$this->flush_pending_wpdb_results();
 
 			if ( $locked ) {
 				$this->logger->debug( "Acquired lock for file {$file_num}" );
@@ -9382,6 +9457,7 @@ class phpFITFileAnalysis {
 			);
 			$result = (int) $stmt->fetchColumn();
 			$stmt->closeCursor();
+			$this->flush_pending_wpdb_results();
 
 			if ( 1 === $result ) {
 				$this->logger->debug( "Released lock for file {$file_num}" );
