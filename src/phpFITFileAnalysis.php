@@ -5440,7 +5440,7 @@ class phpFITFileAnalysis {
 
 			try {
 				$this->db->exec( 'SET SESSION sql_buffer_result = 1' );
-			} catch ( \PDOException $e ) { 
+			} catch ( \PDOException $e ) {
 				//phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedCatch
 			}
 		} catch ( \PDOException $e ) {
@@ -6041,7 +6041,12 @@ class phpFITFileAnalysis {
 
 			$header_start = microtime( true );
 
-			$record_header_byte = unpack( 'C1record_header_byte', fread( $this->file_contents, 1 ) )['record_header_byte'];
+			$byte = fread( $this->file_contents, 1 );
+			if ( '' === $byte || false === $byte ) {
+				throw new \RuntimeException( 'Unexpected end of FIT file while reading record header byte.' );
+			}
+			$record_header_byte = unpack( 'C1record_header_byte', $byte )['record_header_byte'];
+
 			++$this->file_pointer;
 
 			$compressedTimestamp = false;
