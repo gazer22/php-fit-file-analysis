@@ -19,9 +19,9 @@
  */
 class PFFA_Data_Mesgs implements \ArrayAccess, \Iterator {
 	/**
-	 * The PDO database connection instance.
+	 * The database connection instance.
 	 *
-	 * @var \PDO
+	 * @var mixed
 	 */
 	private $db;
 
@@ -56,12 +56,14 @@ class PFFA_Data_Mesgs implements \ArrayAccess, \Iterator {
 	/**
 	 * Constructor for the PFFA_Data_Mesgs class.
 	 *
-	 * @param PDO                      $db     The PDO database connection instance.
+	 * @param mixed                    $db     The database connection instance.
 	 * @param array                    $tables The list of tables used for determining the correct table based on the key.
 	 * @param \Psr\Log\LoggerInterface $logger The logger instance for logging messages.
+	 *
+	 * @throws \InvalidArgumentException When the database connection does not provide the expected interface.
 	 */
 	public function __construct( $db, $tables, $logger ) {
-		if ( ! $db instanceof \PDO ) {
+		if ( ! is_object( $db ) || ! method_exists( $db, 'prepare' ) || ! method_exists( $db, 'query' ) ) {
 			throw new \InvalidArgumentException( 'Invalid database connection provided.' );
 		}
 		$this->db     = $db;
@@ -84,6 +86,9 @@ class PFFA_Data_Mesgs implements \ArrayAccess, \Iterator {
 	 *
 	 * @param mixed $key The key to retrieve.
 	 * @return mixed The cached or fetched data.
+	 *
+	 * @throws \OutOfBoundsException When the key is not tracked by the table metadata.
+	 * @throws \RuntimeException     When the table cache cannot be constructed.
 	 */
 	public function offsetGet( mixed $key ): mixed {
 		if ( ! isset( $this->tables[ $key ] ) ) {

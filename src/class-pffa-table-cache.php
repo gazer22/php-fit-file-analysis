@@ -20,9 +20,9 @@
 class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	// \IteratorAggregate
 	/**
-	 * The PDO database connection instance.
+	 * The database connection instance.
 	 *
-	 * @var \PDO
+	 * @var mixed
 	 */
 	private $db;
 
@@ -78,15 +78,16 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	/**
 	 * Constructor for the PFFA_Table_Cache class.
 	 *
-	 * @param PDO                      $db         The PDO database connection instance.
+	 * @param mixed                    $db         The database connection instance.
 	 * @param string                   $key        The mesg_name for the related table.
 	 * @param string                   $table_name The name of the table to cache.
 	 * @param \Psr\Log\LoggerInterface $logger The logger instance for logging messages.
 	 *
-	 * @throws \RuntimeException If the table cannot be accessed.
+	 * @throws \InvalidArgumentException When the database connection does not provide the expected interface.
+	 * @throws \RuntimeException          If the table cannot be accessed.
 	 */
 	public function __construct( $db, $key, $table_name, $logger ) {
-		if ( ! $db instanceof \PDO ) {
+		if ( ! is_object( $db ) || ! method_exists( $db, 'prepare' ) || ! method_exists( $db, 'query' ) ) {
 			throw new \InvalidArgumentException( 'Invalid database connection provided.' );
 		}
 		$this->db         = $db;
@@ -106,7 +107,7 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 					}
 				)
 			);
-            $stmt->closeCursor();
+			$stmt->closeCursor();
 
 			$this->use_timestamp_as_key = 'record' === $key && in_array( 'timestamp', $this->columns, true );
 		} catch ( \PDOException $e ) {
@@ -149,6 +150,8 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 	 *
 	 * @param mixed $field The offset to retrieve.
 	 * @return mixed The cached or fetched data.
+	 *
+	 * @throws \RuntimeException When the data cannot be retrieved from the database.
 	 */
 	public function offsetGet( mixed $field ): mixed {
 		if ( ! isset( $this->cache[ $field ] ) ) {
@@ -157,12 +160,12 @@ class PFFA_Table_Cache implements \ArrayAccess, \Iterator {
 					$stmt = $this->db->prepare( "SELECT `timestamp`, `{$field}` FROM {$this->table_name} ORDER BY `timestamp`" );
 					$stmt->execute();
 					$this->cache[ $field ] = $stmt->fetchAll( \PDO::FETCH_KEY_PAIR );
-                    $stmt->closeCursor();
+					$stmt->closeCursor();
 				} else {
 					$stmt = $this->db->prepare( "SELECT `{$field}` FROM {$this->table_name}" );
 					$stmt->execute();
-					$result                = $stmt->fetchAll( \PDO::FETCH_COLUMN );
-                    $stmt->closeCursor();
+					$result = $stmt->fetchAll( \PDO::FETCH_COLUMN );
+					$stmt->closeCursor();
 					$this->cache[ $field ] = ( count( $result ) === 1 ) ? $result[0] : $result;
 				}
 			} catch ( \PDOException $e ) {

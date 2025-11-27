@@ -67,7 +67,9 @@ class phpFITFileAnalysis {
 	protected $data_table             = '';       // Base name for data tables in the database.
 	protected $tables_created         = array();  // Stores the name and columns of each table created.
 	protected $file_num               = null;     // File ID.
-	protected $db;                                // PDO object for database connection.
+	protected $db;                                // Database connection adapter (PDO or wpdb adapter).
+	protected $db_connection_type = 'pdo';        // Indicates whether PDO or wpdb is being used.
+	protected $wpdb_instance      = null;         // Cached wpdb instance when using WordPress.
 	protected $db_name;                           // Database name.
 	protected $db_user;                           // Database user.
 	protected $db_pass;                           // Database password.
@@ -4935,6 +4937,7 @@ class phpFITFileAnalysis {
 	 *     - maybe_set_lock_expiration();
 	 */
 	public function __construct( $file_path_or_data, $options = null, $record_callback = null, $logger = null, $queue = null ) {
+		require_once 'class-pffa-wpdb-adapter.php';
 		require_once 'class-pffa-data-mesgs.php';
 		require_once 'class-pffa-table-cache.php';
 
@@ -4961,9 +4964,18 @@ class phpFITFileAnalysis {
 		if ( isset( $options['input_is_data'] ) ) {
 			$this->file_contents = $file_path_or_data;
 		} elseif ( isset( $options['buffer_input_to_db'] ) && $options['buffer_input_to_db'] && $this->checkFileBufferOptions( $options['database'] ) ) {
-			$this->db_name = $options['database']['data_source_name'];
-			$this->db_user = $options['database']['username'];
-			$this->db_pass = $options['database']['password'];
+			if ( isset( $options['database']['wpdb'] ) ) {
+				$this->db_connection_type = 'wpdb';
+				$this->wpdb_instance      = $options['database']['wpdb'];
+				$this->db_name            = ( is_object( $this->wpdb_instance ) && property_exists( $this->wpdb_instance, 'dbname' ) ) ? $this->wpdb_instance->dbname : 'wpdb';
+				$this->db_user            = ( is_object( $this->wpdb_instance ) && property_exists( $this->wpdb_instance, 'dbuser' ) ) ? $this->wpdb_instance->dbuser : null;
+				$this->db_pass            = ( is_object( $this->wpdb_instance ) && property_exists( $this->wpdb_instance, 'dbpassword' ) ) ? $this->wpdb_instance->dbpassword : null;
+			} else {
+				$this->db_connection_type = 'pdo';
+				$this->db_name            = $options['database']['data_source_name'];
+				$this->db_user            = $options['database']['username'];
+				$this->db_pass            = $options['database']['password'];
+			}
 
 			$this->file_buff  = true;
 			$this->data_table = $this->cleanTableName( $options['database']['table_name'] ) . '_';
@@ -4977,7 +4989,9 @@ class phpFITFileAnalysis {
 				$this->logger->error( 'phpFITFileAnalysis->__construct(): unable to connect to database!' );
 				throw new \Exception( 'phpFITFileAnalysis: unable to connect to database' );
 			} else {
-				$this->db->setAttribute( \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true );
+				if ( $this->db instanceof \PDO ) {
+					$this->db->setAttribute( \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true );
+				}
 				$this->logger->debug( 'phpFITFileAnalysis->__construct(): connected to database: ' . $this->db_name );
 			}
 
@@ -5140,6 +5154,11 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'export_state() only works with buffer_input_to_db mode' );
 		}
 
+		$options_for_export = $this->options;
+		if ( isset( $options_for_export['database']['wpdb'] ) ) {
+			unset( $options_for_export['database']['wpdb'] );
+		}
+
 		return array(
 			'file_buff'                 => $this->file_buff,
 			'data_table'                => $this->data_table,
@@ -5147,8 +5166,9 @@ class phpFITFileAnalysis {
 			'db_name'                   => $this->db_name,
 			'db_user'                   => $this->db_user,
 			'db_pass'                   => $this->db_pass,
+			'db_connection_type'        => $this->db_connection_type,
 			'tables_created'            => $this->tables_created,
-			'options'                   => $this->options,
+			'options'                   => $options_for_export,
 			'file_header'               => $this->file_header,
 			'php_trader_ext_loaded'     => $this->php_trader_ext_loaded,
 			'garmin_timestamps'         => $this->garmin_timestamps,
@@ -5169,14 +5189,15 @@ class phpFITFileAnalysis {
 	 *
 	 * @param array  $state  State data from export_state().
 	 * @param Logger $logger Logger instance.
+	 * @param mixed  $wpdb   Optional wpdb instance when restoring in WordPress.
 	 * @return phpFITFileAnalysis Reconstructed instance.
 	 */
-	public static function from_state( $state, $logger = null ) {
+	public static function from_state( $state, $logger = null, $wpdb = null ) {
 		// Create a dummy instance without processing files
 		$instance = new self( null, null, null, $logger );
 
 		try {
-			$instance->initializeFromState( $state );
+			$instance->initializeFromState( $state, $wpdb );
 		} catch ( \Exception $e ) {
 			throw new \Exception( 'Failed to initialize phpFITFileAnalysis from state: ' . $e->getMessage() );
 		}
@@ -5190,7 +5211,7 @@ class phpFITFileAnalysis {
 	 * @param array $state State data from export_state().
 	 * @throws \Exception If database reconnection fails.
 	 */
-	public function initializeFromState( $state ) {
+	public function initializeFromState( $state, $wpdb = null ) {
 		// Restore state
 		$this->file_buff               = $state['file_buff'];
 		$this->data_table              = $state['data_table'];
@@ -5198,6 +5219,7 @@ class phpFITFileAnalysis {
 		$this->db_name                 = $state['db_name'];
 		$this->db_user                 = $state['db_user'];
 		$this->db_pass                 = $state['db_pass'];
+		$this->db_connection_type      = $state['db_connection_type'] ?? 'pdo';
 		$this->tables_created          = $state['tables_created'];
 		$this->options                 = $state['options'];
 		$this->file_header             = $state['file_header'];
@@ -5213,6 +5235,28 @@ class phpFITFileAnalysis {
 		$this->file_pointer            = $state['file_pointer'] ?? 0;
 		$this->defn_mesgs              = $state['defn_mesgs'] ?? array();
 		$this->dev_field_descriptions  = $state['dev_field_descriptions'] ?? array();
+
+		if ( 'wpdb' === $this->db_connection_type ) {
+			if ( null === $wpdb && isset( $GLOBALS['wpdb'] ) && is_object( $GLOBALS['wpdb'] ) ) {
+				$wpdb = $GLOBALS['wpdb'];
+			}
+
+			if ( null === $wpdb ) {
+				throw new \Exception( 'WordPress wpdb instance required to restore state.' );
+			}
+
+			$this->wpdb_instance               = $wpdb;
+			$this->options['database']['wpdb'] = $wpdb;
+			if ( ! $this->db_name && property_exists( $wpdb, 'dbname' ) ) {
+				$this->db_name = $wpdb->dbname;
+			}
+			if ( ! $this->db_user && property_exists( $wpdb, 'dbuser' ) ) {
+				$this->db_user = $wpdb->dbuser;
+			}
+			if ( ! $this->db_pass && property_exists( $wpdb, 'dbpassword' ) ) {
+				$this->db_pass = $wpdb->dbpassword;
+			}
+		}
 
 		$this->logger->debug( 'phpFITFileAnalysis: instance restored from state for file_num ' . $this->file_num . ", file header:\n" . print_r( $this->file_header, true ) );
 
@@ -5289,30 +5333,59 @@ class phpFITFileAnalysis {
 	 * Establish database connection.
 	 */
 	protected function connect_to_db() {
-		if ( $this->file_buff ) {
+		if ( ! $this->file_buff ) {
+			return true;
+		}
+
+		if ( $this->db instanceof \PDO || $this->db instanceof \PFFA_WPDB_Adapter ) {
+			return true;
+		}
+
+		if ( 'wpdb' === $this->db_connection_type ) {
+			if ( ! $this->wpdb_instance && isset( $this->options['database']['wpdb'] ) ) {
+				$this->wpdb_instance = $this->options['database']['wpdb'];
+			}
+
+			if ( ! $this->wpdb_instance ) {
+				$this->logger->error( 'WordPress database instance not provided for buffered input.' );
+				return false;
+			}
+
 			try {
-				$pdoOptions = array(
-					\PDO::ATTR_ERRMODE                  => \PDO::ERRMODE_EXCEPTION,
-					\PDO::ATTR_DEFAULT_FETCH_MODE       => \PDO::FETCH_ASSOC,
-					\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true, // prevent HY000 2014 unbuffered query error
-				);
-
-				$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass, $pdoOptions );
-
-				// Optional: explicitly buffer results at session level for MySQL.
-				// Not strictly necessary with PDO buffered queries, but harmless.
-				try {
-					$this->db->exec( 'SET SESSION sql_buffer_result = 1' );
-				} catch ( \PDOException $e ) {
-					// ignore if not supported
+				$this->db = new \PFFA_WPDB_Adapter( $this->wpdb_instance );
+				if ( ! $this->db_name && is_object( $this->wpdb_instance ) && property_exists( $this->wpdb_instance, 'dbname' ) ) {
+					$this->db_name = $this->wpdb_instance->dbname;
 				}
-                $this->logger->debug( 'phpFITFileAnalysis->__construct(): connected to database: ' . $this->db_name );
-			} catch ( \PDOException $e ) {
+				$this->logger->debug( 'phpFITFileAnalysis: using wpdb connection: ' . $this->db_name );
+			} catch ( \Exception $e ) {
 				$this->logger->error( 'Connection failed: ' . $e->getMessage() );
 				$this->db = null;
 				return false;
 			}
+
+			return true;
 		}
+
+		try {
+			$pdoOptions = array(
+				\PDO::ATTR_ERRMODE                  => \PDO::ERRMODE_EXCEPTION,
+				\PDO::ATTR_DEFAULT_FETCH_MODE       => \PDO::FETCH_ASSOC,
+				\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+			);
+
+			$this->db = new \PDO( $this->db_name, $this->db_user, $this->db_pass, $pdoOptions );
+
+			try {
+				$this->db->exec( 'SET SESSION sql_buffer_result = 1' );
+			} catch ( \PDOException $e ) {
+				// ignore if not supported
+			}
+		} catch ( \PDOException $e ) {
+			$this->logger->error( 'Connection failed: ' . $e->getMessage() );
+			$this->db = null;
+			return false;
+		}
+
 		return true;
 	}
 
@@ -5596,7 +5669,7 @@ class phpFITFileAnalysis {
 	 */
 	protected function processMegaBatchWithCheckpoint( $total_records_processed ) {
 		if ( ! $this->db ) {
-			$this->logger->error( 'PDO database connection required for checkpointing' );
+			$this->logger->error( 'Database connection required for checkpointing' );
 			return false;
 		}
 
@@ -5687,6 +5760,7 @@ class phpFITFileAnalysis {
 	 *      'data_source_name' => 'mysql:host=localhost;dbname=testdb',
 	 *      'username'         => 'user',
 	 *      'password'         => 'password',
+	 *      'wpdb'             => $GLOBALS['wpdb'], // Optional: use WordPress wpdb instead of PDO credentials.
 	 * @return bool
 	 * @throws \Exception if any of the required options are missing or invalid.
 	 */
@@ -5695,6 +5769,17 @@ class phpFITFileAnalysis {
 		if ( ! isset( $options['table_name'] ) || ! is_string( $options['table_name'] ) ) {
 			$this->logger->error( 'phpFITFileAnalysis->checkFileBufferOptions(): table_name option is required when buffer_input_to_db is set to true' );
 			throw new \Exception( 'phpFITFileAnalysis->checkFileBufferOptions(): table_name option is required when buffer_input_to_db is set to true!' );
+		}
+
+		if ( isset( $options['wpdb'] ) ) {
+			if ( ! is_object( $options['wpdb'] ) || ! method_exists( $options['wpdb'], 'prepare' ) || ! method_exists( $options['wpdb'], 'query' ) ) {
+				$this->logger->error( 'phpFITFileAnalysis->checkFileBufferOptions(): wpdb option must be a valid WordPress database instance when provided.' );
+				throw new \Exception( 'phpFITFileAnalysis->checkFileBufferOptions(): wpdb option must be a valid WordPress database instance when provided!' );
+			}
+
+			$this->db_connection_type = 'wpdb';
+			$this->wpdb_instance      = $options['wpdb'];
+			return true;
 		}
 
 		if ( ! isset( $options['data_source_name'] ) || ! is_string( $options['data_source_name'] ) ) {
@@ -5711,6 +5796,7 @@ class phpFITFileAnalysis {
 			throw new \Exception( 'phpFITFileAnalysis->checkFileBufferOptions(): password option is required when buffer_input_to_db is set to true!' );
 		}
 
+		$this->db_connection_type = 'pdo';
 		return true;
 	}
 
@@ -8610,7 +8696,11 @@ class phpFITFileAnalysis {
 		$power_metrics['Kilojoules']    = ( $power_metrics['Average Power'] * count( $this->data_mesgs['record']['power'] ) ) / 1000;
 
 		// NP1 capture all values for rolling 30s averages
-		$NP_values = ( $this->php_trader_ext_loaded ) ? trader_sma( $this->data_mesgs['record']['power'], 30 ) : $this->sma( $this->data_mesgs['record']['power'], 30 );
+		if ( $this->php_trader_ext_loaded && function_exists( '\\trader_sma' ) ) {
+			$NP_values = call_user_func( '\\trader_sma', $this->data_mesgs['record']['power'], 30 );
+		} else {
+			$NP_values = $this->sma( $this->data_mesgs['record']['power'], 30 );
+		}
 
 		$NormalisedPower = 0.0;
 		$total_NP_values = 0;
@@ -8657,7 +8747,11 @@ class phpFITFileAnalysis {
 					break;
 				}
 
-				$averages = ( $this->php_trader_ext_loaded ) ? trader_sma( $this->data_mesgs['record']['power'], $time_period ) : $this->sma( $this->data_mesgs['record']['power'], $time_period );
+				if ( $this->php_trader_ext_loaded && function_exists( '\\trader_sma' ) ) {
+					$averages = call_user_func( '\\trader_sma', $this->data_mesgs['record']['power'], $time_period );
+				} else {
+					$averages = $this->sma( $this->data_mesgs['record']['power'], $time_period );
+				}
 				if ( $averages !== false ) {
 					$criticalPower_values[ $time_period ] = max( $averages );
 				}
@@ -8668,7 +8762,11 @@ class phpFITFileAnalysis {
 			if ( $time_periods > count( $this->data_mesgs['record']['power'] ) ) {
 				$criticalPower_values[ $time_periods ] = 0;
 			} else {
-				$averages = ( $this->php_trader_ext_loaded ) ? trader_sma( $this->data_mesgs['record']['power'], $time_periods ) : $this->sma( $this->data_mesgs['record']['power'], $time_periods );
+				if ( $this->php_trader_ext_loaded && function_exists( '\\trader_sma' ) ) {
+					$averages = call_user_func( '\\trader_sma', $this->data_mesgs['record']['power'], $time_periods );
+				} else {
+					$averages = $this->sma( $this->data_mesgs['record']['power'], $time_periods );
+				}
 				if ( $averages !== false ) {
 					$criticalPower_values[ $time_periods ] = max( $averages );
 				}
