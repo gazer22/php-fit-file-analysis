@@ -6204,7 +6204,11 @@ class phpFITFileAnalysis {
 							if ( isset( $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ] ) && isset( $this->types[ $field_defn['base_type'] ] ) ) {
 								$field_name = $this->data_mesg_info[ $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] ]['field_defns'][ $field_defn['field_definition_number'] ]['field_name'];
 								// Check if it's an invalid value for the type
-								$tmp_value = unpack( $this->types[ $field_defn['base_type'] ]['format'], fread( $this->file_contents, $field_defn['size'] ) )['tmp'];
+								$data = fread( $this->file_contents, $field_defn['size'] );
+								if ( strlen( $data ) < $field_defn['size'] ) {
+									throw new \RuntimeException( 'Unexpected end of FIT file while reading field data. Expected ' . $field_defn['size'] . ' bytes but found ' . strlen( $data ) );
+								}
+								$tmp_value = unpack( $this->types[ $field_defn['base_type'] ]['format'], $data )['tmp'];
 								// $tmp_value = unpack( $this->types[ $field_defn['base_type'] ]['format'], substr( $this->file_contents, $this->file_pointer, $field_defn['size'] ) )['tmp'];
 								if ( $tmp_value !== $this->invalid_values[ $field_defn['base_type'] ] || $this->defn_mesgs[ $local_mesg_type ]['global_mesg_num'] === 132 ) {
 									// If it's a timestamp, compensate between different in FIT and Unix timestamp epochs
